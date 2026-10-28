@@ -97,41 +97,33 @@ Fraud Tenant is a secure, modern, responsive WordPress-based rental incident rep
 ---
 
 ### PHASE 3 — Registration, Email OTP, Login and Password Recovery
-- **Objective**: Build secure authentication for Owners and Tenants with 6-digit email OTP verification, password recovery, anti-enumeration safeguards, and lifecycle routing.
-- **Status**: **COMPLETED** (2026-10-28)
+- **Objective**: Build secure authentication for Owners and Tenants with two distinct role-specific registration experiences, secure ownership document storage, 6-digit email OTP verification, password recovery, anti-enumeration safeguards, and lifecycle routing.
+- **Status**: **COMPLETED & CORRECTED** (2026-10-28)
 - **Delivered**:
-  - `OtpService` in `wp-content/plugins/fraud-tenant-core/includes/Services/OtpService.php`:
-    - Cryptographically secure 6-digit numeric OTP generation (`random_int(100000, 999999)`).
-    - Keyed HMAC-SHA-256 verifier hashing via `SecurityService::hash_otp()` using dedicated server-side secret `FT_OTP_SECRET_KEY`.
-    - Fail-closed security architecture when secret is missing or empty.
-    - Constant-time verification using `hash_equals()`.
-    - 60-second resend cooldown (`resend_available_at`), 10-minute expiry (`expires_at`), max 5 failed attempts per challenge, and single-use invalidation (`consumed_at`).
-    - Automatic user status transition from `email_unverified` to `pending_approval` upon successful OTP confirmation.
-  - `AuthService` in `wp-content/plugins/fraud-tenant-core/includes/Auth/AuthService.php`:
-    - Dual role registration supporting `ft_owner` (Property Owner) and `ft_tenant` (Tenant).
-    - Initial registration status set to `email_unverified` with profile created in `wp_ft_user_profiles`.
-    - Generic anti-enumeration response on duplicate email submissions.
-    - IP-based brute-force throttling (5 failed attempts within 15 minutes enforces a 15-minute temporary lockout).
-    - Lifecycle-aware login gateway: `email_unverified` redirected to `/verify-otp/`, `pending_approval` redirected to `/account-status/`, and `rejected`/`suspended` accounts blocked.
-    - Password recovery dispatch with enumeration protection, secure reset key generation via WordPress core mechanisms, and constant-time key validation.
-  - `AuthHandler` in `wp-content/plugins/fraud-tenant-core/includes/Auth/AuthHandler.php`:
-    - Registered `admin_post_*` and `admin_post_nopriv_*` hooks for registration, OTP verification, OTP resend, login, logout, password recovery, and password reset.
-    - Strict CSRF nonce validation on all form submissions.
-    - Session-isolated flash message handling via transients for clean redirects.
-  - Custom Theme Authentication Templates in `wp-content/themes/fraud-tenant-theme/`:
-    - `page-login.php`: Split auth card matching showcase mockup, left form column with email and toggleable password inputs, right photographic column with modern suburban visual and floating glassmorphism card ("Safer Tenancies Stronger Communities").
-    - `page-register.php`: Dual role selector cards (Property Owner vs. Tenant with SVG icons and active state), name, email, password confirmation, terms acceptance checkbox, and full-width teal CTA.
-    - `page-verify-otp.php`: Centered card with email address display, 6 individual numeric inputs with auto-advance and clipboard paste support, Verify OTP CTA, and live countdown timer toggling to "Resend Code".
-    - `page-forgot-password.php`: Centered card with email input and generic dispatch confirmation.
-    - `page-reset-password.php`: Secure key & login parameter verification, new password inputs with eye toggles, and update submission.
-    - `page-account-status.php`: Holding page for pending/suspended/rejected accounts with status badge, 4-step progress indicator, user account details grid, and sign-out button.
-    - Separation of shells: dedicated minimal auth header and footer suppressing marketing navigation.
-    - Interactive UX in `assets/js/main.js`: password visibility eye toggles, role selector card switcher, 6-digit OTP input auto-advance, backspace navigation, clipboard paste handler, and countdown timer.
-  - Automated Integration Testing:
-    - 30 comprehensive automated integration test assertions executed via PHP CLI covering all registration validation, role assignment, initial `email_unverified` status, duplicate email anti-enumeration, login blocking, OTP hashing, cooldowns, single-use replays, status transitions, administrator bypass, password reset keys, and password updates (`Passed: 30 | Failed: 0`).
-  - Visual Verification:
-    - Headless Chrome captures on desktop and mobile viewports verifying pixel-level styling, typography, colors, and zero horizontal scroll.
-- **Acceptance Criteria**: All 30 tests pass; registration creates user with proper role and `email_unverified` status; OTP generated and verified with HMAC-SHA-256; login routes correctly based on lifecycle status; password recovery functions securely; theme templates match design system and showcase layout.
+  - **Two Distinct Registration Forms**:
+    - **Property Owner Form (`#ft-register-owner-form`)**: Full legal name (first/last), email address, phone number, password & confirmation, primary rental property street address, city, US state select, ZIP code, property ownership document upload (`ownership_document`), Terms of Service acceptance, and Privacy Policy / FCRA permissible purpose acknowledgement.
+    - **Tenant Form (`#ft-register-tenant-form`)**: Full legal name (first/last), email address, phone number, password & confirmation, current residential street address, city, US state select, ZIP code, conditional previous rental history toggle & fields (`prev_street`, `prev_city`, `prev_state`, `prev_zip`), Terms of Service acceptance, and Privacy Policy acknowledgement. Explicitly zero Date of Birth field.
+  - **Secure Document Management Service (`DocumentService`)**:
+    - Private protected storage located at `wp-content/uploads/fraud-tenant-protected/`.
+    - Protected by Apache `.htaccess` (`Order Deny,Allow`, `Deny from all`, `<IfModule mod_authz_core.c> Require all denied </IfModule>`), `index.php` blocking directory traversal, and IIS `web.config`.
+    - Strictly verified direct HTTP access blocking returning `HTTP 403 Forbidden`.
+    - Strict server-side validation: MIME type check via PHP `finfo` (`application/pdf`, `image/jpeg`, `image/png`), extension check (`.pdf`, `.png`, `.jpg`, `.jpeg`), and maximum 10MB file size limit.
+    - Unguessable randomized file naming: `doc_<token>_<timestamp>.<ext>`.
+    - Insertion into `wp_ft_documents` with `access_permission = 'private'`; zero public URLs exposed.
+  - **Database Schema Version 1.1.0 (`Schema.php`, `MigrationManager.php`)**:
+    - Non-destructively migrated `wp_ft_user_profiles` table adding: `prev_address_line1`, `prev_city`, `prev_state`, `prev_postal_code`, `terms_accepted_at`, and `privacy_accepted_at`.
+  - **Core Authentication Services**:
+    - `OtpService`: 6-digit numeric generation, HMAC-SHA-256 verifier with `FT_OTP_SECRET_KEY`, 60-second cooldown, 10-minute expiry, max 5 attempts, constant-time `hash_equals()`, single-use invalidation, and status transition to `pending_approval`.
+    - `AuthService`: `register_owner()`, `register_tenant()`, server-side validation, duplicate email anti-enumeration, IP brute-force lockout, lifecycle status routing, password recovery.
+    - `AuthHandler`: Web POST actions, flash messaging, and form draft repopulation on validation errors.
+  - **Presentation & Responsive UX (`fraud-tenant-theme`)**:
+    - `page-register.php`: Showcase role cards acting as accessible tab switchers between Owner and Tenant forms; direct query parameter support (`?role=owner`, `?role=tenant`); document dropzone; conditional previous address toggle; field-level validation feedback.
+    - `page-account-status.php`: Enhanced with registered property address, ownership document status badge, phone, and tenant rental history.
+    - `assets/js/main.js` & `assets/css/main.css`: Responsive 3-col and 2-col grids collapsing on mobile; live document filename feedback; OTP auto-advance; countdown timers.
+  - **Testing & Verification**:
+    - Comprehensive 43-test automated integration suite covering helper validators, server-side validation rejections, file extension/size guards, private document storage, and account lifecycles (**43/43 PASS**).
+    - Multi-device Headless Chrome screenshots captured across desktop and mobile.
+- **Acceptance Criteria**: Both distinct forms validated server-side; ownership document safely stored in private protected directory; Apache returns 403 on direct access; OTP verification functions as specified; no date of birth collected; automated tests pass.
 
 ---
 

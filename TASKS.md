@@ -57,6 +57,10 @@
 - [x] **Task 3.5**: Build forgot-password and reset-password flows with enumeration protection. *(Completed: `page-forgot-password.php` and `page-reset-password.php` using WordPress core password reset keys, constant-time validation, and audit logging)*
 - [x] **Task 3.6**: Implement account status lifecycle (`email_unverified`, `pending_approval`, `approved`, `rejected`, `suspended`). *(Completed: Lifecycle enforced in `AuthService`, holding page `page-account-status.php` with 4-step progress indicator and account details)*
 - [x] **Task 3.7**: Test full authentication cycle in browser. *(Completed: 30 automated integration test assertions PASS; Headless Chrome screenshots captured and verified across desktop and mobile)*
+- [x] **Task 3.8**: Implement two distinct registration experiences for Property Owner and Tenant. *(Completed: Form A with primary property address & ownership doc; Form B with current residence & conditional rental history; interactive role tab switching and distinct form endpoints)*
+- [x] **Task 3.9**: Implement secure property ownership document upload pipeline (`DocumentService`). *(Completed: Private storage in `fraud-tenant-protected/` with `.htaccess` `Deny from all`, `Require all denied`, index.php, web.config, MIME/extension/size validation, randomized filenames, and zero public URL exposure)*
+- [x] **Task 3.10**: Update schema to version `1.1.0` and migrate new profile columns. *(Completed: Added `prev_address_line1`, `prev_city`, `prev_state`, `prev_postal_code`, `terms_accepted_at`, `privacy_accepted_at` via versioned `dbDelta()`)*
+- [x] **Task 3.11**: Execute comprehensive 43-test suite covering distinct registration forms, validation rejections, document storage security, and OTP lifecycle. *(Completed: 43/43 assertions PASS)*
 
 ---
 

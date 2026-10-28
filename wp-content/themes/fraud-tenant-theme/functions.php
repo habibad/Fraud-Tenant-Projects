@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'FRAUD_TENANT_THEME_VERSION', '1.0.6' );
+define( 'FRAUD_TENANT_THEME_VERSION', '1.0.7' );
 
 /**
  * Sets up theme defaults and registers support for various WordPress features.

@@ -232,6 +232,58 @@
 
 ---
 
+## Phase 3 Correction Test Execution & Verification
+
+### Distinct Registration Experiences, Secure Document Storage & Field Validation
+| Test ID | Test Name | Method / Assertion | Result | Evidence / Details |
+| :--- | :--- | :--- | :---: | :--- |
+| **3C.1** | Phone Format Validator (Dashes) | `AuthService::validate_phone('555-123-4567')` | **PASS** | Valid 10-digit US phone passes |
+| **3C.2** | Phone Format Validator (Parens) | `AuthService::validate_phone('(555) 123-4567')` | **PASS** | Valid formatted US phone passes |
+| **3C.3** | Phone Format Validator (Country Code) | `AuthService::validate_phone('+1 555 123 4567')` | **PASS** | Valid 11-digit US phone with code passes |
+| **3C.4** | Phone Short Digits Guard | `AuthService::validate_phone('12345')` | **PASS** | Short phone numbers rejected |
+| **3C.5** | ZIP Code Validator (5 Digits) | `AuthService::validate_zip('90210')` | **PASS** | Valid standard 5-digit ZIP passes |
+| **3C.6** | ZIP Code Validator (ZIP+4) | `AuthService::validate_zip('90210-1234')` | **PASS** | Valid 9-digit US ZIP+4 passes |
+| **3C.7** | ZIP Code Truncated Guard | `AuthService::validate_zip('9021')` | **PASS** | 4-digit ZIP rejected |
+| **3C.8** | ZIP Code Non-Numeric Guard | `AuthService::validate_zip('ABCDE')` | **PASS** | Non-numeric ZIP rejected |
+| **3C.9** | Owner Registration Missing Name Guard | `AuthService::register_owner()` with empty name | **PASS** | Rejected with `missing_name` error |
+| **3C.10** | Owner Registration Invalid Email Guard | `AuthService::register_owner()` with malformed email | **PASS** | Rejected with `invalid_email` error |
+| **3C.11** | Owner Registration Invalid Phone Guard | `AuthService::register_owner()` with short phone | **PASS** | Rejected with `invalid_phone` error |
+| **3C.12** | Owner Registration Password Mismatch | `AuthService::register_owner()` with mismatch pw | **PASS** | Rejected with `password_mismatch` error |
+| **3C.13** | Owner Registration Missing Property Street | `AuthService::register_owner()` with empty street | **PASS** | Rejected with `missing_property_street` error |
+| **3C.14** | Owner Registration Invalid Property ZIP | `AuthService::register_owner()` with 4-digit ZIP | **PASS** | Rejected with `invalid_property_zip` error |
+| **3C.15** | Owner Registration Missing Document Guard | `AuthService::register_owner()` with no file | **PASS** | Rejected with `missing_document` error |
+| **3C.16** | Owner Registration Disallowed Extension | Uploading `.php` / `.txt` file | **PASS** | Rejected with `invalid_file_extension` error |
+| **3C.17** | Owner Registration Oversized File Guard | Uploading >10MB document file | **PASS** | Rejected with `file_size_limit_exceeded` error |
+| **3C.18** | Owner Registration Terms Consent Guard | Unchecked `terms_accepted` | **PASS** | Rejected with `terms_unacknowledged` error |
+| **3C.19** | Owner Registration Privacy Consent Guard | Unchecked `privacy_accepted` | **PASS** | Rejected with `privacy_unacknowledged` error |
+| **3C.20** | Valid Property Owner Registration | `AuthService::register_owner()` with valid data | **PASS** | Core user, profile, property & document records created |
+| **3C.21** | Owner Role Assignment | User roles inspection | **PASS** | User assigned `ft_owner` role strictly |
+| **3C.22** | Owner Profile Initial Status | Profile inspection in `wp_ft_user_profiles` | **PASS** | Profile status set to `email_unverified` |
+| **3C.23** | Terms & Privacy Timestamps Recorded | Profile audit inspection | **PASS** | `terms_accepted_at` and `privacy_accepted_at` recorded |
+| **3C.24** | Owner Phone Number Persisted | Profile inspection | **PASS** | Phone number saved in `wp_ft_user_profiles.phone` |
+| **3C.25** | Primary Property Persistence | `wp_ft_properties` inspection | **PASS** | Address recorded with `pending_verification` status |
+| **3C.26** | Ownership Document Record Persistence | `wp_ft_documents` inspection | **PASS** | Document registered with `access_permission = 'private'` |
+| **3C.27** | Physical Document Storage In Protected Dir | File system check in `fraud-tenant-protected/` | **PASS** | File stored with randomized name `doc_<token>_<time>.<ext>` |
+| **3C.28** | Protected Storage Direct HTTP Access Block | `curl.exe -I http://.../fraud-tenant-protected/...` | **PASS** | Apache returns `HTTP 403 Forbidden` (`.htaccess` enforced) |
+| **3C.29** | Tenant Registration Missing Name Guard | `AuthService::register_tenant()` with empty name | **PASS** | Rejected with `missing_name` error |
+| **3C.30** | Tenant Registration Missing Current Street | `AuthService::register_tenant()` with empty street | **PASS** | Rejected with `missing_current_street` error |
+| **3C.31** | Tenant Incomplete Previous Address Guard | Incomplete previous rental address | **PASS** | Rejected with `incomplete_previous_address` error |
+| **3C.32** | Valid Tenant Registration Success | `AuthService::register_tenant()` with valid data | **PASS** | Core user and profile records created |
+| **3C.33** | Tenant Role Assignment | User roles inspection | **PASS** | User assigned `ft_tenant` role strictly |
+| **3C.34** | Tenant Profile Initial Status | Profile inspection in `wp_ft_user_profiles` | **PASS** | Profile status set to `email_unverified` |
+| **3C.35** | Tenant Current Residence Persisted | Profile inspection | **PASS** | Street, city, state, and ZIP saved in profile |
+| **3C.36** | Tenant Previous Residence Persisted | Profile inspection | **PASS** | `prev_address_line1`, `prev_city`, etc. saved in profile |
+| **3C.37** | Date of Birth Exclusion Verification | Profile schema inspection | **PASS** | Zero date of birth field collected or stored |
+| **3C.38** | Duplicate Registration Anti-Enumeration | Re-submitting registered email | **PASS** | Generic success returned; existence not disclosed |
+| **3C.39** | OTP Generation Challenge Parameters | `wp_ft_email_otps` inspection | **PASS** | 6-digit code, 10-min expiry, max 5 attempts, 60s cooldown |
+| **3C.40** | Incorrect OTP Verifier Guard | Submitting incorrect OTP | **PASS** | Rejected; attempt counter incremented |
+| **3C.41** | Valid OTP Verification | Submitting matching HMAC OTP | **PASS** | Verification succeeds; single-use timestamp applied |
+| **3C.42** | Status Transition to Pending Review | User status check | **PASS** | Status transitions from `email_unverified` to `pending_approval` |
+| **3C.43** | Pending Approval Routing | `AuthService::login()` with verified user | **PASS** | User routed to `/account-status/` holding page |
+| **3C.44** | Production SMTP Real Inbox Delivery | Live outbound SMTP relay check | **NOT TESTED** | Local XAMPP environment; mock/DB verification verified |
+
+---
+
 ## Phase Test Summary Table
 
 | Phase / Review | Total Tests | PASS | FAIL | BLOCKED | NOT TESTED |
@@ -242,4 +294,5 @@
 | **Phase 2 Custom Theme & Website** | 25 | 24 | 0 | 0 | 1 |
 | **Phase 2 Final Corrective Audit** | 35 | 34 | 0 | 0 | 1 |
 | **Phase 3 Auth, OTP & Recovery** | 30 | 30 | 0 | 0 | 0 |
-| **Total Verified** | **130** | **128** | **0** | **0** | **2** |
+| **Phase 3 Correction: Forms & Docs** | 44 | 43 | 0 | 0 | 1 |
+| **Total Verified** | **174** | **171** | **0** | **0** | **3** |

@@ -8,6 +8,7 @@
 namespace FraudTenant\Auth;
 
 use FraudTenant\Services\AuditLogger;
+use FraudTenant\Services\DocumentService;
 use FraudTenant\Services\OtpService;
 use FraudTenant\Utils\Constants;
 use WP_User;
@@ -23,27 +24,85 @@ class AuthService {
 	public const LOGIN_LOCKOUT_SECS  = 900; // 15 minutes
 
 	/**
+	 * Validate standard US phone number format.
+	 *
+	 * @param string $phone Phone number string.
+	 * @return bool True if valid.
+	 */
+	public static function validate_phone( string $phone ): bool {
+		$digits = preg_replace( '/\D/', '', $phone );
+		if ( 10 === strlen( $digits ) ) {
+			return true;
+		}
+		if ( 11 === strlen( $digits ) && '1' === $digits[0] ) {
+			return true;
+		}
+		return false;
+	}
+
+	/**
+	 * Validate 5-digit US ZIP code or 9-digit ZIP+4.
+	 *
+	 * @param string $zip ZIP code.
+	 * @return bool True if valid.
+	 */
+	public static function validate_zip( string $zip ): bool {
+		return (bool) preg_match( '/^\d{5}(-\d{4})?$/', trim( $zip ) );
+	}
+
+	/**
 	 * Register a new user safely as ft_owner or ft_tenant.
 	 *
-	 * @param array $data Input form data.
+	 * @param array $data  Input form data.
+	 * @param array $files Uploaded $_FILES data.
 	 * @return array Result array with status and redirect/notice information.
 	 */
-	public static function register( array $data ): array {
-		// 1. Sanitize Inputs
-		$first_name = isset( $data['first_name'] ) ? sanitize_text_field( trim( $data['first_name'] ) ) : '';
-		$last_name  = isset( $data['last_name'] ) ? sanitize_text_field( trim( $data['last_name'] ) ) : '';
-		$email      = isset( $data['email'] ) ? sanitize_email( trim( $data['email'] ) ) : '';
-		$password   = isset( $data['password'] ) ? (string) $data['password'] : '';
-		$confirm_pw = isset( $data['confirm_password'] ) ? (string) $data['confirm_password'] : '';
-		$role_input = isset( $data['account_type'] ) ? sanitize_key( $data['account_type'] ) : '';
-		$terms_ack  = ! empty( $data['terms_acknowledged'] );
+	public static function register( array $data, array $files = array() ): array {
+		$account_type = isset( $data['account_type'] ) ? sanitize_key( $data['account_type'] ) : '';
 
-		// 2. Validate Inputs
+		if ( 'owner' === $account_type ) {
+			return self::register_owner( $data, $files );
+		}
+
+		if ( 'tenant' === $account_type ) {
+			return self::register_tenant( $data );
+		}
+
+		return array(
+			'success' => false,
+			'error'   => 'invalid_account_type',
+			'message' => __( 'Please select a valid account type (Property Owner or Tenant).', 'fraud-tenant-core' ),
+		);
+	}
+
+	/**
+	 * Register an Individual Property Owner account.
+	 *
+	 * @param array $data  Submitted form fields.
+	 * @param array $files Uploaded $_FILES array.
+	 * @return array Result array.
+	 */
+	public static function register_owner( array $data, array $files = array() ): array {
+		// 1. Sanitize Inputs
+		$first_name       = isset( $data['first_name'] ) ? sanitize_text_field( trim( $data['first_name'] ) ) : '';
+		$last_name        = isset( $data['last_name'] ) ? sanitize_text_field( trim( $data['last_name'] ) ) : '';
+		$email            = isset( $data['email'] ) ? sanitize_email( trim( $data['email'] ) ) : '';
+		$phone            = isset( $data['phone'] ) ? sanitize_text_field( trim( $data['phone'] ) ) : '';
+		$password         = isset( $data['password'] ) ? (string) $data['password'] : '';
+		$confirm_pw       = isset( $data['confirm_password'] ) ? (string) $data['confirm_password'] : '';
+		$property_street  = isset( $data['property_street'] ) ? sanitize_text_field( trim( $data['property_street'] ) ) : ( isset( $data['address_line1'] ) ? sanitize_text_field( trim( $data['address_line1'] ) ) : '' );
+		$property_city    = isset( $data['property_city'] ) ? sanitize_text_field( trim( $data['property_city'] ) ) : ( isset( $data['city'] ) ? sanitize_text_field( trim( $data['city'] ) ) : '' );
+		$property_state   = isset( $data['property_state'] ) ? sanitize_text_field( trim( $data['property_state'] ) ) : ( isset( $data['state'] ) ? sanitize_text_field( trim( $data['state'] ) ) : '' );
+		$property_zip     = isset( $data['property_zip'] ) ? sanitize_text_field( trim( $data['property_zip'] ) ) : ( isset( $data['postal_code'] ) ? sanitize_text_field( trim( $data['postal_code'] ) ) : '' );
+		$terms_accepted   = ! empty( $data['terms_accepted'] ) || ! empty( $data['terms_acknowledged'] );
+		$privacy_accepted = ! empty( $data['privacy_accepted'] ) || ! empty( $data['terms_acknowledged'] );
+
+		// 2. Validate Required Fields Server-Side
 		if ( empty( $first_name ) || empty( $last_name ) ) {
 			return array(
 				'success' => false,
 				'error'   => 'missing_name',
-				'message' => __( 'Please enter both your first and last name.', 'fraud-tenant-core' ),
+				'message' => __( 'Please enter both your first and last legal name.', 'fraud-tenant-core' ),
 			);
 		}
 
@@ -52,6 +111,14 @@ class AuthService {
 				'success' => false,
 				'error'   => 'invalid_email',
 				'message' => __( 'Please enter a valid email address.', 'fraud-tenant-core' ),
+			);
+		}
+
+		if ( empty( $phone ) || ! self::validate_phone( $phone ) ) {
+			return array(
+				'success' => false,
+				'error'   => 'invalid_phone',
+				'message' => __( 'Please enter a valid 10-digit phone number.', 'fraud-tenant-core' ),
 			);
 		}
 
@@ -75,35 +142,91 @@ class AuthService {
 			);
 		}
 
-		// Strictly enforce allowed registration roles
-		if ( 'owner' === $role_input ) {
-			$wp_role      = Constants::ROLE_OWNER;
-			$profile_type = 'owner';
-		} elseif ( 'tenant' === $role_input ) {
-			$wp_role      = Constants::ROLE_TENANT;
-			$profile_type = 'tenant';
-		} else {
+		if ( empty( $property_street ) ) {
 			return array(
 				'success' => false,
-				'error'   => 'invalid_account_type',
-				'message' => __( 'Please select a valid account type (Property Owner or Tenant).', 'fraud-tenant-core' ),
+				'error'   => 'missing_property_street',
+				'message' => __( 'Please enter the property street address.', 'fraud-tenant-core' ),
 			);
 		}
 
-		if ( ! $terms_ack ) {
+		if ( empty( $property_city ) ) {
+			return array(
+				'success' => false,
+				'error'   => 'missing_property_city',
+				'message' => __( 'Please enter the property city.', 'fraud-tenant-core' ),
+			);
+		}
+
+		if ( empty( $property_state ) ) {
+			return array(
+				'success' => false,
+				'error'   => 'missing_property_state',
+				'message' => __( 'Please enter the property state.', 'fraud-tenant-core' ),
+			);
+		}
+
+		if ( empty( $property_zip ) || ! self::validate_zip( $property_zip ) ) {
+			return array(
+				'success' => false,
+				'error'   => 'invalid_property_zip',
+				'message' => __( 'Please enter a valid 5-digit US ZIP code for the property.', 'fraud-tenant-core' ),
+			);
+		}
+
+		// Pre-flight file check for property ownership document
+		$doc_file = $files['ownership_document'] ?? $files['document'] ?? null;
+		if ( ! $doc_file || ! is_array( $doc_file ) || ( isset( $doc_file['error'] ) && UPLOAD_ERR_NO_FILE === $doc_file['error'] ) ) {
+			return array(
+				'success' => false,
+				'error'   => 'missing_document',
+				'message' => __( 'Please upload a property ownership verification document (Deed, Tax Assessment, or Utility Bill in PDF, PNG, or JPG format).', 'fraud-tenant-core' ),
+			);
+		}
+
+		// Quick pre-flight validation on file extension and size before user creation
+		$ext = strtolower( pathinfo( (string) ( $doc_file['name'] ?? '' ), PATHINFO_EXTENSION ) );
+		if ( ! in_array( $ext, DocumentService::ALLOWED_EXTENSIONS, true ) ) {
+			return array(
+				'success' => false,
+				'error'   => 'invalid_file_extension',
+				'message' => __( 'Invalid document file type. Only PDF, PNG, and JPEG documents are accepted.', 'fraud-tenant-core' ),
+			);
+		}
+
+		if ( (int) ( $doc_file['size'] ?? 0 ) > DocumentService::MAX_FILE_SIZE ) {
+			return array(
+				'success' => false,
+				'error'   => 'file_size_limit_exceeded',
+				'message' => sprintf(
+					/* translators: %d: maximum file size in megabytes */
+					__( 'Document size must be less than %d MB.', 'fraud-tenant-core' ),
+					(int) ( DocumentService::MAX_FILE_SIZE / ( 1024 * 1024 ) )
+				),
+			);
+		}
+
+		if ( ! $terms_accepted ) {
 			return array(
 				'success' => false,
 				'error'   => 'terms_unacknowledged',
-				'message' => __( 'You must acknowledge the Terms of Service and Privacy Policy to register.', 'fraud-tenant-core' ),
+				'message' => __( 'You must accept the Terms of Service to register as a Property Owner.', 'fraud-tenant-core' ),
 			);
 		}
 
-		// 3. Check Duplicate Email Safely (Prevent account enumeration leaks)
+		if ( ! $privacy_accepted ) {
+			return array(
+				'success' => false,
+				'error'   => 'privacy_unacknowledged',
+				'message' => __( 'You must acknowledge the Privacy Policy to register as a Property Owner.', 'fraud-tenant-core' ),
+			);
+		}
+
+		// 3. Duplicate Email Anti-Enumeration Protection
 		if ( email_exists( $email ) ) {
 			$existing_user = get_user_by( 'email', $email );
 			$status        = $existing_user ? self::get_user_account_status( $existing_user->ID ) : '';
 
-			// If user exists and is unverified, re-send OTP safely
 			if ( Constants::STATUS_EMAIL_UNVERIFIED === $status && $existing_user ) {
 				OtpService::generate_otp( $existing_user->ID, $email, 'registration' );
 				return array(
@@ -114,7 +237,6 @@ class AuthService {
 				);
 			}
 
-			// If already registered and verified, return generic success without revealing existence
 			return array(
 				'success'  => true,
 				'email'    => $email,
@@ -123,11 +245,9 @@ class AuthService {
 			);
 		}
 
-		// 4. Generate Unique Username from Email
+		// 4. Create Core WordPress User
 		$username = self::generate_unique_username( $email );
-
-		// 5. Create Core WordPress User
-		$user_id = wp_insert_user(
+		$user_id  = wp_insert_user(
 			array(
 				'user_login'   => $username,
 				'user_email'   => $email,
@@ -135,7 +255,7 @@ class AuthService {
 				'first_name'   => $first_name,
 				'last_name'    => $last_name,
 				'display_name' => trim( $first_name . ' ' . $last_name ),
-				'role'         => $wp_role,
+				'role'         => Constants::ROLE_OWNER,
 			)
 		);
 
@@ -147,26 +267,31 @@ class AuthService {
 			);
 		}
 
-		// 6. Create Application Profile Record
+		// 5. Create Profile Record
 		global $wpdb;
-		$profiles_table = $wpdb->prefix . Constants::TABLE_USER_PROFILES;
-		$now            = current_time( 'mysql', true );
+		$now = current_time( 'mysql', true );
 
 		$profile_created = $wpdb->insert(
-			$profiles_table,
+			$wpdb->prefix . Constants::TABLE_USER_PROFILES,
 			array(
-				'user_id'           => $user_id,
-				'account_type'      => $profile_type,
-				'approval_status'   => Constants::STATUS_EMAIL_UNVERIFIED,
-				'identity_verified' => 0,
-				'created_at'        => $now,
-				'updated_at'        => $now,
+				'user_id'             => $user_id,
+				'account_type'        => 'owner',
+				'approval_status'     => Constants::STATUS_EMAIL_UNVERIFIED,
+				'phone'               => $phone,
+				'address_line1'       => $property_street,
+				'city'                => $property_city,
+				'state'               => $property_state,
+				'postal_code'         => $property_zip,
+				'terms_accepted_at'   => $now,
+				'privacy_accepted_at' => $now,
+				'identity_verified'   => 0,
+				'created_at'          => $now,
+				'updated_at'          => $now,
 			),
-			array( '%d', '%s', '%s', '%d', '%s', '%s' )
+			array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' )
 		);
 
 		if ( false === $profile_created ) {
-			// Compensating cleanup: remove orphan WP user if profile creation failed
 			wp_delete_user( $user_id );
 			return array(
 				'success' => false,
@@ -175,18 +300,308 @@ class AuthService {
 			);
 		}
 
-		// 7. Dispatch Initial Email OTP
+		// 6. Create Initial Property Record
+		$property_title   = trim( $property_street . ', ' . $property_city . ', ' . $property_state );
+		$property_created = $wpdb->insert(
+			$wpdb->prefix . Constants::TABLE_PROPERTIES,
+			array(
+				'owner_id'       => $user_id,
+				'title'          => $property_title,
+				'address_street' => $property_street,
+				'city'           => $property_city,
+				'state'          => $property_state,
+				'postal_code'    => $property_zip,
+				'property_type'  => 'single_family',
+				'units_count'    => 1,
+				'status'         => 'pending_verification',
+				'created_at'     => $now,
+				'updated_at'     => $now,
+			),
+			array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%s' )
+		);
+
+		$property_id = $property_created ? (int) $wpdb->insert_id : 0;
+
+		// 7. Store Property Ownership Document in Private Protected Storage
+		$doc_result = DocumentService::store_ownership_document( $user_id, $property_id, $doc_file );
+		if ( ! $doc_result['success'] ) {
+			// Roll back property, profile, and user
+			if ( $property_id > 0 ) {
+				$wpdb->delete( $wpdb->prefix . Constants::TABLE_PROPERTIES, array( 'id' => $property_id ), array( '%d' ) );
+			}
+			$wpdb->delete( $wpdb->prefix . Constants::TABLE_USER_PROFILES, array( 'user_id' => $user_id ), array( '%d' ) );
+			wp_delete_user( $user_id );
+
+			return array(
+				'success' => false,
+				'error'   => $doc_result['error'],
+				'message' => $doc_result['message'],
+			);
+		}
+
+		// 8. Dispatch Initial Email OTP
 		$otp_result = OtpService::generate_otp( $user_id, $email, 'registration' );
 
-		// 8. Audit Logging (Zero passwords or plaintext OTPs)
+		// 9. Audit Logging (Zero secrets or raw file paths logged)
 		AuditLogger::log(
-			'auth.user_registered',
+			'auth.owner_registered',
 			'user',
 			$user_id,
 			array(
-				'account_type' => $profile_type,
+				'account_type' => 'owner',
 				'email_hash'   => hash( 'sha256', $email ),
+				'property_id'  => $property_id,
+				'document_id'  => $doc_result['document_id'] ?? 0,
 				'mail_sent'    => $otp_result['mail_sent'] ?? false,
+			),
+			$user_id
+		);
+
+		return array(
+			'success'     => true,
+			'user_id'     => $user_id,
+			'email'       => $email,
+			'property_id' => $property_id,
+			'document_id' => $doc_result['document_id'] ?? 0,
+			'redirect'    => add_query_arg( 'email', urlencode( $email ), home_url( '/verify-otp/' ) ),
+			'mail_sent'   => $otp_result['mail_sent'] ?? false,
+			'message'     => __( 'Registration successful! A 6-digit verification code has been dispatched to your email address.', 'fraud-tenant-core' ),
+		);
+	}
+
+	/**
+	 * Register an Individual Tenant account.
+	 *
+	 * @param array $data Submitted form fields.
+	 * @return array Result array.
+	 */
+	public static function register_tenant( array $data ): array {
+		// 1. Sanitize Inputs
+		$first_name       = isset( $data['first_name'] ) ? sanitize_text_field( trim( $data['first_name'] ) ) : '';
+		$last_name        = isset( $data['last_name'] ) ? sanitize_text_field( trim( $data['last_name'] ) ) : '';
+		$email            = isset( $data['email'] ) ? sanitize_email( trim( $data['email'] ) ) : '';
+		$phone            = isset( $data['phone'] ) ? sanitize_text_field( trim( $data['phone'] ) ) : '';
+		$password         = isset( $data['password'] ) ? (string) $data['password'] : '';
+		$confirm_pw       = isset( $data['confirm_password'] ) ? (string) $data['confirm_password'] : '';
+		$current_street   = isset( $data['current_street'] ) ? sanitize_text_field( trim( $data['current_street'] ) ) : ( isset( $data['address_line1'] ) ? sanitize_text_field( trim( $data['address_line1'] ) ) : '' );
+		$current_city     = isset( $data['current_city'] ) ? sanitize_text_field( trim( $data['current_city'] ) ) : ( isset( $data['city'] ) ? sanitize_text_field( trim( $data['city'] ) ) : '' );
+		$current_state    = isset( $data['current_state'] ) ? sanitize_text_field( trim( $data['current_state'] ) ) : ( isset( $data['state'] ) ? sanitize_text_field( trim( $data['state'] ) ) : '' );
+		$current_zip      = isset( $data['current_zip'] ) ? sanitize_text_field( trim( $data['current_zip'] ) ) : ( isset( $data['postal_code'] ) ? sanitize_text_field( trim( $data['postal_code'] ) ) : '' );
+		$has_prev_address = ! empty( $data['has_previous_address'] );
+		$prev_street      = isset( $data['prev_street'] ) ? sanitize_text_field( trim( $data['prev_street'] ) ) : '';
+		$prev_city        = isset( $data['prev_city'] ) ? sanitize_text_field( trim( $data['prev_city'] ) ) : '';
+		$prev_state       = isset( $data['prev_state'] ) ? sanitize_text_field( trim( $data['prev_state'] ) ) : '';
+		$prev_zip         = isset( $data['prev_zip'] ) ? sanitize_text_field( trim( $data['prev_zip'] ) ) : '';
+		$terms_accepted   = ! empty( $data['terms_accepted'] ) || ! empty( $data['terms_acknowledged'] );
+		$privacy_accepted = ! empty( $data['privacy_accepted'] ) || ! empty( $data['terms_acknowledged'] );
+
+		// 2. Validate Inputs Server-Side
+		if ( empty( $first_name ) || empty( $last_name ) ) {
+			return array(
+				'success' => false,
+				'error'   => 'missing_name',
+				'message' => __( 'Please enter both your first and last legal name.', 'fraud-tenant-core' ),
+			);
+		}
+
+		if ( ! is_email( $email ) ) {
+			return array(
+				'success' => false,
+				'error'   => 'invalid_email',
+				'message' => __( 'Please enter a valid email address.', 'fraud-tenant-core' ),
+			);
+		}
+
+		if ( empty( $phone ) || ! self::validate_phone( $phone ) ) {
+			return array(
+				'success' => false,
+				'error'   => 'invalid_phone',
+				'message' => __( 'Please enter a valid 10-digit phone number.', 'fraud-tenant-core' ),
+			);
+		}
+
+		if ( strlen( $password ) < self::MIN_PASSWORD_LENGTH ) {
+			return array(
+				'success' => false,
+				'error'   => 'weak_password',
+				'message' => sprintf(
+					/* translators: %d: minimum password length */
+					__( 'Password must be at least %d characters long.', 'fraud-tenant-core' ),
+					self::MIN_PASSWORD_LENGTH
+				),
+			);
+		}
+
+		if ( $password !== $confirm_pw ) {
+			return array(
+				'success' => false,
+				'error'   => 'password_mismatch',
+				'message' => __( 'The entered passwords do not match.', 'fraud-tenant-core' ),
+			);
+		}
+
+		if ( empty( $current_street ) ) {
+			return array(
+				'success' => false,
+				'error'   => 'missing_current_street',
+				'message' => __( 'Please enter your current residential street address.', 'fraud-tenant-core' ),
+			);
+		}
+
+		if ( empty( $current_city ) ) {
+			return array(
+				'success' => false,
+				'error'   => 'missing_current_city',
+				'message' => __( 'Please enter your current city.', 'fraud-tenant-core' ),
+			);
+		}
+
+		if ( empty( $current_state ) ) {
+			return array(
+				'success' => false,
+				'error'   => 'missing_current_state',
+				'message' => __( 'Please enter your current state.', 'fraud-tenant-core' ),
+			);
+		}
+
+		if ( empty( $current_zip ) || ! self::validate_zip( $current_zip ) ) {
+			return array(
+				'success' => false,
+				'error'   => 'invalid_current_zip',
+				'message' => __( 'Please enter a valid 5-digit US ZIP code for your current residence.', 'fraud-tenant-core' ),
+			);
+		}
+
+		// Conditional validation for previous rental address
+		if ( $has_prev_address ) {
+			if ( empty( $prev_street ) || empty( $prev_city ) || empty( $prev_state ) ) {
+				return array(
+					'success' => false,
+					'error'   => 'incomplete_previous_address',
+					'message' => __( 'Please complete all previous rental address fields or uncheck the previous rental address option.', 'fraud-tenant-core' ),
+				);
+			}
+
+			if ( empty( $prev_zip ) || ! self::validate_zip( $prev_zip ) ) {
+				return array(
+					'success' => false,
+					'error'   => 'invalid_previous_zip',
+					'message' => __( 'Please enter a valid 5-digit US ZIP code for your previous rental address.', 'fraud-tenant-core' ),
+				);
+			}
+		}
+
+		if ( ! $terms_accepted ) {
+			return array(
+				'success' => false,
+				'error'   => 'terms_unacknowledged',
+				'message' => __( 'You must accept the Terms of Service to register as a Tenant.', 'fraud-tenant-core' ),
+			);
+		}
+
+		if ( ! $privacy_accepted ) {
+			return array(
+				'success' => false,
+				'error'   => 'privacy_unacknowledged',
+				'message' => __( 'You must acknowledge the Privacy Policy to register as a Tenant.', 'fraud-tenant-core' ),
+			);
+		}
+
+		// 3. Duplicate Email Anti-Enumeration Protection
+		if ( email_exists( $email ) ) {
+			$existing_user = get_user_by( 'email', $email );
+			$status        = $existing_user ? self::get_user_account_status( $existing_user->ID ) : '';
+
+			if ( Constants::STATUS_EMAIL_UNVERIFIED === $status && $existing_user ) {
+				OtpService::generate_otp( $existing_user->ID, $email, 'registration' );
+				return array(
+					'success'  => true,
+					'email'    => $email,
+					'redirect' => add_query_arg( 'email', urlencode( $email ), home_url( '/verify-otp/' ) ),
+					'message'  => __( 'A verification code has been dispatched to your email address.', 'fraud-tenant-core' ),
+				);
+			}
+
+			return array(
+				'success'  => true,
+				'email'    => $email,
+				'redirect' => add_query_arg( 'email', urlencode( $email ), home_url( '/verify-otp/' ) ),
+				'message'  => __( 'Registration received. If eligible, a verification code has been dispatched.', 'fraud-tenant-core' ),
+			);
+		}
+
+		// 4. Create Core WordPress User
+		$username = self::generate_unique_username( $email );
+		$user_id  = wp_insert_user(
+			array(
+				'user_login'   => $username,
+				'user_email'   => $email,
+				'user_pass'    => $password,
+				'first_name'   => $first_name,
+				'last_name'    => $last_name,
+				'display_name' => trim( $first_name . ' ' . $last_name ),
+				'role'         => Constants::ROLE_TENANT,
+			)
+		);
+
+		if ( is_wp_error( $user_id ) ) {
+			return array(
+				'success' => false,
+				'error'   => 'user_creation_failed',
+				'message' => __( 'Could not complete registration. Please try again later.', 'fraud-tenant-core' ),
+			);
+		}
+
+		// 5. Create Profile Record
+		global $wpdb;
+		$now = current_time( 'mysql', true );
+
+		$profile_created = $wpdb->insert(
+			$wpdb->prefix . Constants::TABLE_USER_PROFILES,
+			array(
+				'user_id'             => $user_id,
+				'account_type'        => 'tenant',
+				'approval_status'     => Constants::STATUS_EMAIL_UNVERIFIED,
+				'phone'               => $phone,
+				'address_line1'       => $current_street,
+				'city'                => $current_city,
+				'state'               => $current_state,
+				'postal_code'         => $current_zip,
+				'prev_address_line1'  => $has_prev_address ? $prev_street : null,
+				'prev_city'           => $has_prev_address ? $prev_city : null,
+				'prev_state'          => $has_prev_address ? $prev_state : null,
+				'prev_postal_code'    => $has_prev_address ? $prev_zip : null,
+				'terms_accepted_at'   => $now,
+				'privacy_accepted_at' => $now,
+				'identity_verified'   => 0,
+				'created_at'          => $now,
+				'updated_at'          => $now,
+			),
+			array( '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' )
+		);
+
+		if ( false === $profile_created ) {
+			wp_delete_user( $user_id );
+			return array(
+				'success' => false,
+				'error'   => 'profile_creation_failed',
+				'message' => __( 'Failed to initialize account profile. Please try again.', 'fraud-tenant-core' ),
+			);
+		}
+
+		// 6. Dispatch Initial Email OTP
+		$otp_result = OtpService::generate_otp( $user_id, $email, 'registration' );
+
+		// 7. Audit Logging
+		AuditLogger::log(
+			'auth.tenant_registered',
+			'user',
+			$user_id,
+			array(
+				'account_type'     => 'tenant',
+				'email_hash'       => hash( 'sha256', $email ),
+				'has_prev_address' => $has_prev_address,
+				'mail_sent'        => $otp_result['mail_sent'] ?? false,
 			),
 			$user_id
 		);
@@ -197,7 +612,7 @@ class AuthService {
 			'email'     => $email,
 			'redirect'  => add_query_arg( 'email', urlencode( $email ), home_url( '/verify-otp/' ) ),
 			'mail_sent' => $otp_result['mail_sent'] ?? false,
-			'message'   => __( 'Registration successful! A 6-digit verification code has been sent to your email.', 'fraud-tenant-core' ),
+			'message'   => __( 'Registration successful! A 6-digit verification code has been dispatched to your email address.', 'fraud-tenant-core' ),
 		);
 	}
 

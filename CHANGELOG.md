@@ -4,6 +4,51 @@ All notable changes to the Fraud Tenant platform will be documented in this file
 
 ---
 
+## [Phase 3.1] — Phase 3 Correction: Distinct Registration Forms & Secure Document Storage (2026-10-28)
+
+### Distinct Role-Specific Registration Experiences
+- **Property Owner Registration Form (`#ft-register-owner-form`)**:
+  - Full legal name (first/last), email address, phone number, password & confirmation with visibility eye toggles.
+  - Primary rental property address details: street address, city, US state selection, and 5-digit ZIP code.
+  - Property ownership verification document upload: supports genuine PDF, PNG, and JPEG files under 10MB.
+  - Mandatory separate check-boxes for Terms of Service acceptance and Privacy Policy / FCRA permissible purpose acknowledgement.
+  - Automatically provisions records across WordPress users (`ft_owner`), `wp_ft_user_profiles`, `wp_ft_properties` (status `pending_verification`), and `wp_ft_documents` (permission `private`).
+- **Tenant Registration Form (`#ft-register-tenant-form`)**:
+  - Full legal name (first/last), email address, phone number, password & confirmation with visibility eye toggles.
+  - Current residential street address, city, US state selection, and 5-digit ZIP code.
+  - Conditional previous rental history section: reveals previous street, city, state, and ZIP when opted in.
+  - Strictly excludes Date of Birth collection per directives.
+  - Mandatory separate check-boxes for Terms of Service and Privacy Policy agreements.
+  - Automatically provisions records across WordPress users (`ft_tenant`) and `wp_ft_user_profiles`.
+
+### Secure Document Management Pipeline (`DocumentService.php`)
+- Built `FraudTenant\Services\DocumentService` located in `wp-content/plugins/fraud-tenant-core/includes/Services/DocumentService.php`.
+- Established protected storage root at `wp-content/uploads/fraud-tenant-protected/`.
+- Enforced multi-layered web access protection:
+  - Apache `.htaccess` with `Order Deny,Allow`, `Deny from all`, `<IfModule mod_authz_core.c> Require all denied </IfModule>`, and explicit script extension execution blocking.
+  - Directory index traversal prevention via `index.php` returning `HTTP 403 Forbidden`.
+  - Microsoft IIS `web.config` with `<deny users="*" />`.
+  - Direct HTTP verification: confirmed `curl.exe` returns `HTTP/1.1 403 Forbidden` on direct web access.
+- Server-side MIME verification using PHP `finfo`, strict extension checking (`pdf`, `png`, `jpg`, `jpeg`), and 10MB size limit.
+- Unguessable randomized file naming: `doc_<token>_<timestamp>.<ext>`.
+- Zero public document URL exposure.
+
+### Database Schema Version 1.1.0
+- Updated `Constants::DB_VERSION` to `1.1.0`.
+- Applied idempotent `dbDelta()` migration adding columns to `wp_ft_user_profiles`:
+  - `prev_address_line1 (varchar(255))`
+  - `prev_city (varchar(100))`
+  - `prev_state (varchar(50))`
+  - `prev_postal_code (varchar(20))`
+  - `terms_accepted_at (datetime)`
+  - `privacy_accepted_at (datetime)`
+
+### Testing & Verification
+- Executed 43 dedicated automated integration test assertions covering all field validation, role assignment, file upload constraints, protected storage, and account status transitions (`Passed: 43 | Failed: 0`).
+- Captured Headless Chrome screenshots for Desktop Owner, Desktop Tenant, Mobile Owner, and Mobile Tenant registration views.
+
+---
+
 ## [Phase 3] — Registration, Email OTP, Login & Password Recovery (2026-10-28)
 
 ### Core Backend Services (`fraud-tenant-core`)

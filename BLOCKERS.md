@@ -56,7 +56,7 @@ This document tracks all external dependencies, missing credentials, infrastruct
 ## 4. Protected Storage Infrastructure
 
 ### BLK-05: Private Document Storage Root Outside Webroot
-- **Impacted Phase**: Phase 6 (Property Management & Document Uploads)
-- **Status**: `ARCHITECTURE ESTABLISHED IN PHASE 1`
-- **Details**: `wp_ft_documents` schema created with `file_path`, `access_permission`, and ownership constraints.
-- **Resolution**: Use `wp-content/uploads/fraud-tenant-protected/` with `.htaccess` `Deny from all` and authorized PHP streaming controller during Phase 6.
+- **Impacted Phase**: Phase 3 (Ownership Document Upload), Phase 4 (Admin Review), Phase 6 (Property Documents)
+- **Status**: `IMPLEMENTED & VERIFIED IN PHASE 3`
+- **Details**: Implemented `DocumentService` in `wp-content/plugins/fraud-tenant-core/includes/Services/DocumentService.php`. Uses private directory `wp-content/uploads/fraud-tenant-protected/` secured by Apache `.htaccess` (`Deny from all`, `Require all denied`), `index.php` (403 Exit), and IIS `web.config`.
+- **Verification**: Verified live via `curl.exe` returning `HTTP/1.1 403 Forbidden` on direct web access. Authorized PHP streaming controller to be utilized in Phase 4 admin review and Phase 6 document access.

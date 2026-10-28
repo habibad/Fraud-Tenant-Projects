@@ -111,20 +111,84 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // 5. Role Selection Cards Interaction (Registration Page)
-  const roleCards = document.querySelectorAll('.role-card');
-  roleCards.forEach(function (card) {
-    card.addEventListener('click', function () {
-      const radio = card.querySelector('input[type="radio"]');
-      if (radio) {
-        radio.checked = true;
-      }
-      roleCards.forEach(function (c) {
-        c.classList.remove('is-active');
+  // 5. Distinct Role Registration Tabs & Interactions (Registration Page)
+  const roleTabButtons = document.querySelectorAll('.role-tab-btn');
+  const ownerContainer = document.getElementById('form-container-owner');
+  const tenantContainer = document.getElementById('form-container-tenant');
+
+  if (roleTabButtons.length > 0 && ownerContainer && tenantContainer) {
+    const switchRegistrationRole = function (role) {
+      roleTabButtons.forEach(function (btn) {
+        const isTarget = btn.getAttribute('data-role') === role;
+        btn.classList.toggle('is-active', isTarget);
+        btn.setAttribute('aria-selected', isTarget ? 'true' : 'false');
       });
-      card.classList.add('is-active');
+
+      if (role === 'owner') {
+        ownerContainer.classList.remove('is-hidden');
+        ownerContainer.classList.add('is-visible');
+        tenantContainer.classList.remove('is-visible');
+        tenantContainer.classList.add('is-hidden');
+      } else {
+        tenantContainer.classList.remove('is-hidden');
+        tenantContainer.classList.add('is-visible');
+        ownerContainer.classList.remove('is-visible');
+        ownerContainer.classList.add('is-hidden');
+      }
+
+      // Update URL query string without reloading page
+      if (window.history && window.history.replaceState) {
+        const url = new URL(window.location);
+        url.searchParams.set('role', role);
+        window.history.replaceState({}, '', url);
+      }
+    };
+
+    roleTabButtons.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        const role = btn.getAttribute('data-role');
+        switchRegistrationRole(role);
+      });
     });
-  });
+  }
+
+  // 5b. Tenant Previous Rental Address Conditional Toggle
+  const prevAddressToggle = document.getElementById('toggle-previous-address');
+  const prevAddressFields = document.getElementById('prev-address-fields');
+  if (prevAddressToggle && prevAddressFields) {
+    prevAddressToggle.addEventListener('change', function () {
+      if (prevAddressToggle.checked) {
+        prevAddressFields.classList.remove('is-hidden');
+        prevAddressFields.classList.add('is-visible');
+        const firstPrevInput = prevAddressFields.querySelector('input');
+        if (firstPrevInput) firstPrevInput.focus();
+      } else {
+        prevAddressFields.classList.remove('is-visible');
+        prevAddressFields.classList.add('is-hidden');
+      }
+    });
+  }
+
+  // 5c. Ownership Document Upload Visual Feedback
+  const ownerDocInput = document.getElementById('owner-document');
+  if (ownerDocInput) {
+    ownerDocInput.addEventListener('change', function () {
+      const uploadText = document.querySelector('.upload-primary-text');
+      const uploadHint = document.querySelector('.upload-hint-text');
+      if (ownerDocInput.files && ownerDocInput.files.length > 0) {
+        const file = ownerDocInput.files[0];
+        const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+        if (uploadText) {
+          uploadText.textContent = file.name;
+          uploadText.style.fontWeight = '600';
+          uploadText.style.color = '#0E9488';
+        }
+        if (uploadHint) {
+          uploadHint.textContent = 'Selected document (' + sizeMb + ' MB). Ready to verify upon submission.';
+        }
+      }
+    });
+  }
 
   // 6. 6-Digit OTP Inputs Auto-advance & Paste (Verify OTP Page)
   const otpInputs = document.querySelectorAll('.otp-digit-input');

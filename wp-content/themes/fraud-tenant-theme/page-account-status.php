@@ -133,9 +133,11 @@ get_header();
 							<span class="detail-label"><?php esc_html_e( 'Account Role', 'fraud-tenant-theme' ); ?></span>
 							<span class="detail-value">
 								<?php
-								if ( in_array( Constants::ROLE_OWNER, (array) $current_user->roles, true ) ) {
-									echo esc_html__( 'Property Owner', 'fraud-tenant-theme' );
-								} elseif ( in_array( Constants::ROLE_TENANT, (array) $current_user->roles, true ) ) {
+								$is_owner  = in_array( Constants::ROLE_OWNER, (array) $current_user->roles, true );
+								$is_tenant = in_array( Constants::ROLE_TENANT, (array) $current_user->roles, true );
+								if ( $is_owner ) {
+									echo esc_html__( 'Individual Property Owner', 'fraud-tenant-theme' );
+								} elseif ( $is_tenant ) {
 									echo esc_html__( 'Tenant', 'fraud-tenant-theme' );
 								} elseif ( in_array( 'administrator', (array) $current_user->roles, true ) ) {
 									echo esc_html__( 'Administrator', 'fraud-tenant-theme' );
@@ -153,6 +155,56 @@ get_header();
 								</span>
 							</span>
 						</div>
+
+						<?php if ( ! empty( $profile->phone ) ) : ?>
+							<div class="status-detail-item">
+								<span class="detail-label"><?php esc_html_e( 'Phone Number', 'fraud-tenant-theme' ); ?></span>
+								<span class="detail-value"><?php echo esc_html( $profile->phone ); ?></span>
+							</div>
+						<?php endif; ?>
+
+						<?php if ( $is_owner ) : ?>
+							<?php
+							global $wpdb;
+							$prop_table     = $wpdb->prefix . Constants::TABLE_PROPERTIES;
+							$owner_property = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$prop_table} WHERE owner_id = %d ORDER BY id DESC LIMIT 1", $user_id ) );
+							$doc_table      = $wpdb->prefix . Constants::TABLE_DOCUMENTS;
+							$owner_document = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$doc_table} WHERE user_id = %d AND object_type = 'property_ownership' ORDER BY id DESC LIMIT 1", $user_id ) );
+							?>
+							<?php if ( $owner_property ) : ?>
+								<div class="status-detail-item">
+									<span class="detail-label"><?php esc_html_e( 'Primary Property Address', 'fraud-tenant-theme' ); ?></span>
+									<span class="detail-value">
+										<?php echo esc_html( $owner_property->address_street . ', ' . $owner_property->city . ', ' . $owner_property->state . ' ' . $owner_property->postal_code ); ?>
+									</span>
+								</div>
+							<?php endif; ?>
+							<?php if ( $owner_document ) : ?>
+								<div class="status-detail-item">
+									<span class="detail-label"><?php esc_html_e( 'Ownership Proof Document', 'fraud-tenant-theme' ); ?></span>
+									<span class="detail-value document-status-attached">
+										<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0E9488" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+										<?php echo esc_html( $owner_document->original_name ); ?>
+										<small style="display:block; color:var(--text-muted); font-size:12px; margin-top:2px;"><?php esc_html_e( 'Protected Private Storage (Pending Compliance Review)', 'fraud-tenant-theme' ); ?></small>
+									</span>
+								</div>
+							<?php endif; ?>
+						<?php elseif ( $is_tenant && ! empty( $profile->address_line1 ) ) : ?>
+							<div class="status-detail-item">
+								<span class="detail-label"><?php esc_html_e( 'Current Residential Address', 'fraud-tenant-theme' ); ?></span>
+								<span class="detail-value">
+									<?php echo esc_html( $profile->address_line1 . ', ' . $profile->city . ', ' . $profile->state . ' ' . $profile->postal_code ); ?>
+								</span>
+							</div>
+							<?php if ( ! empty( $profile->prev_address_line1 ) ) : ?>
+								<div class="status-detail-item">
+									<span class="detail-label"><?php esc_html_e( 'Previous Rental Address', 'fraud-tenant-theme' ); ?></span>
+									<span class="detail-value">
+										<?php echo esc_html( $profile->prev_address_line1 . ', ' . $profile->prev_city . ', ' . $profile->prev_state . ' ' . $profile->prev_postal_code ); ?>
+									</span>
+								</div>
+							<?php endif; ?>
+						<?php endif; ?>
 					</div>
 				</div>
 
@@ -168,3 +220,4 @@ get_header();
 
 <?php
 get_footer();
+

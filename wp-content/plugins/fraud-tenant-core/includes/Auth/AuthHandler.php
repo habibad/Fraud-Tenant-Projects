@@ -50,13 +50,17 @@ class AuthHandler {
 			wp_die( esc_html__( 'Security check failed. Please refresh the registration page and try again.', 'fraud-tenant-core' ), 403 );
 		}
 
-		$result = AuthService::register( $_POST );
+		$role   = isset( $_POST['account_type'] ) && 'tenant' === sanitize_key( $_POST['account_type'] ) ? 'tenant' : 'owner';
+		$result = AuthService::register( $_POST, $_FILES );
 
 		if ( $result['success'] ) {
 			wp_safe_redirect( $result['redirect'] );
 		} else {
-			self::set_flash_notice( 'error', $result['message'] );
-			wp_safe_redirect( home_url( '/register/' ) );
+			$preserved_data = $_POST;
+			unset( $preserved_data['password'], $preserved_data['confirm_password'], $preserved_data['ft_register_nonce'] );
+			self::set_flash_form_data( $preserved_data );
+			self::set_flash_notice( 'error', $result['message'], $result['error'] ?? '' );
+			wp_safe_redirect( add_query_arg( 'role', $role, home_url( '/register/' ) ) );
 		}
 
 		if ( ! defined( 'FT_DOING_TESTS' ) ) {
@@ -235,19 +239,21 @@ class AuthHandler {
 	/**
 	 * Set a temporary flash notice stored in a short-lived transient.
 	 *
-	 * @param string $type    'success' or 'error'.
-	 * @param string $message Notice text.
+	 * @param string $type       'success' or 'error'.
+	 * @param string $message    Notice text.
+	 * @param string $error_code Optional error machine code.
 	 */
-	public static function set_flash_notice( string $type, string $message ): void {
+	public static function set_flash_notice( string $type, string $message, string $error_code = '' ): void {
 		$ip  = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1' ) );
 		$key = 'ft_auth_notice_' . md5( $ip );
 		set_transient(
 			$key,
 			array(
-				'type'    => $type,
-				'message' => $message,
+				'type'       => $type,
+				'message'    => $message,
+				'error_code' => $error_code,
 			),
-			120
+			180
 		);
 	}
 
@@ -266,4 +272,32 @@ class AuthHandler {
 		}
 		return null;
 	}
+
+	/**
+	 * Store draft form data temporarily for repopulation on validation error.
+	 *
+	 * @param array $data Form data (sanitized, excluding passwords).
+	 */
+	public static function set_flash_form_data( array $data ): void {
+		$ip  = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1' ) );
+		$key = 'ft_auth_form_' . md5( $ip );
+		set_transient( $key, $data, 180 );
+	}
+
+	/**
+	 * Retrieve and consume draft form data.
+	 *
+	 * @return array Draft data or empty array.
+	 */
+	public static function get_flash_form_data(): array {
+		$ip  = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1' ) );
+		$key = 'ft_auth_form_' . md5( $ip );
+		$val = get_transient( $key );
+		if ( $val && is_array( $val ) ) {
+			delete_transient( $key );
+			return $val;
+		}
+		return array();
+	}
 }
+

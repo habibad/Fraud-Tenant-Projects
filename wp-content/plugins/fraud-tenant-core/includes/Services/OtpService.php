@@ -318,3 +318,4 @@ class OtpService {
 		return wp_mail( $email, $subject, $body, $headers );
 	}
 }
+

@@ -68,13 +68,13 @@ c:\xampp\htdocs\fraudtenant/
 │   │           ├── Database/  # MigrationManager, Schema (14 custom tables)
 │   │           ├── Auth/      # Capabilities, RoleManager (ft_owner, ft_tenant)
 │   │           ├── API/       # RestServer, BaseController, DiagnosticController
-│   │           ├── Services/  # AuditLogger, SecurityService
+│   │           ├── Services/  # AuditLogger, ContactEnquiryHandler, DocumentService, OtpService, SecurityService
 │   │           └── Utils/     # Constants, Sanitizer
 │   ├── themes/
 │   │   ├── twentytwentyfive/  # Fallback core theme
-│   │   └── fraud-tenant-theme/# Custom theme & public UI (Phase 2)
+│   │   └── fraud-tenant-theme/# Custom theme & public UI (Phase 2 & 3)
 │   └── uploads/
-│       └── fraud-tenant-protected/ # Protected documents directory
+│       └── fraud-tenant-protected/ # Protected private storage (.htaccess 403 denied)
 └── ... (standard WordPress core files)
 ```
 
@@ -94,13 +94,20 @@ Expected output:
     "status": "operational",
     "plugin": "fraud-tenant-core",
     "api_version": "1.0.0",
-    "schema_version": "1.0.0",
+    "schema_version": "1.1.0",
     "ssn_matching_ready": false,
     "otp_hashing_ready": true,
     "timestamp": "..."
   }
 }
 ```
+
+### Verifying Private Document Storage Access Control
+```powershell
+curl.exe -I http://localhost/fraudtenant/wp-content/uploads/fraud-tenant-protected/index.php
+```
+Expected output:
+`HTTP/1.1 403 Forbidden`
 
 ### Running Phase 3 Integration Tests
 To execute the automated authentication and OTP integration test suite:
