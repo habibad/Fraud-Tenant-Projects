@@ -1,0 +1,60 @@
+/*
+Theme Name: Fraud Tenant Theme
+Theme URI: https://fraudtenant.com
+Author: Fraud Tenant Development Team
+Author URI: https://fraudtenant.com
+Description: Premium PropTech SaaS custom theme for the Fraud Tenant platform. Fully responsive, WCAG 2.2 AA accessible, featuring the approved Navy/Teal design system.
+Version: 1.0.0
+Tested up to: 7.1
+Requires at least: 6.0
+Requires PHP: 8.2
+License: GNU General Public License v2 or later
+License URI: http://www.gnu.org/licenses/gpl-2.0.html
+Text Domain: fraud-tenant-theme
+Tags: proptech, rental, screening, responsive-layout, custom-menu, clean
+*/
+
+/* -------------------------------------------------------------
+   DESIGN SYSTEM CSS TOKENS
+   ------------------------------------------------------------- */
+:root {
+  --ft-navy: #14263E;
+  --ft-navy-light: #1E3A5F;
+  --ft-navy-dark: #0D1A2D;
+  --ft-teal: #0E9488;
+  --ft-teal-hover: #0B7268;
+  --ft-teal-light: #CCFBF1;
+  --ft-teal-tint: #F0FDFA;
+  --ft-bg: #F2F5F9;
+  --ft-white: #FFFFFF;
+  --ft-slate-900: #0F172A;
+  --ft-slate-800: #1E293B;
+  --ft-slate-700: #334155;
+  --ft-slate-600: #475569;
+  --ft-slate-500: #64748B;
+  --ft-slate-400: #94A3B8;
+  --ft-slate-300: #CBD5E1;
+  --ft-slate-200: #E2E8F0;
+  --ft-slate-100: #F1F5F9;
+  --ft-slate-50:  #F8FAFC;
+  --ft-error: #DC2626;
+  --ft-error-bg: #FEF2F2;
+  --ft-error-border: #FECACA;
+  --ft-success: #16A34A;
+  --ft-success-bg: #F0FDF4;
+  --ft-success-border: #BBF7D0;
+  --ft-warning: #D97706;
+  --ft-warning-bg: #FFFBEB;
+  --ft-warning-border: #FDE68A;
+  
+  --ft-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --ft-radius-sm: 6px;
+  --ft-radius-md: 10px;
+  --ft-radius-lg: 16px;
+  --ft-radius-full: 9999px;
+  --ft-shadow-sm: 0 1px 3px rgba(20, 38, 62, 0.05);
+  --ft-shadow-md: 0 4px 6px -1px rgba(20, 38, 62, 0.07), 0 2px 4px -2px rgba(20, 38, 62, 0.05);
+  --ft-shadow-lg: 0 10px 15px -3px rgba(20, 38, 62, 0.08), 0 4px 6px -4px rgba(20, 38, 62, 0.04);
+  --ft-container-max: 1200px;
+}
+

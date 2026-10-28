@@ -1,0 +1,67 @@
+# ==============================================================================
+# FRAUD TENANT — Git Ignore Rules
+# Strictly prevents WordPress core, vendor plugins, default themes, and confidential keys
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. Confidential Credentials, Secrets & Local Environment Config (NEVER COMMIT)
+# ------------------------------------------------------------------------------
+wp-config.php
+wp-config-sample.php
+.env
+.env.*
+*.pem
+*.key
+*.crt
+*.pfx
+*.p12
+
+# ------------------------------------------------------------------------------
+# 2. WordPress Core Files & Directories
+# ------------------------------------------------------------------------------
+/wp-admin/
+/wp-includes/
+/*.php
+/wp-content/index.php
+/license.txt
+/readme.html
+/.htaccess
+
+# ------------------------------------------------------------------------------
+# 3. Media Uploads, Cache, Upgrades & Backups
+# ------------------------------------------------------------------------------
+wp-content/uploads/
+wp-content/upgrade/
+wp-content/cache/
+*.sql
+*.sql.gz
+*.tar.gz
+*.zip
+*.bak
+*.orig
+*.log
+
+# ------------------------------------------------------------------------------
+# 4. Third-Party Plugins & Themes (Only track custom Fraud Tenant assets)
+# ------------------------------------------------------------------------------
+wp-content/plugins/*
+!wp-content/plugins/fraud-tenant-core/
+
+wp-content/themes/*
+!wp-content/themes/fraud-tenant-theme/
+
+# ------------------------------------------------------------------------------
+# 5. OS & IDE Metadata
+# ------------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+node_modules/
+vendor/

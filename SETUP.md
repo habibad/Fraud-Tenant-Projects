@@ -1,0 +1,127 @@
+# FRAUD TENANT — Local Setup & Configuration Guide
+
+This guide details the setup, configuration, and verification procedures for the Fraud Tenant platform on a local Windows XAMPP environment.
+
+---
+
+## 1. Prerequisites
+
+- **XAMPP**: Running Apache 2.4.x and MySQL / MariaDB 10.4.x.
+- **PHP**: PHP 8.2+ with `curl`, `mbstring`, `openssl`, `mysqli`, `pdo_mysql` extensions enabled.
+- **WordPress**: 7.x installed in `c:\xampp\htdocs\fraudtenant`.
+- **Git**: Git 2.x installed at `C:\Program Files\Git\cmd\git.exe`.
+- **Node.js**: Node.js 18+ (verified v24.22.0) for frontend build tools and test scripts.
+- **Browser Automation**: Google Chrome installed at `C:\Program Files\Google\Chrome\Application\chrome.exe`.
+
+---
+
+## 2. Environment Configuration
+
+### Database Settings
+Database configuration is defined in `wp-config.php`:
+```php
+define( 'DB_NAME', 'fraudtenant' );
+define( 'DB_USER', 'root' );
+define( 'DB_PASSWORD', '' );
+define( 'DB_HOST', 'localhost' );
+define( 'DB_CHARSET', 'utf8mb4' );
+$table_prefix = 'wp_';
+```
+
+### Recommended Development Constants (add to `wp-config.php` during active development)
+```php
+define( 'WP_DEBUG', true );
+define( 'WP_DEBUG_LOG', true );
+define( 'WP_DEBUG_DISPLAY', false );
+@ini_set( 'display_errors', 0 );
+
+// Dedicated HMAC Secret for 6-Digit Email OTP Hashing (Phase 3)
+define( 'FT_OTP_SECRET_KEY', 'replace-with-a-random-64-character-hex-string' );
+
+// Dedicated HMAC Secret for SSN Matching Tokenization (Phase 7)
+define( 'FT_MATCH_SECRET_KEY', 'replace-with-a-different-random-64-character-hex-string' );
+```
+
+---
+
+## 3. Directory Layout
+
+```
+c:\xampp\htdocs\fraudtenant/
+├── AGENTS.md                  # Project rules & architecture
+├── IMPLEMENTATION_PLAN.md     # Detailed phase plan & statuses
+├── TASKS.md                   # Granular task tracker
+├── QA_REPORT.md               # QA test logs & evidence
+├── BLOCKERS.md                # Dependencies & legal blockers
+├── SETUP.md                   # This setup guide
+├── CHANGELOG.md               # Phase-by-phase change record
+├── .gitignore                 # Version control exclusions
+├── wp-config.php              # WordPress core configuration (untracked)
+├── wp-content/
+│   ├── plugins/
+│   │   ├── fluent-smtp/       # Optional local SMTP connector
+│   │   └── fraud-tenant-core/ # Core backend plugin (Phase 1)
+│   │       ├── fraud-tenant-core.php
+│   │       └── includes/
+│   │           ├── Autoloader.php
+│   │           ├── Core/      # Activator, Deactivator, Plugin
+│   │           ├── Database/  # MigrationManager, Schema (14 custom tables)
+│   │           ├── Auth/      # Capabilities, RoleManager (ft_owner, ft_tenant)
+│   │           ├── API/       # RestServer, BaseController, DiagnosticController
+│   │           ├── Services/  # AuditLogger, SecurityService
+│   │           └── Utils/     # Constants, Sanitizer
+│   ├── themes/
+│   │   ├── twentytwentyfive/  # Fallback core theme
+│   │   └── fraud-tenant-theme/# Custom theme & public UI (Phase 2)
+│   └── uploads/
+│       └── fraud-tenant-protected/ # Protected documents directory
+└── ... (standard WordPress core files)
+```
+
+---
+
+## 4. Local Testing & Verification
+
+### Running the Phase 1 Security Review Test Suite
+```powershell
+& "C:\xampp\php\php.exe" "C:\Users\Md Anikur Rahaman\.gemini\antigravity\brain\a637eedc-3007-4be0-92fd-89718fcc7a44\scratch\test_phase1_security.php"
+```
+
+### Verifying REST API Health & Diagnostic Endpoint
+```powershell
+Invoke-RestMethod -Uri "http://localhost/fraudtenant/wp-json/fraud-tenant/v1/status"
+```
+Expected output:
+```json
+{
+  "success": true,
+  "data": {
+    "status": "operational",
+    "plugin": "fraud-tenant-core",
+    "api_version": "1.0.0",
+    "schema_version": "1.0.0",
+    "ssn_matching_ready": false,
+    "otp_hashing_ready": false,
+    "timestamp": "..."
+  }
+}
+```
+
+### Running the Phase 2 Contact Form Security & Validation Test Suite
+```powershell
+& "C:\xampp\php\php.exe" "C:\Users\Md Anikur Rahaman\.gemini\antigravity\brain\a637eedc-3007-4be0-92fd-89718fcc7a44\scratch\test_contact_form.php"
+```
+
+### Capturing Headless Browser Screenshots
+```powershell
+& "C:\Program Files\Google\Chrome\Application\chrome.exe" --headless=new --disable-gpu --screenshot="phase2-desktop-home.png" --window-size="1440,900" "http://localhost/fraudtenant/"
+```
+
+---
+
+## 5. Outbound Mail Configuration for Local Development
+
+FluentSMTP is installed in `wp-content/plugins/fluent-smtp/`. To configure outbound email:
+1. Access WordPress Admin at `http://localhost/fraudtenant/wp-admin/`.
+2. Activate FluentSMTP.
+3. Configure a test SMTP connection (e.g. Mailpit at `localhost:1025`, Brevo, SendGrid, or Gmail SMTP).
