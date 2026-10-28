@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'FRAUD_TENANT_THEME_VERSION', '1.0.0' );
+define( 'FRAUD_TENANT_THEME_VERSION', '1.0.6' );
 
 /**
  * Sets up theme defaults and registers support for various WordPress features.
@@ -190,6 +190,36 @@ function fraud_tenant_ensure_public_pages(): void {
 			'title'     => 'Tenant Rights & Screening Information',
 			'subtitle'  => 'Educational guidance on tenant rights, FCRA principles, and dispute mechanisms.',
 			'content'   => '<div class="legal-notice-box"><strong>Educational Notice:</strong> This guide provides general educational information regarding rental records and due process. It does not constitute formal legal advice. Compliance with the Fair Credit Reporting Act (15 U.S.C. § 1681 et seq.) requires permissible purpose verification and qualified legal counsel review.</div><h2>Understanding Your Rental Records</h2><p>Under US fair housing principles and credit reporting regulations, renters are protected against inaccurate, unauthorized, or unsubstantiated negative reports.</p><h3>Core Tenant Protections on Fraud Tenant</h3><ol><li><strong>Notice of Screening:</strong> Property owners may only conduct screening inquiries when they have a permissible purpose, such as an active rental application with applicant consent.</li><li><strong>Right to Review:</strong> Verified tenants can log into their account to review any disclosable incident reports associated with their profile.</li><li><strong>Right to Dispute:</strong> If a report contains errors, disputed balances, or inaccuracies, tenants can submit a formal dispute with supporting evidence directly to our review team.</li><li><strong>Mandatory Correction:</strong> Reports found to be unsubstantiated or inaccurate are removed or amended, and complete correction history is documented in the audit log.</li></ol><div class="legal-callout-box"><h4>Legal Disclaimer</h4><p>Fraud Tenant is an independent rental reporting platform. Nothing on this website constitutes legal counsel or an official guarantee of outcome. Consult a qualified attorney for specific legal guidance on tenant-landlord regulations in your jurisdiction.</p></div>',
+		),
+		'login'             => array(
+			'title'     => 'Sign In',
+			'subtitle'  => 'Access your Fraud Tenant account.',
+			'content'   => '',
+		),
+		'register'          => array(
+			'title'     => 'Create Your Account',
+			'subtitle'  => 'Join as a Property Owner or Tenant.',
+			'content'   => '',
+		),
+		'verify-otp'        => array(
+			'title'     => 'Verify Your Email',
+			'subtitle'  => 'Enter the 6-digit verification code sent to your email.',
+			'content'   => '',
+		),
+		'forgot-password'   => array(
+			'title'     => 'Reset Password',
+			'subtitle'  => 'Request a password reset link.',
+			'content'   => '',
+		),
+		'reset-password'    => array(
+			'title'     => 'Set New Password',
+			'subtitle'  => 'Enter and confirm your new password.',
+			'content'   => '',
+		),
+		'account-status'    => array(
+			'title'     => 'Account Status',
+			'subtitle'  => 'Check your application and membership review status.',
+			'content'   => '',
 		),
 	);
 

@@ -85,5 +85,145 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
   }
+
+  // 4. Password Visibility Toggle
+  const pwToggles = document.querySelectorAll('.btn-toggle-pw');
+  pwToggles.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      const targetId = btn.getAttribute('data-target');
+      const input = document.getElementById(targetId);
+      if (!input) return;
+
+      const eyeIcon = btn.querySelector('.icon-eye');
+      const eyeOffIcon = btn.querySelector('.icon-eye-off');
+
+      if (input.type === 'password') {
+        input.type = 'text';
+        if (eyeIcon) eyeIcon.style.display = 'none';
+        if (eyeOffIcon) eyeOffIcon.style.display = 'block';
+        btn.setAttribute('aria-label', 'Hide password');
+      } else {
+        input.type = 'password';
+        if (eyeIcon) eyeIcon.style.display = 'block';
+        if (eyeOffIcon) eyeOffIcon.style.display = 'none';
+        btn.setAttribute('aria-label', 'Show password');
+      }
+    });
+  });
+
+  // 5. Role Selection Cards Interaction (Registration Page)
+  const roleCards = document.querySelectorAll('.role-card');
+  roleCards.forEach(function (card) {
+    card.addEventListener('click', function () {
+      const radio = card.querySelector('input[type="radio"]');
+      if (radio) {
+        radio.checked = true;
+      }
+      roleCards.forEach(function (c) {
+        c.classList.remove('is-active');
+      });
+      card.classList.add('is-active');
+    });
+  });
+
+  // 6. 6-Digit OTP Inputs Auto-advance & Paste (Verify OTP Page)
+  const otpInputs = document.querySelectorAll('.otp-digit-input');
+  const otpFullCode = document.getElementById('ft-otp-full-code');
+
+  if (otpInputs.length === 6) {
+    const syncOtpValue = function () {
+      let full = '';
+      otpInputs.forEach(function (inp) {
+        full += inp.value.trim();
+      });
+      if (otpFullCode) {
+        otpFullCode.value = full;
+      }
+    };
+
+    otpInputs.forEach(function (input, index) {
+      // Input event: advance forward
+      input.addEventListener('input', function (e) {
+        const val = input.value.replace(/[^0-9]/g, '');
+        input.value = val.slice(0, 1);
+
+        if (input.value && index < 5) {
+          otpInputs[index + 1].focus();
+        }
+        syncOtpValue();
+      });
+
+      // Keydown event: handle backspace navigation
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Backspace') {
+          if (!input.value && index > 0) {
+            otpInputs[index - 1].focus();
+          }
+        }
+      });
+
+      // Paste event: distribute 6 digits across boxes
+      input.addEventListener('paste', function (e) {
+        e.preventDefault();
+        const clipboard = (e.clipboardData || window.clipboardData).getData('text') || '';
+        const digits = clipboard.replace(/[^0-9]/g, '').slice(0, 6);
+
+        if (digits.length > 0) {
+          for (let i = 0; i < 6; i++) {
+            if (i < digits.length) {
+              otpInputs[i].value = digits[i];
+            }
+          }
+          const focusIndex = Math.min(digits.length, 5);
+          otpInputs[focusIndex].focus();
+          syncOtpValue();
+        }
+      });
+    });
+
+    // Ensure synced on submit
+    const otpForm = document.getElementById('ft-otp-form');
+    if (otpForm) {
+      otpForm.addEventListener('submit', function () {
+        syncOtpValue();
+      });
+    }
+  }
+
+  // 7. OTP Countdown Timer & Resend Button
+  const resendContainer = document.getElementById('otp-resend-container');
+  if (resendContainer) {
+    let seconds = parseInt(resendContainer.getAttribute('data-seconds'), 10);
+    const timerBlock = document.getElementById('otp-timer-block');
+    const displaySpan = document.getElementById('otp-countdown-display');
+    const resendBtn = document.getElementById('btn-resend-otp');
+
+    const updateTimerDisplay = function () {
+      if (seconds <= 0) {
+        if (timerBlock) timerBlock.style.display = 'none';
+        if (resendBtn) {
+          resendBtn.style.display = 'inline-block';
+          resendBtn.removeAttribute('disabled');
+        }
+      } else {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        const formatted = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+        if (displaySpan) displaySpan.textContent = formatted;
+        seconds--;
+        setTimeout(updateTimerDisplay, 1000);
+      }
+    };
+
+    if (seconds > 0) {
+      updateTimerDisplay();
+    } else {
+      if (timerBlock) timerBlock.style.display = 'none';
+      if (resendBtn) {
+        resendBtn.style.display = 'inline-block';
+        resendBtn.removeAttribute('disabled');
+      }
+    }
+  }
 });
 

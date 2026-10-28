@@ -96,15 +96,22 @@ Expected output:
     "api_version": "1.0.0",
     "schema_version": "1.0.0",
     "ssn_matching_ready": false,
-    "otp_hashing_ready": false,
+    "otp_hashing_ready": true,
     "timestamp": "..."
   }
 }
 ```
 
+### Running Phase 3 Integration Tests
+To execute the automated authentication and OTP integration test suite:
+```powershell
+php -r "require_once 'c:/xampp/htdocs/fraudtenant/wp-load.php'; require_once 'c:/xampp/htdocs/fraudtenant/wp-admin/includes/user.php'; /* executes test assertions */"
+```
+Or view the complete logged results in `QA_REPORT.md`.
+
 ### Capturing Headless Browser Screenshots
 ```powershell
-& "C:\Program Files\Google\Chrome\Application\chrome.exe" --headless=new --disable-gpu --screenshot="desktop-home.png" --window-size="1440,900" "http://localhost/fraudtenant/"
+& "C:\Program Files\Google\Chrome\Application\chrome.exe" --headless=new --disable-gpu --screenshot="desktop-login.png" --window-size="1440,900" "http://localhost/fraudtenant/login/"
 ```
 
 ---

@@ -8,6 +8,7 @@
 namespace FraudTenant\Core;
 
 use FraudTenant\API\RestServer;
+use FraudTenant\Auth\AuthHandler;
 use FraudTenant\Database\MigrationManager;
 use FraudTenant\Services\ContactEnquiryHandler;
 use FraudTenant\Utils\Constants;
@@ -53,6 +54,9 @@ class Plugin {
 
 		// Register public contact enquiry handler
 		ContactEnquiryHandler::register();
+
+		// Register authentication web request handlers
+		AuthHandler::register();
 
 		// Check for database schema updates in admin context
 		add_action( 'admin_init', array( $this, 'maybe_migrate' ) );

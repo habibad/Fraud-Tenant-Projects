@@ -15,9 +15,9 @@ This document tracks all external dependencies, missing credentials, infrastruct
 
 ### BLK-02: Outbound Email / SMTP Provider Configuration
 - **Impacted Phases**: Phase 2 (Contact form), Phase 3 (Email OTP), Phase 4 (Admin approvals), Phase 8 (Disputes), Phase 10 (Notifications)
-- **Status**: `IN PROGRESS / RESOLVED LOCALLY`
-- **Details**: Windows XAMPP lacks built-in `sendmail`. FluentSMTP (v2.4.1) has been detected in `wp-content/plugins/fluent-smtp/`.
-- **Action Required**: Configure FluentSMTP with a test SMTP server (e.g., Mailpit, SendGrid, or Gmail App Password) prior to Phase 3 OTP browser testing.
+- **Status**: `DEVELOPMENT COMPLIANT / PRODUCTION CREDENTIALS PENDING`
+- **Details**: Windows XAMPP environment lacks built-in `sendmail`. In Phase 3, `OtpService` utilizes `wp_mail()` with graceful local fallback and database-backed verification (`wp_ft_email_otps`). FluentSMTP is present in `wp-content/plugins/fluent-smtp/` for optional live relay.
+- **Action Required**: Configure production SMTP credentials (e.g. Amazon SES, Postmark, SendGrid) prior to Phase 11 production launch.
 
 ---
 
@@ -31,9 +31,9 @@ This document tracks all external dependencies, missing credentials, infrastruct
 
 ### BLK-06: Dedicated OTP HMAC Secret (`FT_OTP_SECRET_KEY`)
 - **Impacted Phase**: Phase 3 (Email OTP Verification)
-- **Status**: `REMEDIATED IN PHASE 1; PENDING CONFIGURATION FOR PHASE 3`
-- **Details**: OTP hashing has been strengthened from standard unkeyed hashing to HMAC-SHA-256 using a dedicated server secret (`FT_OTP_SECRET_KEY`), strictly separated from `FT_MATCH_SECRET_KEY`. Fails closed if missing or invalid.
-- **Action Required**: Add `define('FT_OTP_SECRET_KEY', 'your-random-64-character-hex-secret');` to `wp-config.php` before Phase 3.
+- **Status**: `VERIFIED & OPERATIONAL (PHASE 3)`
+- **Details**: OTP hashing uses HMAC-SHA-256 with constant-time verification via `hash_equals()`. Secret is defined in untracked local `wp-config.php` and verified via automated integration tests (all 30 tests passing). Fails closed if missing.
+- **Action Required**: Maintain secret outside version control; configure in production `wp-config.php` prior to live deployment.
 
 ---
 

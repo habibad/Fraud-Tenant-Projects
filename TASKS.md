@@ -50,13 +50,13 @@
 ---
 
 ## Phase 3: Registration, Email OTP, Login and Password Recovery
-- [ ] **Task 3.1**: Build custom registration templates with Property Owner vs. Tenant selection.
-- [ ] **Task 3.2**: Implement 6-digit email OTP generation, HMAC hashing, and expiration logic.
-- [ ] **Task 3.3**: Build 6-digit OTP verification screen with countdown cooldown timer and attempt limits.
-- [ ] **Task 3.4**: Implement custom login page with role-based redirection.
-- [ ] **Task 3.5**: Build forgot-password and reset-password flows with enumeration protection.
-- [ ] **Task 3.6**: Implement account status lifecycle (`email_unverified`, `pending_approval`, `approved`, `rejected`, `suspended`).
-- [ ] **Task 3.7**: Test full authentication cycle in browser.
+- [x] **Task 3.1**: Build custom registration templates with Property Owner vs. Tenant selection. *(Completed: `page-register.php` with interactive role selector cards, SVGs, validation, CSRF nonces, and anti-enumeration handling)*
+- [x] **Task 3.2**: Implement 6-digit email OTP generation, HMAC hashing, and expiration logic. *(Completed: `OtpService` in `fraud-tenant-core` using cryptographically secure RNG `random_int(100000, 999999)`, HMAC-SHA-256 via `SecurityService::hash_otp()`, 10-minute expiry, 60s cooldown, max 5 attempts)*
+- [x] **Task 3.3**: Build 6-digit OTP verification screen with countdown cooldown timer and attempt limits. *(Completed: `page-verify-otp.php` with 6 auto-advancing numeric inputs, paste support, live countdown timer, and safe status transition to `pending_approval`)*
+- [x] **Task 3.4**: Implement custom login page with role-based redirection. *(Completed: `page-login.php` with split card matching showcase, home visual, eye password toggle, IP rate limiting, and lifecycle-aware status routing)*
+- [x] **Task 3.5**: Build forgot-password and reset-password flows with enumeration protection. *(Completed: `page-forgot-password.php` and `page-reset-password.php` using WordPress core password reset keys, constant-time validation, and audit logging)*
+- [x] **Task 3.6**: Implement account status lifecycle (`email_unverified`, `pending_approval`, `approved`, `rejected`, `suspended`). *(Completed: Lifecycle enforced in `AuthService`, holding page `page-account-status.php` with 4-step progress indicator and account details)*
+- [x] **Task 3.7**: Test full authentication cycle in browser. *(Completed: 30 automated integration test assertions PASS; Headless Chrome screenshots captured and verified across desktop and mobile)*
 
 ---
 

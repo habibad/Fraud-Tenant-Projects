@@ -18,9 +18,39 @@ if ( ! defined( 'ABSPATH' ) ) {
 </head>
 <body <?php body_class(); ?>>
 <?php wp_body_open(); ?>
+<?php
+$is_auth_page = is_page( array( 'login', 'register', 'verify-otp', 'forgot-password', 'reset-password', 'account-status' ) );
+?>
 
 <a class="skip-link" href="#main-content"><?php esc_html_e( 'Skip to content', 'fraud-tenant-theme' ); ?></a>
 
+<?php if ( $is_auth_page ) : ?>
+<header class="site-header auth-header">
+	<div class="container auth-header-inner">
+		<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="brand-logo" rel="home">
+			<svg class="brand-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+				<path d="M18 3L4 9V17C4 24.5 10 31.4 18 33C26 31.4 32 24.5 32 17V9L18 3Z" fill="#0E9488" fill-opacity="0.15" stroke="#0E9488" stroke-width="2.5" stroke-linejoin="round"/>
+				<path d="M18 10V26" stroke="#0E9488" stroke-width="2.5" stroke-linecap="round"/>
+				<path d="M12 18H24" stroke="#0E9488" stroke-width="2.5" stroke-linecap="round"/>
+			</svg>
+			<span class="brand-text">Fraud<span>Tenant</span></span>
+		</a>
+		<div class="auth-header-right">
+			<?php if ( is_user_logged_in() ) : ?>
+				<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=ft_logout' ), 'ft_logout_action' ) ); ?>" class="auth-link-text"><?php esc_html_e( 'Sign Out', 'fraud-tenant-theme' ); ?></a>
+			<?php elseif ( is_page( 'login' ) ) : ?>
+				<span class="auth-hint-text"><?php esc_html_e( "Don't have an account?", 'fraud-tenant-theme' ); ?></span>
+				<a href="<?php echo esc_url( home_url( '/register/' ) ); ?>" class="btn btn-outline btn-sm auth-btn-sm"><?php esc_html_e( 'Sign Up', 'fraud-tenant-theme' ); ?></a>
+			<?php elseif ( is_page( 'register' ) ) : ?>
+				<span class="auth-hint-text"><?php esc_html_e( 'Already have an account?', 'fraud-tenant-theme' ); ?></span>
+				<a href="<?php echo esc_url( home_url( '/login/' ) ); ?>" class="btn btn-outline btn-sm auth-btn-sm"><?php esc_html_e( 'Sign In', 'fraud-tenant-theme' ); ?></a>
+			<?php else : ?>
+				<a href="<?php echo esc_url( home_url( '/login/' ) ); ?>" class="btn btn-outline btn-sm auth-btn-sm"><?php esc_html_e( 'Sign In', 'fraud-tenant-theme' ); ?></a>
+			<?php endif; ?>
+		</div>
+	</div>
+</header>
+<?php else : ?>
 <header class="site-header">
 	<div class="container header-inner">
 		<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="brand-logo" rel="home">
@@ -50,8 +80,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 		</nav>
 
 		<div class="header-actions">
-			<a href="<?php echo esc_url( home_url( '/contact/' ) ); ?>" class="btn-signin"><?php esc_html_e( 'Sign In', 'fraud-tenant-theme' ); ?></a>
-			<a href="<?php echo esc_url( home_url( '/how-it-works/' ) ); ?>" class="btn btn-primary btn-sm"><?php esc_html_e( 'Get Started', 'fraud-tenant-theme' ); ?></a>
+			<?php if ( is_user_logged_in() ) : ?>
+				<?php if ( current_user_can( 'administrator' ) ) : ?>
+					<a href="<?php echo esc_url( admin_url() ); ?>" class="btn-signin"><?php esc_html_e( 'WP Admin', 'fraud-tenant-theme' ); ?></a>
+				<?php else : ?>
+					<a href="<?php echo esc_url( home_url( '/account-status/' ) ); ?>" class="btn-signin"><?php esc_html_e( 'My Account', 'fraud-tenant-theme' ); ?></a>
+				<?php endif; ?>
+				<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=ft_logout' ), 'ft_logout_action' ) ); ?>" class="btn btn-secondary btn-sm"><?php esc_html_e( 'Sign Out', 'fraud-tenant-theme' ); ?></a>
+			<?php else : ?>
+				<a href="<?php echo esc_url( home_url( '/login/' ) ); ?>" class="btn-signin"><?php esc_html_e( 'Sign In', 'fraud-tenant-theme' ); ?></a>
+				<a href="<?php echo esc_url( home_url( '/register/' ) ); ?>" class="btn btn-primary btn-sm"><?php esc_html_e( 'Get Started', 'fraud-tenant-theme' ); ?></a>
+			<?php endif; ?>
 			<button class="mobile-menu-toggle" aria-expanded="false" aria-label="<?php esc_attr_e( 'Toggle navigation menu', 'fraud-tenant-theme' ); ?>">
 				<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
 					<line x1="3" y1="12" x2="21" y2="12"></line>
@@ -78,6 +117,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 		</div>
 	</div>
 </header>
+<?php endif; ?>
 
 <main id="main-content" class="site-main">
 

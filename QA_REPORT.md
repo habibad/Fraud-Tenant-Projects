@@ -194,13 +194,52 @@
 
 ---
 
+## Phase 3 Test Execution & Verification
+
+### Authentication, OTP Lifecycle & Security Verification
+| Test ID | Test Name | Method / Assertion | Result | Evidence / Details |
+| :--- | :--- | :--- | :---: | :--- |
+| **3.1** | OTP Secret Key Configuration | `SecurityService::is_otp_secret_configured()` | **PASS** | Key configured in untracked `wp-config.php`, fails closed if absent |
+| **3.2** | Registration Missing Name Guard | `AuthService::register()` with empty names | **PASS** | Returns `missing_name` error |
+| **3.3** | Registration Invalid Email Guard | `AuthService::register()` with invalid email | **PASS** | Returns `invalid_email` error |
+| **3.4** | Registration Password Length Guard | `AuthService::register()` with < 8 chars | **PASS** | Returns `weak_password` error |
+| **3.5** | Registration Password Mismatch Guard | `AuthService::register()` with mismatched pw | **PASS** | Returns `password_mismatch` error |
+| **3.6** | Registration Disallowed Role Guard | `AuthService::register()` with invalid role | **PASS** | Returns `invalid_account_type` error |
+| **3.7** | Registration Terms Acknowledgment | `AuthService::register()` with unacknowledged terms | **PASS** | Returns `terms_unacknowledged` error |
+| **3.8** | Successful Owner Registration | `AuthService::register()` with valid owner data | **PASS** | Creates WP user with `ft_owner` role & `wp_ft_user_profiles` row |
+| **3.9** | Initial Account Status Verification | `AuthService::get_user_account_status()` | **PASS** | Verified initial status is `email_unverified` |
+| **3.10** | Anti-Enumeration on Duplicate Email | `AuthService::register()` with existing email | **PASS** | Returns generic success without leaking account existence |
+| **3.11** | Successful Tenant Registration | `AuthService::register()` with valid tenant data | **PASS** | Creates WP user with `ft_tenant` role & `wp_ft_user_profiles` row |
+| **3.12** | Unverified Login Restriction | `AuthService::login()` with `email_unverified` user | **PASS** | Blocked with `email_unverified` error; zero auth cookie issued |
+| **3.13** | Cryptographic 6-Digit OTP Generation | `SHOW * FROM wp_ft_email_otps` | **PASS** | 6-digit numeric OTP generated and stored via HMAC-SHA-256 hash |
+| **3.14** | Incorrect OTP Verifier Guard | `OtpService::verify_otp()` with wrong code | **PASS** | Rejected; attempt counter incremented |
+| **3.15** | Resend 60-Second Cooldown Guard | `OtpService::generate_otp()` during active cooldown | **PASS** | Rejected with `cooldown_active` error and remaining seconds |
+| **3.16** | Valid HMAC OTP Verification | `OtpService::verify_otp()` with matching code | **PASS** | Constant-time `hash_equals()` HMAC comparison succeeds |
+| **3.17** | Single-Use OTP Protection | Replaying verified OTP code | **PASS** | Rejected with `no_active_otp` error (`consumed_at` populated) |
+| **3.18** | Status Transition to Pending Review | Status check post-verification | **PASS** | Profile transitions from `email_unverified` to `pending_approval` |
+| **3.19** | Pending Approval Login Routing | `AuthService::login()` with verified user | **PASS** | Session cookie issued; routed safely to `/account-status/` |
+| **3.20** | Rejected Account Login Guard | `AuthService::login()` with `rejected` status | **PASS** | Blocked with `account_rejected` error; zero session cookie |
+| **3.21** | Suspended Account Login Guard | `AuthService::login()` with `suspended` status | **PASS** | Blocked with `account_suspended` error; zero session cookie |
+| **3.22** | Administrator Access Preservation | `AuthService::login()` with User ID 1 (`anik`) | **PASS** | Session cookie issued; direct route to `admin_url()` preserved |
+| **3.23** | Password Reset Request Enumeration Guard | `AuthService::request_password_reset()` | **PASS** | Generic dispatch confirmation returned for existing & non-existing emails |
+| **3.24** | WP Core Password Reset Key Generation | `get_password_reset_key()` | **PASS** | Valid core WordPress key and reset URL generated |
+| **3.25** | Password Reset Weak Password Guard | `AuthService::reset_password_with_key()` with short pw | **PASS** | Rejected with `weak_password` error |
+| **3.26** | Password Reset Mismatch Guard | `AuthService::reset_password_with_key()` with mismatched pw | **PASS** | Rejected with `password_mismatch` error |
+| **3.27** | Password Reset Success Verification | `AuthService::reset_password_with_key()` with valid key | **PASS** | Password updated via core `reset_password()`; audit log recorded |
+| **3.28** | Post-Reset Authentication | `wp_authenticate()` with new credentials | **PASS** | User authenticates successfully with updated password |
+| **3.29** | HTTP Endpoint Availability (6 Auth Pages) | HTTP GET checks on all 6 auth URLs | **PASS** | All 6 URLs return HTTP 200 OK |
+| **3.30** | Multi-Viewport Design System & Fidelity | Headless Chrome screenshot verification | **PASS** | Verified matching UI Showcase cards, split login, and responsive layout |
+
+---
+
 ## Phase Test Summary Table
 
 | Phase / Review | Total Tests | PASS | FAIL | BLOCKED | NOT TESTED |
-| :--- | :---: | :---: | :---: | :---: | :---: |
+| :--- | :--- | :--- | :--- | :--- | :--- |
 | **Phase 0 Audit** | 6 | 6 | 0 | 0 | 0 |
 | **Phase 1 Foundation** | 13 | 13 | 0 | 0 | 0 |
 | **Phase 1 Security Review** | 21 | 21 | 0 | 0 | 0 |
 | **Phase 2 Custom Theme & Website** | 25 | 24 | 0 | 0 | 1 |
 | **Phase 2 Final Corrective Audit** | 35 | 34 | 0 | 0 | 1 |
-| **Total Verified** | **100** | **98** | **0** | **0** | **2** |
+| **Phase 3 Auth, OTP & Recovery** | 30 | 30 | 0 | 0 | 0 |
+| **Total Verified** | **130** | **128** | **0** | **0** | **2** |

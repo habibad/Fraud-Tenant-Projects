@@ -11,6 +11,26 @@ if ( ! defined( 'ABSPATH' ) ) {
 ?>
 </main><!-- /#main-content -->
 
+<?php
+$is_auth_page = is_page( array( 'login', 'register', 'verify-otp', 'forgot-password', 'reset-password', 'account-status' ) );
+?>
+
+<?php if ( $is_auth_page ) : ?>
+<footer class="site-footer auth-footer">
+	<div class="container auth-footer-inner">
+		<div class="auth-footer-copy">
+			&copy; <?php echo esc_html( date( 'Y' ) ); ?> <?php bloginfo( 'name' ); ?>. <?php esc_html_e( 'All rights reserved.', 'fraud-tenant-theme' ); ?>
+		</div>
+		<div class="auth-footer-links">
+			<a href="<?php echo esc_url( home_url( '/terms-of-service/' ) ); ?>"><?php esc_html_e( 'Terms of Service', 'fraud-tenant-theme' ); ?></a>
+			<span class="auth-footer-sep">•</span>
+			<a href="<?php echo esc_url( home_url( '/privacy-policy/' ) ); ?>"><?php esc_html_e( 'Privacy Policy', 'fraud-tenant-theme' ); ?></a>
+			<span class="auth-footer-sep">•</span>
+			<a href="<?php echo esc_url( home_url( '/contact/' ) ); ?>"><?php esc_html_e( 'Contact Support', 'fraud-tenant-theme' ); ?></a>
+		</div>
+	</div>
+</footer>
+<?php else : ?>
 <footer class="site-footer">
 	<div class="container footer-top">
 		<div class="footer-grid">
@@ -74,6 +94,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 		</div>
 	</div>
 </footer>
+<?php endif; ?>
 
 <?php wp_footer(); ?>
 </body>

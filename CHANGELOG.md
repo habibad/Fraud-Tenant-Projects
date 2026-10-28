@@ -4,6 +4,54 @@ All notable changes to the Fraud Tenant platform will be documented in this file
 
 ---
 
+## [Phase 3] — Registration, Email OTP, Login & Password Recovery (2026-10-28)
+
+### Core Backend Services (`fraud-tenant-core`)
+- **`OtpService` (`includes/Services/OtpService.php`)**:
+  - Implemented cryptographically secure 6-digit numeric OTP generator using `random_int(100000, 999999)`.
+  - Enforced HMAC-SHA-256 verifier hashing via `SecurityService::hash_otp()` using dedicated server secret `FT_OTP_SECRET_KEY`.
+  - Built fail-closed validation when `FT_OTP_SECRET_KEY` is undefined or empty.
+  - Implemented 60-second cooldown enforcement (`resend_available_at`), 10-minute challenge expiry (`expires_at`), max 5 verification attempts, constant-time `hash_equals()` verification, and single-use challenge consumption (`consumed_at`).
+  - Added user lifecycle progression transitioning `approval_status` from `email_unverified` to `pending_approval` upon successful OTP confirmation.
+- **`AuthService` (`includes/Auth/AuthService.php`)**:
+  - Built user registration pipeline supporting `ft_owner` and `ft_tenant` roles, with default status `email_unverified` in `wp_ft_user_profiles`.
+  - Added anti-enumeration response logic returning generic success message on duplicate email registration attempts without revealing existing account presence.
+  - Added brute-force lockout defense enforcing a 15-minute temporary lockout after 5 consecutive failed login attempts from an IP.
+  - Implemented lifecycle status authentication gateway:
+    - Users with `email_unverified` redirected to `/verify-otp/`.
+    - Users with `pending_approval` redirected to `/account-status/`.
+    - Users with `rejected` or `suspended` status blocked with explanatory message.
+    - System administrators retain immediate, unrestricted access.
+  - Added password recovery request workflow with anti-enumeration protection and core WordPress reset key generation.
+  - Implemented secure password reset endpoint using constant-time key validation.
+- **`AuthHandler` (`includes/Auth/AuthHandler.php`)**:
+  - Registered `admin_post_*` and `admin_post_nopriv_*` hooks for registration, OTP verification, OTP resend, login, logout, password recovery, and password reset.
+  - Enforced cryptographic CSRF nonce verification on all POST actions.
+  - Implemented session-isolated flash messaging via transients.
+
+### Custom Theme Templates & UI (`fraud-tenant-theme`)
+- **Showcase Fidelity & Auth Templates**:
+  - `page-login.php`: Split auth card matching showcase mockup, left form column with email and eye toggle password inputs, right photographic column with modern suburban home visual and floating glassmorphism card ("Safer Tenancies Stronger Communities").
+  - `page-register.php`: Dual role selector cards (Property Owner vs. Tenant with SVG icons and active state), first/last name, email, password & confirm with visibility toggle, terms checkbox, and full-width teal "Continue" CTA.
+  - `page-verify-otp.php`: Envelope icon in teal circle, target email display, 6 individual numeric inputs with auto-advance and clipboard paste support, Verify OTP CTA, and live countdown timer toggling to "Resend Code".
+  - `page-forgot-password.php`: Centered card with email input and generic dispatch confirmation.
+  - `page-reset-password.php`: Secure key & login parameter verification, new password inputs with eye toggles, and update submission.
+  - `page-account-status.php`: Holding page for pending/suspended/rejected accounts with status badge, 4-step progress indicator, user account details grid, and sign-out button.
+- **Separation of Shells**:
+  - Suppressed marketing header and 4-column footer on authentication pages, displaying a focused brand header and minimal legal footer.
+- **Client-Side UX & Responsive Layouts (`assets/js/main.js`, `assets/css/main.css`)**:
+  - Interactive password visibility eye toggles.
+  - Dual role selection cards with synced hidden input.
+  - 6-digit OTP input auto-advance, backspace navigation, numeric sanitization, and clipboard paste support.
+  - 60-second live countdown timer for OTP resend.
+  - Fully responsive styling verified down to 320px with zero horizontal scroll.
+
+### Testing & Verification
+- **Automated Integration Test Suite**: 30 comprehensive assertions executed via PHP CLI verifying registration, role assignment, initial unverified status, anti-enumeration, login blocking, OTP hashing, cooldowns, single-use replays, status transitions, administrator bypass, password reset keys, and password updates (`Passed: 30 | Failed: 0`).
+- **Visual Capture**: Captured and verified desktop and mobile (375x812) Headless Chrome screenshots across all auth views.
+
+---
+
 ## [Phase 2.1] — Phase 2 Final Audit & Corrective Review (2026-10-28)
 
 ### UI Alignment & Showcase Fidelity

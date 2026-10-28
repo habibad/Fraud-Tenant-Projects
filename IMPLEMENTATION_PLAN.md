@@ -11,9 +11,9 @@ Fraud Tenant is a secure, modern, responsive WordPress-based rental incident rep
 | :--- | :--- | :--- | :--- |
 | **Phase 0** | Repository Audit and Implementation Preparation | **COMPLETED** | Initial Step |
 | **Phase 1** | Custom Plugin Foundation and Database Architecture | **COMPLETED** | Core Backend Foundation |
-| **Phase 2** | Custom Theme, Design System and Public Website | Planned | Pending User Authorization |
-| **Phase 3** | Registration, Email OTP, Login and Password Recovery | Planned | Pending Phase 2 |
-| **Phase 4** | Administrative User Review and Approval Portal | Planned | Pending Phase 3 |
+| **Phase 2** | Custom Theme, Design System and Public Website | **COMPLETED** | Presentation & Content Layer |
+| **Phase 3** | Registration, Email OTP, Login and Password Recovery | **COMPLETED** | Authentication & Lifecycle |
+| **Phase 4** | Administrative User Review and Approval Portal | Planned | Pending User Authorization |
 | **Phase 5** | Owner and Tenant Dashboards | Planned | Pending Phase 4 |
 | **Phase 6** | Property Management and Secure Document Uploads | Planned | Pending Phase 5 |
 | **Phase 7** | Authorized Tenant Search Using SSN | Planned | Pending Phase 6 |
@@ -97,8 +97,41 @@ Fraud Tenant is a secure, modern, responsive WordPress-based rental incident rep
 ---
 
 ### PHASE 3 — Registration, Email OTP, Login and Password Recovery
-- **Objective**: Build secure authentication for Owners and Tenants with 6-digit email OTP verification and role routing.
-- **Status**: Planned
+- **Objective**: Build secure authentication for Owners and Tenants with 6-digit email OTP verification, password recovery, anti-enumeration safeguards, and lifecycle routing.
+- **Status**: **COMPLETED** (2026-10-28)
+- **Delivered**:
+  - `OtpService` in `wp-content/plugins/fraud-tenant-core/includes/Services/OtpService.php`:
+    - Cryptographically secure 6-digit numeric OTP generation (`random_int(100000, 999999)`).
+    - Keyed HMAC-SHA-256 verifier hashing via `SecurityService::hash_otp()` using dedicated server-side secret `FT_OTP_SECRET_KEY`.
+    - Fail-closed security architecture when secret is missing or empty.
+    - Constant-time verification using `hash_equals()`.
+    - 60-second resend cooldown (`resend_available_at`), 10-minute expiry (`expires_at`), max 5 failed attempts per challenge, and single-use invalidation (`consumed_at`).
+    - Automatic user status transition from `email_unverified` to `pending_approval` upon successful OTP confirmation.
+  - `AuthService` in `wp-content/plugins/fraud-tenant-core/includes/Auth/AuthService.php`:
+    - Dual role registration supporting `ft_owner` (Property Owner) and `ft_tenant` (Tenant).
+    - Initial registration status set to `email_unverified` with profile created in `wp_ft_user_profiles`.
+    - Generic anti-enumeration response on duplicate email submissions.
+    - IP-based brute-force throttling (5 failed attempts within 15 minutes enforces a 15-minute temporary lockout).
+    - Lifecycle-aware login gateway: `email_unverified` redirected to `/verify-otp/`, `pending_approval` redirected to `/account-status/`, and `rejected`/`suspended` accounts blocked.
+    - Password recovery dispatch with enumeration protection, secure reset key generation via WordPress core mechanisms, and constant-time key validation.
+  - `AuthHandler` in `wp-content/plugins/fraud-tenant-core/includes/Auth/AuthHandler.php`:
+    - Registered `admin_post_*` and `admin_post_nopriv_*` hooks for registration, OTP verification, OTP resend, login, logout, password recovery, and password reset.
+    - Strict CSRF nonce validation on all form submissions.
+    - Session-isolated flash message handling via transients for clean redirects.
+  - Custom Theme Authentication Templates in `wp-content/themes/fraud-tenant-theme/`:
+    - `page-login.php`: Split auth card matching showcase mockup, left form column with email and toggleable password inputs, right photographic column with modern suburban visual and floating glassmorphism card ("Safer Tenancies Stronger Communities").
+    - `page-register.php`: Dual role selector cards (Property Owner vs. Tenant with SVG icons and active state), name, email, password confirmation, terms acceptance checkbox, and full-width teal CTA.
+    - `page-verify-otp.php`: Centered card with email address display, 6 individual numeric inputs with auto-advance and clipboard paste support, Verify OTP CTA, and live countdown timer toggling to "Resend Code".
+    - `page-forgot-password.php`: Centered card with email input and generic dispatch confirmation.
+    - `page-reset-password.php`: Secure key & login parameter verification, new password inputs with eye toggles, and update submission.
+    - `page-account-status.php`: Holding page for pending/suspended/rejected accounts with status badge, 4-step progress indicator, user account details grid, and sign-out button.
+    - Separation of shells: dedicated minimal auth header and footer suppressing marketing navigation.
+    - Interactive UX in `assets/js/main.js`: password visibility eye toggles, role selector card switcher, 6-digit OTP input auto-advance, backspace navigation, clipboard paste handler, and countdown timer.
+  - Automated Integration Testing:
+    - 30 comprehensive automated integration test assertions executed via PHP CLI covering all registration validation, role assignment, initial `email_unverified` status, duplicate email anti-enumeration, login blocking, OTP hashing, cooldowns, single-use replays, status transitions, administrator bypass, password reset keys, and password updates (`Passed: 30 | Failed: 0`).
+  - Visual Verification:
+    - Headless Chrome captures on desktop and mobile viewports verifying pixel-level styling, typography, colors, and zero horizontal scroll.
+- **Acceptance Criteria**: All 30 tests pass; registration creates user with proper role and `email_unverified` status; OTP generated and verified with HMAC-SHA-256; login routes correctly based on lifecycle status; password recovery functions securely; theme templates match design system and showcase layout.
 
 ---
 
