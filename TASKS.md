@@ -42,6 +42,10 @@
 - [x] **Task 2.6**: Implement Contact & Enquiry form with server-side validation and anti-spam. *(Completed: CSRF nonce, honeypot trap, rate limiting, and SSN detection privacy rejection)*
 - [x] **Task 2.7**: Implement Privacy Policy, Terms of Service, and Tenant Rights disclosure drafts. *(Completed: Comprehensive legal drafts emphasizing FCRA readiness and tenant rights)*
 - [x] **Task 2.8**: Browser testing across desktop, tablet, and mobile breakpoints. *(Completed: Headless Chrome screenshots captured at 1440px, 768px, and 375px)*
+- [x] **Task 2.9**: UI alignment with approved design showcase (`Fraud Tenant Product UI Showcase.png`). *(Completed: Hero photographic showcase with Illustrative Sample Preview watermark, organic curved wave, 4-step workflow, dual audience split cards with photos, 4-card value grid, and 3-column contact block)*
+- [x] **Task 2.10**: Content audit & verification of all public-facing claims across 9 pages. *(Completed: Removed unsupported stats/percentages, labeled sample data, removed fake office address/phone, verified legal draft alerts)*
+- [x] **Task 2.11**: Contact form migration to core plugin & multi-field SSN pattern detection. *(Completed: Moved to ContactEnquiryHandler in fraud-tenant-core; checks name, subject, and message; rejects pre-dispatch; spoof-resistant IP rate limiting)*
+- [x] **Task 2.12**: Complete 5-viewport responsive QA (1440x900, 1024x768, 768x1024, 375x812, 320x700). *(Completed: Zero horizontal overflow; screenshots captured and verified; zero PHP/console errors)*
 
 ---
 

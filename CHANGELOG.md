@@ -4,6 +4,44 @@ All notable changes to the Fraud Tenant platform will be documented in this file
 
 ---
 
+## [Phase 2.1] — Phase 2 Final Audit & Corrective Review (2026-10-28)
+
+### UI Alignment & Showcase Fidelity
+- **UI Match with Design Showcase (`Fraud Tenant Product UI Showcase.png`)**:
+  - Re-architected `front-page.php` and `assets/css/main.css` to match the approved design showcase layout precisely:
+    - Integrated photographic hero showcase composition with floating badges and an explicit `Illustrative Sample Preview` watermark.
+    - Added bottom organic curved wave divider to the hero section.
+    - Updated How It Works section with 4-step layout and directional transition arrows.
+    - Implemented dual audience split cards for Property Owners and Tenants with dedicated card visuals (`owner-card-visual.png` and `tenant-card-visual.png`).
+    - Implemented 4-column value proposition grid for "Why Choose Fraud Tenant?".
+    - Built unified 3-column contact card featuring suburban residential photography (`contact-house-visual.png`), 3-input row form layout, and light teal-tinted sidebar details.
+    - Updated header actions with crisp `Sign In` text link and `Get Started` teal CTA.
+
+### Public Content & Legal Claims Audit (Task 1)
+- Removed unsupported statistics and unverified claims ("Trusted by thousands" replaced with truthful architectural description; confirmed zero fabricated percentages).
+- Added explicit `Illustrative Sample Preview` badge to hero applicant preview card.
+- Clarified that screening, incident documentation, and disputes are planned capabilities subject to account verification and permissible purpose certification.
+- Removed invented contact information (fake street address and phone numbers) in favor of genuine support channels (`support@fraudtenant.com`, Digital Helpdesk, and National US Service Area).
+- Verified legal draft warnings on Privacy Policy and Terms of Service, and explicit disclaimer that platform information does not constitute formal legal counsel.
+
+### Contact Form Privacy & Architecture Hardening (Task 2)
+- Migrated contact enquiry handler to `FraudTenant\Services\ContactEnquiryHandler` inside the custom plugin `fraud-tenant-core` to ensure survival across theme switches.
+- Implemented multi-field SSN pattern detection across all free-text fields (`enquiry_name`, `enquiry_subject`, `enquiry_message`).
+- Enforced rejection prior to `wp_mail()` dispatch without logging sensitive candidates or echoing user input in URL parameters.
+- Replaced spoofable IP header parsing with reliable `$_SERVER['REMOTE_ADDR']` for rate limiting.
+
+### Multi-Device Responsive QA (Task 3)
+- Verified and captured headless Chrome screenshots across 5 viewports:
+  - 1440 × 900 (`phase2-audit-1440x900-home.png`)
+  - 1024 × 768 (`phase2-audit-1024x768-home.png`)
+  - 768 × 1024 (`phase2-audit-768x1024-home.png`)
+  - 375 × 812 (`phase2-audit-375x812-home.png`)
+  - 320 × 700 (`phase2-audit-320x700-home.png`)
+  - Subpages at 1440 × 900 (`/contact/`, `/for-property-owners/`, `/for-tenants/`, `/tenant-rights/`)
+- Confirmed zero horizontal overflow (`scrollWidth <= innerWidth`) and zero PHP/console errors.
+
+---
+
 ## [Phase 2] — Custom Theme, Design System & Public Website (2026-10-28)
 
 ### Added

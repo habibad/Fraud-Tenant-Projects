@@ -50,7 +50,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 		</nav>
 
 		<div class="header-actions">
-			<a href="<?php echo esc_url( home_url( '/contact/' ) ); ?>" class="btn btn-outline btn-sm"><?php esc_html_e( 'Enquire', 'fraud-tenant-theme' ); ?></a>
+			<a href="<?php echo esc_url( home_url( '/contact/' ) ); ?>" class="btn-signin"><?php esc_html_e( 'Sign In', 'fraud-tenant-theme' ); ?></a>
 			<a href="<?php echo esc_url( home_url( '/how-it-works/' ) ); ?>" class="btn btn-primary btn-sm"><?php esc_html_e( 'Get Started', 'fraud-tenant-theme' ); ?></a>
 			<button class="mobile-menu-toggle" aria-expanded="false" aria-label="<?php esc_attr_e( 'Toggle navigation menu', 'fraud-tenant-theme' ); ?>">
 				<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

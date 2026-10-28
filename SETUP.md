@@ -82,11 +82,6 @@ c:\xampp\htdocs\fraudtenant/
 
 ## 4. Local Testing & Verification
 
-### Running the Phase 1 Security Review Test Suite
-```powershell
-& "C:\xampp\php\php.exe" "C:\Users\Md Anikur Rahaman\.gemini\antigravity\brain\a637eedc-3007-4be0-92fd-89718fcc7a44\scratch\test_phase1_security.php"
-```
-
 ### Verifying REST API Health & Diagnostic Endpoint
 ```powershell
 Invoke-RestMethod -Uri "http://localhost/fraudtenant/wp-json/fraud-tenant/v1/status"
@@ -107,14 +102,9 @@ Expected output:
 }
 ```
 
-### Running the Phase 2 Contact Form Security & Validation Test Suite
-```powershell
-& "C:\xampp\php\php.exe" "C:\Users\Md Anikur Rahaman\.gemini\antigravity\brain\a637eedc-3007-4be0-92fd-89718fcc7a44\scratch\test_contact_form.php"
-```
-
 ### Capturing Headless Browser Screenshots
 ```powershell
-& "C:\Program Files\Google\Chrome\Application\chrome.exe" --headless=new --disable-gpu --screenshot="phase2-desktop-home.png" --window-size="1440,900" "http://localhost/fraudtenant/"
+& "C:\Program Files\Google\Chrome\Application\chrome.exe" --headless=new --disable-gpu --screenshot="desktop-home.png" --window-size="1440,900" "http://localhost/fraudtenant/"
 ```
 
 ---

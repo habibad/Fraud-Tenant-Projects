@@ -84,3 +84,4 @@ fraudtenant/
 - **Phase 3: Registration, Email OTP, Login and Password Recovery** — `NEXT UP`
 
 For detailed setup instructions, testing commands, and verification procedures, refer to [SETUP.md](SETUP.md).
+

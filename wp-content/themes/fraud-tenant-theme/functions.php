@@ -114,142 +114,10 @@ function fraud_tenant_fallback_menu(): void {
 }
 
 /**
- * Handle Contact & Enquiry Form Submission (Server-side validation & safe delivery).
+ * Note: Contact enquiry handling logic has been migrated into the custom plugin
+ * `fraud-tenant-core` (\FraudTenant\Services\ContactEnquiryHandler) so that it remains
+ * permanently active, secure, and resilient across theme changes.
  */
-function fraud_tenant_handle_contact_submission(): void {
-	// 1. Verify CSRF Nonce
-	if ( ! isset( $_POST['ft_contact_enquiry_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['ft_contact_enquiry_nonce'] ) ), 'ft_contact_enquiry_action' ) ) {
-		wp_die( esc_html__( 'Security validation failed. Please refresh the page and try again.', 'fraud-tenant-theme' ), 403 );
-	}
-
-	$ip       = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '' ) );
-	$redir_to = wp_get_referer() ?: home_url( '/contact/' );
-
-	// 2. Anti-Spam: Honeypot field inspection
-	if ( ! empty( $_POST['ft_enquiry_hp'] ) ) {
-		// Bot detected: fail silently with success redirect to avoid training spammer
-		wp_safe_redirect( add_query_arg( 'enquiry_sent', '1', $redir_to ) );
-		if ( ! defined( 'FT_DOING_TESTS' ) ) {
-			exit;
-		}
-		return;
-	}
-
-	// 3. Anti-Spam: Rate limiting (1 submission per 30 seconds per IP)
-	$rate_limit_key = 'ft_enquiry_rate_' . md5( $ip );
-	if ( get_transient( $rate_limit_key ) ) {
-		set_transient(
-			'ft_contact_notice_' . md5( $ip ),
-			array(
-				'type'    => 'error',
-				'message' => __( 'You have submitted an enquiry recently. Please wait a moment before sending another message.', 'fraud-tenant-theme' ),
-			),
-			300
-		);
-		wp_safe_redirect( $redir_to . '#contact' );
-		if ( ! defined( 'FT_DOING_TESTS' ) ) {
-			exit;
-		}
-		return;
-	}
-
-	// 4. Sanitize and Validate Input Fields
-	$name    = isset( $_POST['enquiry_name'] ) ? sanitize_text_field( wp_unslash( $_POST['enquiry_name'] ) ) : '';
-	$email   = isset( $_POST['enquiry_email'] ) ? sanitize_email( wp_unslash( $_POST['enquiry_email'] ) ) : '';
-	$subject = isset( $_POST['enquiry_subject'] ) ? sanitize_text_field( wp_unslash( $_POST['enquiry_subject'] ) ) : '';
-	$message = isset( $_POST['enquiry_message'] ) ? sanitize_textarea_field( wp_unslash( $_POST['enquiry_message'] ) ) : '';
-
-	$errors = array();
-
-	if ( strlen( $name ) < 2 || strlen( $name ) > 100 ) {
-		$errors[] = __( 'Please enter a valid full name (2 to 100 characters).', 'fraud-tenant-theme' );
-	}
-
-	if ( ! is_email( $email ) || strlen( $email ) > 100 ) {
-		$errors[] = __( 'Please enter a valid email address.', 'fraud-tenant-theme' );
-	}
-
-	if ( strlen( $message ) < 10 || strlen( $message ) > 2000 ) {
-		$errors[] = __( 'Please enter a message between 10 and 2000 characters.', 'fraud-tenant-theme' );
-	}
-
-	// Privacy Check: Reject SSN patterns in general enquiry form
-	if ( preg_match( '/\b\d{3}[-\s]?\d{2}[-\s]?\d{4}\b/', $message ) ) {
-		$errors[] = __( 'For privacy and compliance, Social Security Numbers must not be sent through the general inquiry form.', 'fraud-tenant-theme' );
-	}
-
-	if ( ! empty( $errors ) ) {
-		set_transient(
-			'ft_contact_notice_' . md5( $ip ),
-			array(
-				'type'    => 'error',
-				'message' => implode( ' ', $errors ),
-			),
-			300
-		);
-		$query_args = array(
-			'prev_name'    => urlencode( $name ),
-			'prev_email'   => urlencode( $email ),
-			'prev_subject' => urlencode( $subject ),
-			'prev_message' => urlencode( $message ),
-		);
-		wp_safe_redirect( add_query_arg( $query_args, $redir_to ) . '#contact' );
-		if ( ! defined( 'FT_DOING_TESTS' ) ) {
-			exit;
-		}
-		return;
-	}
-
-	// 5. Send Notification Email via wp_mail()
-	$admin_email   = get_option( 'admin_email' );
-	$email_subject = '[Fraud Tenant Inquiry] ' . ( $subject ? $subject : 'New Contact Request from ' . $name );
-	$headers       = array(
-		'Content-Type: text/plain; charset=UTF-8',
-		'Reply-To: ' . $name . ' <' . $email . '>',
-	);
-
-	$email_body  = "You have received a new inquiry through the Fraud Tenant website:\n\n";
-	$email_body .= "From: " . $name . "\n";
-	$email_body .= "Email: " . $email . "\n";
-	$email_body .= "Subject: " . ( $subject ?: 'None' ) . "\n\n";
-	$email_body .= "Message:\n" . $message . "\n\n";
-	$email_body .= "---\n";
-	$email_body .= "Sent from IP: " . $ip . " at " . current_time( 'mysql' ) . "\n";
-
-	$mail_sent = wp_mail( $admin_email, $email_subject, $email_body, $headers );
-
-	// 6. Set 30s rate limit window
-	set_transient( $rate_limit_key, true, 30 );
-
-	// 7. Store feedback message
-	if ( $mail_sent ) {
-		set_transient(
-			'ft_contact_notice_' . md5( $ip ),
-			array(
-				'type'    => 'success',
-				'message' => __( 'Thank you for contacting Fraud Tenant! Your enquiry has been sent and our team will get back to you shortly.', 'fraud-tenant-theme' ),
-			),
-			300
-		);
-	} else {
-		set_transient(
-			'ft_contact_notice_' . md5( $ip ),
-			array(
-				'type'    => 'success',
-				'message' => __( 'Thank you! Your enquiry has been received and queued for staff review.', 'fraud-tenant-theme' ),
-			),
-			300
-		);
-	}
-
-	wp_safe_redirect( $redir_to . '#contact' );
-	if ( ! defined( 'FT_DOING_TESTS' ) ) {
-		exit;
-	}
-	return;
-}
-add_action( 'admin_post_ft_submit_contact_enquiry', 'fraud_tenant_handle_contact_submission' );
-add_action( 'admin_post_nopriv_ft_submit_contact_enquiry', 'fraud_tenant_handle_contact_submission' );
 
 /**
  * Idempotent Public Pages Generator.
@@ -270,12 +138,12 @@ function fraud_tenant_ensure_public_pages(): void {
 		'for-property-owners' => array(
 			'title'     => 'For Property Owners',
 			'subtitle'  => 'Protect your rental investments, document factual lease disputes, and screen applicants responsibly.',
-			'content'   => '<h2>Responsible Tenant Screening for Independent Landlords</h2><p>As a property owner or residential landlord, selecting trustworthy tenants is critical to preserving your rental income and property value. Fraud Tenant equips property owners with structured, objective screening and incident reporting tools.</p><h3>Key Landlord Features</h3><ul><li><strong>Authorized SSN Tenant Matching:</strong> Verify applicant rental history securely without ever exposing or retaining plaintext Social Security Numbers.</li><li><strong>Verified Incident Documentation:</strong> Record past tenancy incidents such as unpaid rent, property damage beyond normal wear, or broken leases. All submissions require owner attestation and supporting evidence.</li><li><strong>Property & Lease Portfolio:</strong> Organize all your rental addresses and active tenancies in one unified dashboard shell.</li><li><strong>Membership Tiers:</strong> Access free neutral status inquiries or upgrade to paid monthly/annual memberships for full report disclosures and advanced portfolio management.</li></ul><div class="legal-callout-box"><h4>Permissible Purpose Requirement</h4><p>Under US federal and state regulations, tenant screening information may only be requested for legitimate housing decisions where the applicant has authorized screening. Landlords must certify permissible purpose before initiating an inquiry.</p></div>',
+			'content'   => '<h2>Responsible Tenant Screening for Independent Landlords</h2><p>As a property owner or residential landlord, selecting trustworthy tenants is critical to preserving your rental income and property value. Fraud Tenant is designed to equip property owners with structured, objective screening and incident reporting tools.</p><h3>Planned Landlord Features (Subject to Account Approval)</h3><ul><li><strong>Authorized SSN Tenant Matching:</strong> Verify applicant rental history securely without ever exposing or retaining plaintext Social Security Numbers.</li><li><strong>Documented Incident Records:</strong> Record past tenancy incidents such as unpaid rent, property damage beyond normal wear, or broken leases. All submissions require owner attestation and supporting evidence.</li><li><strong>Property & Lease Portfolio:</strong> Organize all your rental addresses and active tenancies in one unified dashboard shell.</li><li><strong>Membership Tiers:</strong> Access free neutral status inquiries or upgrade to paid monthly/annual memberships for full report disclosures and advanced portfolio management.</li></ul><div class="legal-callout-box"><h4>Permissible Purpose Requirement</h4><p>Under US federal and state regulations, tenant screening information may only be requested for legitimate housing decisions where the applicant has authorized screening. Landlords must certify permissible purpose before initiating an inquiry. Fraud Tenant does not guarantee tenant payment performance or legal immunity.</p></div>',
 		),
 		'for-tenants'        => array(
 			'title'     => 'For Tenants',
 			'subtitle'  => 'Inspect your rental records, dispute inaccuracies, and protect your housing reputation.',
-			'content'   => '<h2>Transparency and Due Process for Renters</h2><p>Fraud Tenant believes that renters have the fundamental right to know what information is being reported about them, to review the accuracy of rental incident records, and to challenge false or inaccurate claims.</p><h3>Tenant Rights & Platform Features</h3><ul><li><strong>Review Your Own Records:</strong> Approved tenant users can view rental history entries and incident reports associated with their verified profile.</li><li><strong>File Formal Disputes:</strong> If a report contains incorrect dates, amounts, or untrue claims, submit a dispute directly through the platform with counter-evidence.</li><li><strong>Human Administrative Review:</strong> Disputes are investigated by platform administrators. Incorrect records are updated, corrected, or dismissed.</li><li><strong>Bank-Grade Privacy:</strong> Your full Social Security Number is never stored in plain text or sold to third parties. Matching is conducted using cryptographic tokenization.</li></ul><div class="legal-callout-box"><h4>No Automated Fraud Labels</h4><p>An incident report submitted by a landlord is treated as a pending allegation until reviewed and verified. Allegations are never published as proven facts.</p></div>',
+			'content'   => '<h2>Transparency and Due Process for Renters</h2><p>Fraud Tenant is designed around the core principle that renters have the fundamental right to know what information is being reported about them, to review the accuracy of rental incident records, and to challenge false or inaccurate claims.</p><h3>Planned Tenant Features (Subject to Account Verification)</h3><ul><li><strong>Review Your Own Records:</strong> Approved tenant users can view rental history entries and incident reports associated with their verified profile.</li><li><strong>File Formal Disputes:</strong> If a report contains incorrect dates, amounts, or untrue claims, submit a dispute directly through the platform with counter-evidence.</li><li><strong>Human Administrative Review:</strong> Disputes are investigated by platform administrators. Incorrect records are updated, corrected, or dismissed.</li><li><strong>Bank-Grade Privacy:</strong> Your full Social Security Number is never stored in plain text or sold to third parties. Matching is conducted using cryptographic tokenization.</li></ul><div class="legal-callout-box"><h4>No Automated Fraud Labels</h4><p>An incident report submitted by a landlord is treated as a pending allegation until reviewed and verified. Allegations are never published as proven facts. The platform does not operate a public blacklist.</p></div>',
 		),
 		'faq'               => array(
 			'title'     => 'Frequently Asked Questions',
@@ -306,7 +174,7 @@ function fraud_tenant_ensure_public_pages(): void {
 		'contact'           => array(
 			'title'     => 'Contact & Support',
 			'subtitle'  => 'Have questions or need assistance? Reach out to our customer support team.',
-			'content'   => '<h2>We’re Here to Help</h2><p>Whether you are an independent property owner inquiring about screening services or a tenant seeking assistance with record review, our team is ready to assist you.</p><div class="contact-grid"><div class="contact-form-card"><h3>Send an Inquiry</h3><p>Fill out the form below and we will respond within one business day.</p>[ft_contact_form]</div><div class="contact-info-card"><h3>Contact Details</h3><ul class="contact-info-list"><li class="contact-info-item"><strong>Email:</strong> support@fraudtenant.com</li><li class="contact-info-item"><strong>Phone:</strong> +1 (833) 123-4567</li><li class="contact-info-item"><strong>Office:</strong> 125 Business Ave, New York, NY</li><li class="contact-info-item"><strong>Hours:</strong> Mon - Fri, 6:00 AM - 6:00 PM (EST)</li></ul></div></div>',
+			'content'   => '<h2>We’re Here to Help</h2><p>Whether you are an independent property owner inquiring about screening services or a tenant seeking assistance with record review, our team is ready to assist you.</p><div class="showcase-contact-card"><div class="contact-card-main"><h3>Send an Inquiry</h3><p>Fill out the form below. Our support team responds to all platform inquiries within one business day.</p>[ft_contact_form]</div><div class="contact-card-sidebar"><h3>Other Ways to Reach Us</h3><ul class="contact-info-list-light"><li class="contact-info-item-light"><div><span class="info-label">Email Us</span><a href="mailto:support@fraudtenant.com" class="info-val">support@fraudtenant.com</a></div></li><li class="contact-info-item-light"><div><span class="info-label">Helpdesk Support</span><span class="info-val">Digital Inquiries via Form</span></div></li><li class="contact-info-item-light"><div><span class="info-label">Service Area</span><span class="info-val">United States (National)</span></div></li><li class="contact-info-item-light"><div><span class="info-label">Support Hours</span><span class="info-val">Mon - Fri, 8:00 AM - 6:00 PM (EST)</span></div></li></ul></div></div>',
 		),
 		'privacy-policy'    => array(
 			'title'     => 'Privacy Policy (Draft)',
@@ -321,7 +189,7 @@ function fraud_tenant_ensure_public_pages(): void {
 		'tenant-rights'     => array(
 			'title'     => 'Tenant Rights & Screening Information',
 			'subtitle'  => 'Educational guidance on tenant rights, FCRA principles, and dispute mechanisms.',
-			'content'   => '<div class="legal-notice-box"><strong>Educational Notice:</strong> This guide provides general educational information regarding rental records and due process. It does not constitute formal legal advice.</div><h2>Understanding Your Rental Records</h2><p>Under US fair housing principles and credit reporting regulations, renters are protected against inaccurate, unauthorized, or unsubstantiated negative reports.</p><h3>Core Tenant Protections on Fraud Tenant</h3><ol><li><strong>Notice of Screening:</strong> Property owners may only conduct screening inquiries when they have a permissible purpose, such as an active rental application.</li><li><strong>Right to Review:</strong> Verified tenants can log into their account to review any disclosable incident reports associated with their profile.</li><li><strong>Right to Dispute:</strong> If a report contains errors, disputed balances, or inaccuracies, tenants can submit a formal dispute with supporting evidence directly to our review team.</li><li><strong>Mandatory Correction:</strong> Reports found to be unsubstantiated or inaccurate are removed or amended, and complete correction history is documented in the audit log.</li></ol>',
+			'content'   => '<div class="legal-notice-box"><strong>Educational Notice:</strong> This guide provides general educational information regarding rental records and due process. It does not constitute formal legal advice. Compliance with the Fair Credit Reporting Act (15 U.S.C. § 1681 et seq.) requires permissible purpose verification and qualified legal counsel review.</div><h2>Understanding Your Rental Records</h2><p>Under US fair housing principles and credit reporting regulations, renters are protected against inaccurate, unauthorized, or unsubstantiated negative reports.</p><h3>Core Tenant Protections on Fraud Tenant</h3><ol><li><strong>Notice of Screening:</strong> Property owners may only conduct screening inquiries when they have a permissible purpose, such as an active rental application with applicant consent.</li><li><strong>Right to Review:</strong> Verified tenants can log into their account to review any disclosable incident reports associated with their profile.</li><li><strong>Right to Dispute:</strong> If a report contains errors, disputed balances, or inaccuracies, tenants can submit a formal dispute with supporting evidence directly to our review team.</li><li><strong>Mandatory Correction:</strong> Reports found to be unsubstantiated or inaccurate are removed or amended, and complete correction history is documented in the audit log.</li></ol><div class="legal-callout-box"><h4>Legal Disclaimer</h4><p>Fraud Tenant is an independent rental reporting platform. Nothing on this website constitutes legal counsel or an official guarantee of outcome. Consult a qualified attorney for specific legal guidance on tenant-landlord regulations in your jurisdiction.</p></div>',
 		),
 	);
 
