@@ -81,6 +81,7 @@ c:\xampp\htdocs\fraudtenant/
 │   │       ├── fraud-tenant-core.php
 │   │       └── includes/
 │   │           ├── Autoloader.php
+│   │           ├── Admin/     # AdminPortal, AdminReviewService, UserReviewController (Phase 4)
 │   │           ├── Core/      # Activator, Deactivator, Plugin
 │   │           ├── Database/  # MigrationManager, Schema (14 custom tables)
 │   │           ├── Auth/      # Capabilities, RoleManager (ft_owner, ft_tenant)
@@ -99,6 +100,11 @@ c:\xampp\htdocs\fraudtenant/
 
 ## 4. Local Testing & Verification
 
+### Accessing the Administrative Review Portal (Phase 4)
+- **URL**: `http://localhost/fraudtenant/wp-admin/admin.php?page=fraud-tenant-admin`
+- **Required Capability**: `ft_review_user_registrations` (held by default `administrator` account).
+- **Features**: Applications queue, role/status filtering, search, applicant details view, secure document inspection, separate property verification, and review action forms.
+
 ### Verifying REST API Health & Diagnostic Endpoint
 ```powershell
 Invoke-RestMethod -Uri "http://localhost/fraudtenant/wp-json/fraud-tenant/v1/status"
@@ -111,7 +117,7 @@ Expected output:
     "status": "operational",
     "plugin": "fraud-tenant-core",
     "api_version": "1.0.0",
-    "schema_version": "1.1.0",
+    "schema_version": "1.2.0",
     "ssn_matching_ready": false,
     "otp_hashing_ready": true,
     "timestamp": "..."

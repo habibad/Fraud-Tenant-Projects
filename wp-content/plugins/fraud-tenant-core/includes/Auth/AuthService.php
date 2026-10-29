@@ -387,7 +387,7 @@ class AuthService {
 		$current_city     = isset( $data['current_city'] ) ? sanitize_text_field( trim( $data['current_city'] ) ) : ( isset( $data['city'] ) ? sanitize_text_field( trim( $data['city'] ) ) : '' );
 		$current_state    = isset( $data['current_state'] ) ? sanitize_text_field( trim( $data['current_state'] ) ) : ( isset( $data['state'] ) ? sanitize_text_field( trim( $data['state'] ) ) : '' );
 		$current_zip      = isset( $data['current_zip'] ) ? sanitize_text_field( trim( $data['current_zip'] ) ) : ( isset( $data['postal_code'] ) ? sanitize_text_field( trim( $data['postal_code'] ) ) : '' );
-		$has_prev_address = ! empty( $data['has_previous_address'] );
+		$has_prev_address = ! empty( $data['has_previous_address'] ) || ! empty( $data['has_prev_address'] );
 		$prev_street      = isset( $data['prev_street'] ) ? sanitize_text_field( trim( $data['prev_street'] ) ) : '';
 		$prev_city        = isset( $data['prev_city'] ) ? sanitize_text_field( trim( $data['prev_city'] ) ) : '';
 		$prev_state       = isset( $data['prev_state'] ) ? sanitize_text_field( trim( $data['prev_state'] ) ) : '';
@@ -697,6 +697,16 @@ class AuthService {
 					'status'   => Constants::STATUS_PENDING_APPROVAL,
 					'redirect' => home_url( '/account-status/' ),
 					'message'  => __( 'Your account is currently under administrative review.', 'fraud-tenant-core' ),
+				);
+
+			case Constants::STATUS_INFO_REQUESTED:
+				// Administrator requested additional information. Authenticate session, but route to holding page
+				wp_set_auth_cookie( $user->ID, $remember );
+				return array(
+					'success'  => true,
+					'status'   => Constants::STATUS_INFO_REQUESTED,
+					'redirect' => home_url( '/account-status/' ),
+					'message'  => __( 'Additional information has been requested for your application.', 'fraud-tenant-core' ),
 				);
 
 			case Constants::STATUS_REJECTED:

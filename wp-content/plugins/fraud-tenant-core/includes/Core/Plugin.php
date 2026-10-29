@@ -7,6 +7,7 @@
 
 namespace FraudTenant\Core;
 
+use FraudTenant\Admin\AdminPortal;
 use FraudTenant\API\RestServer;
 use FraudTenant\Auth\AuthHandler;
 use FraudTenant\Database\MigrationManager;
@@ -57,6 +58,9 @@ class Plugin {
 
 		// Register authentication web request handlers
 		AuthHandler::register();
+
+		// Register administrative portal & review action handlers
+		AdminPortal::init();
 
 		// Check for database schema updates in admin context
 		add_action( 'admin_init', array( $this, 'maybe_migrate' ) );

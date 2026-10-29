@@ -62,6 +62,10 @@ get_header();
 							<div class="otp-icon-circle status-icon-rejected">
 								<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
 							</div>
+						<?php elseif ( Constants::STATUS_INFO_REQUESTED === $status ) : ?>
+							<div class="otp-icon-circle status-icon-pending" style="background:#FFFBEB;border-color:#F59E0B;">
+								<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+							</div>
 						<?php else : ?>
 							<div class="otp-icon-circle status-icon-pending">
 								<svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
@@ -76,6 +80,8 @@ get_header();
 							<?php esc_html_e( 'Application Not Approved', 'fraud-tenant-theme' ); ?>
 						<?php elseif ( Constants::STATUS_SUSPENDED === $status ) : ?>
 							<?php esc_html_e( 'Account Suspended', 'fraud-tenant-theme' ); ?>
+						<?php elseif ( Constants::STATUS_INFO_REQUESTED === $status ) : ?>
+							<?php esc_html_e( 'Additional Information Requested', 'fraud-tenant-theme' ); ?>
 						<?php else : ?>
 							<?php esc_html_e( 'Account Under Review', 'fraud-tenant-theme' ); ?>
 						<?php endif; ?>
@@ -88,10 +94,20 @@ get_header();
 							<?php esc_html_e( 'Your registration application was not approved during administrative compliance check. Please reach out to support if you have questions.', 'fraud-tenant-theme' ); ?>
 						<?php elseif ( Constants::STATUS_SUSPENDED === $status ) : ?>
 							<?php esc_html_e( 'Your account access has been suspended. Please contact customer support.', 'fraud-tenant-theme' ); ?>
+						<?php elseif ( Constants::STATUS_INFO_REQUESTED === $status ) : ?>
+							<?php esc_html_e( 'Our compliance team has reviewed your application and requested additional information to proceed with verification.', 'fraud-tenant-theme' ); ?>
 						<?php else : ?>
 							<?php esc_html_e( 'Thank you for verifying your email. Your application has been received and is waiting for compliance review.', 'fraud-tenant-theme' ); ?>
 						<?php endif; ?>
 					</p>
+
+					<?php if ( Constants::STATUS_INFO_REQUESTED === $status && ! empty( $profile->rejection_reason ) ) : ?>
+						<div class="auth-alert auth-alert-warning" style="margin-top: 20px; text-align: left; background:#FFFBEB; border: 1px solid #FCD34D; color: #92400E; padding: 14px 18px; border-radius: 8px;">
+							<strong><?php esc_html_e( 'Reviewer Note / Request:', 'fraud-tenant-theme' ); ?></strong>
+							<p style="margin: 6px 0 0 0;"><?php echo esc_html( $profile->rejection_reason ); ?></p>
+							<p style="margin: 8px 0 0 0; font-size: 13px; color: #78350F;"><?php esc_html_e( 'Please provide the requested details to support@fraudtenant.com referencing your registered email address.', 'fraud-tenant-theme' ); ?></p>
+						</div>
+					<?php endif; ?>
 				</div>
 
 				<!-- Step Progress Indicator (Showcase Design) -->

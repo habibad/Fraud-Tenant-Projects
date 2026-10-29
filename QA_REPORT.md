@@ -347,6 +347,133 @@ Executed via dedicated CLI audit suite `scratch/run_release_gate_audit.php` agai
 
 ---
 
+## Phase 4 Step 0 Security Preflight Execution & Verification
+
+Executed via dedicated CLI preflight script against active MariaDB and WordPress runtime.
+
+### Section 1: Nonce & CSRF Protection
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **PRE-1.1** | Invalid Registration Nonce | `wp_verify_nonce('invalid', 'ft_register_action')` | Returns `false` | **PASS** |
+| **PRE-1.2** | Valid Registration Nonce | `wp_verify_nonce($valid, 'ft_register_action')` | Returns `1` | **PASS** |
+| **PRE-1.3** | Invalid Login Nonce | `wp_verify_nonce('invalid', 'ft_login_action')` | Returns `false` | **PASS** |
+| **PRE-1.4** | Valid Login Nonce | `wp_verify_nonce($valid, 'ft_login_action')` | Returns `1` | **PASS** |
+| **PRE-1.5** | Invalid Logout Nonce | `wp_verify_nonce('invalid', 'ft_logout_action')` | Returns `false` | **PASS** |
+| **PRE-1.6** | Valid Logout Nonce | `wp_verify_nonce($valid, 'ft_logout_action')` | Returns `1` | **PASS** |
+| **PRE-1.7** | Invalid Password Reset Nonce | `wp_verify_nonce('invalid', 'ft_forgot_action')` | Returns `false` | **PASS** |
+| **PRE-1.8** | Valid Password Reset Nonce | `wp_verify_nonce($valid, 'ft_forgot_action')` | Returns `1` | **PASS** |
+
+### Section 2: Safe Redirect Handling
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **PRE-2.1** | Open Redirect Defense | `wp_validate_redirect('https://evil-phishing-site.example.com')` | Falls back safely to `home_url()` | **PASS** |
+| **PRE-2.2** | Local Safe Redirect | `wp_validate_redirect(home_url('/account-status/'))` | Allowed and preserved | **PASS** |
+
+### Section 3: Logout & Session Termination
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **PRE-3.1** | User Session Active | `wp_set_current_user(1)` | User ID 1 verified | **PASS** |
+| **PRE-3.2** | Session Termination | `wp_logout()` | Session ended; current user ID is 0 | **PASS** |
+
+### Section 4: Role & Capability Isolation
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **PRE-4.1** | Admin Review Capabilities | `user_can(1, Capabilities::REVIEW_USER_REGISTRATIONS)` | Admin retains all review & approve capabilities | **PASS** |
+| **PRE-4.2** | Owner Role Admin Isolation | `ft_owner->has_cap('ft_review_user_registrations')` | Owner denied all admin capabilities | **PASS** |
+| **PRE-4.3** | Tenant Role Admin Isolation | `ft_tenant->has_cap('ft_review_user_registrations')` | Tenant denied all admin and owner capabilities | **PASS** |
+
+### Section 5: Account Lifecycle Restrictions
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **PRE-5.1** | `email_unverified` Login Block | `AuthService::login()` with unverified user | Blocked with `email_unverified` error | **PASS** |
+| **PRE-5.2** | `pending_approval` Holding Routing | `AuthService::login()` with pending user | Routed to `/account-status/` | **PASS** |
+| **PRE-5.3** | `rejected` Login Block | `AuthService::login()` with rejected user | Blocked with `account_rejected` error | **PASS** |
+| **PRE-5.4** | `suspended` Login Block | `AuthService::login()` with suspended user | Blocked with `account_suspended` error | **PASS** |
+
+### Section 6: Private Document Storage Preflight
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **PRE-6.1** | Apache `.htaccess` Present | `file_exists(.htaccess)` in protected dir | File exists | **PASS** |
+| **PRE-6.2** | IIS `web.config` Present | `file_exists(web.config)` in protected dir | File exists | **PASS** |
+| **PRE-6.3** | `index.php` 403 Guard Present | `file_exists(index.php)` in protected dir | File exists | **PASS** |
+| **PRE-6.4** | Direct HTTP 403 Access Denial | `wp_remote_get()` to protected document | Returns `HTTP 403 Forbidden` | **PASS** |
+
+---
+
+## Phase 4 Test Execution & Verification
+
+Executed via automated test suite against active MariaDB database and WordPress runtime.
+
+### Section 1: Administrator Access & Role Isolation
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **P4-1.1** | Admin Review Permission | `AdminReviewService::can_review(1)` | Succeeded; User 1 has review permissions | **PASS** |
+| **P4-1.2** | Owner Review Access Guard | `AdminReviewService::can_review($owner_id)` | Denied; `ft_owner` cannot review | **PASS** |
+| **P4-1.3** | Tenant Review Access Guard | `AdminReviewService::can_review($tenant_id)` | Denied; `ft_tenant` cannot review | **PASS** |
+| **P4-1.4** | Anonymous Access Guard | `AdminReviewService::can_review(0)` | Denied; unauthenticated request rejected | **PASS** |
+
+### Section 2: Application Queue & Filtering
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **P4-2.1** | Test Owner Registration | `AuthService::register_owner()` with deed | User created with property & document | **PASS** |
+| **P4-2.2** | Test Tenant Registration | `AuthService::register_tenant()` with rental history | User created with residence history | **PASS** |
+| **P4-2.3** | Pending Queue Inclusion | `AdminReviewService::get_applications(['status' => 'pending_approval'])` | Both Owner and Tenant appear in queue | **PASS** |
+| **P4-2.4** | Role Filter: Owners Only | `AdminReviewService::get_applications(['role' => 'owner'])` | Returns strictly Property Owners | **PASS** |
+| **P4-2.5** | Role Filter: Tenants Only | `AdminReviewService::get_applications(['role' => 'tenant'])` | Returns strictly Tenants | **PASS** |
+| **P4-2.6** | Search by Applicant Name | `AdminReviewService::get_applications(['search' => 'Eleanor'])` | Accurately returns Eleanor Vance | **PASS** |
+| **P4-2.7** | Status Group Counts | `AdminReviewService::count_applications_by_status()` | Accurate group counts across all statuses | **PASS** |
+| **P4-2.8** | Empty State Handling | `AdminReviewService::get_applications(['search' => 'nonexistent'])` | Returns 0 items gracefully | **PASS** |
+
+### Section 3: Applicant Details & Data Accuracy
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **P4-3.1** | Owner Detail Accuracy | `AdminReviewService::get_application_detail($owner_id)` | Name, phone, property address, pending status & deed match DB | **PASS** |
+| **P4-3.2** | Tenant Detail Accuracy | `AdminReviewService::get_application_detail($tenant_id)` | Name, current address & previous rental address match DB | **PASS** |
+
+### Section 4: Secure Private Document Streaming
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **P4-4.1** | Document Storage Confinement | `file_exists($doc_disk_path)` | Physical file verified in protected storage | **PASS** |
+| **P4-4.2** | Valid Document Nonce Verification | `wp_verify_nonce($nonce, 'ft_view_doc_' . $doc_id)` | Verification succeeds | **PASS** |
+| **P4-4.3** | Invalid Document Nonce Rejection | `wp_verify_nonce('bogus', 'ft_view_doc_' . $doc_id)` | Verification rejected | **PASS** |
+| **P4-4.4** | Path Traversal Trapped | Canonicalization check on `../../wp-config.php` | Traversal detected and strictly denied | **PASS** |
+| **P4-4.5** | Nonexistent Document Handling | `DocumentService::get_document(9999999)` | Returns null safely | **PASS** |
+
+### Section 5: Review Actions & State Transitions
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **P4-5.1** | Request Additional Information | `AdminReviewService::request_additional_info()` | Succeeded with explanation | **PASS** |
+| **P4-5.2** | Status Transition to `info_requested` | Profile inspection | Status updated to `info_requested` and note saved | **PASS** |
+| **P4-5.3** | Short Info Request Guard | Request info with string < 10 characters | Rejected with `missing_or_short_request` | **PASS** |
+| **P4-5.4** | Application Approval | `AdminReviewService::approve_application()` | Succeeded for eligible applicant | **PASS** |
+| **P4-5.5** | Status Transition to `approved` | Profile inspection | Status updated to `approved`, reviewer ID recorded | **PASS** |
+| **P4-5.6** | Short Rejection Reason Guard | Reject with string < 10 characters | Rejected with `missing_or_short_reason` | **PASS** |
+| **P4-5.7** | Valid Rejection Execution | `AdminReviewService::reject_application()` | Succeeded with meaningful reason | **PASS** |
+| **P4-5.8** | Status Transition to `rejected` | Profile inspection | Status updated to `rejected`, reason preserved | **PASS** |
+
+### Section 6: Separation of Account and Property Decisions
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **P4-6.1** | Initial Property Status | Property record inspection | Initially `pending_verification` | **PASS** |
+| **P4-6.2** | Owner Account Approval | `AdminReviewService::approve_application($owner_id, 1)` | Succeeded | **PASS** |
+| **P4-6.3** | Owner Account Status Updated | Profile inspection | Status updated to `approved` | **PASS** |
+| **P4-6.4** | Strict Property Status Separation | Property record inspection | **Property strictly remains `pending_verification`** | **PASS** |
+| **P4-6.5** | Explicit Property Verification | `AdminReviewService::verify_property($prop_id, 1)` | Separate property verification succeeds | **PASS** |
+| **P4-6.6** | Property Verified Post-Action | Property record inspection | Property status updated to `verified` | **PASS** |
+
+### Section 7: Audit Logging & Visual Regression
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **P4-7.1** | Application Approval Audit Log | `AdminReviewService::get_user_audit_history()` | `admin.application_approved` logged | **PASS** |
+| **P4-7.2** | Property Verification Audit Log | Audit table query | `admin.property_verified` logged with reviewer ID | **PASS** |
+| **P4-7.3** | Headless Chrome Admin Desktop Queue | Headless screenshot capture (1440x1050) | Queue table, badges, filters rendered crisply | **PASS** |
+| **P4-7.4** | Headless Chrome Admin Desktop Review | Headless screenshot capture (1440x1200) | Two-column cards, document link, action forms rendered | **PASS** |
+| **P4-7.5** | Headless Chrome Admin Mobile Queue | Headless screenshot capture (375x812) | Responsive table layout, zero horizontal overflow | **PASS** |
+| **P4-7.6** | Headless Chrome Admin Mobile Review | Headless screenshot capture (375x900) | Single-column stacked cards, action forms responsive | **PASS** |
+| **P4-7.7** | Production SMTP Real Inbox Delivery | Live outbound SMTP check | Local XAMPP environment; fallback verified | **NOT TESTED** |
+
+---
+
 ## Phase Test Summary Table
 
 | Phase / Review | Total Tests | PASS | FAIL | BLOCKED | NOT TESTED |
@@ -359,4 +486,6 @@ Executed via dedicated CLI audit suite `scratch/run_release_gate_audit.php` agai
 | **Phase 3 Auth, OTP & Recovery** | 30 | 30 | 0 | 0 | 0 |
 | **Phase 3 Correction: Forms & Docs** | 44 | 43 | 0 | 0 | 1 |
 | **Phase 3 Final Release-Gate Audit** | 33 | 32 | 0 | 0 | 1 |
-| **Total Verified** | **207** | **203** | **0** | **0** | **4** |
+| **Phase 4 Step 0 Security Preflight** | 23 | 23 | 0 | 0 | 0 |
+| **Phase 4 Admin Review Portal** | 40 | 39 | 0 | 0 | 1 |
+| **Total Verified** | **270** | **265** | **0** | **0** | **5** |

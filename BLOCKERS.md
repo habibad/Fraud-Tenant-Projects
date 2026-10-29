@@ -16,7 +16,7 @@ This document tracks all external dependencies, missing credentials, infrastruct
 ### BLK-02: Outbound Email / SMTP Provider Configuration
 - **Impacted Phases**: Phase 2 (Contact form), Phase 3 (Email OTP), Phase 4 (Admin approvals), Phase 8 (Disputes), Phase 10 (Notifications)
 - **Status**: `DEVELOPMENT COMPLIANT / PRODUCTION CREDENTIALS PENDING`
-- **Details**: Windows XAMPP environment lacks built-in `sendmail`. In Phase 3, `OtpService` utilizes `wp_mail()` with graceful local fallback and database-backed verification (`wp_ft_email_otps`). FluentSMTP is present in `wp-content/plugins/fluent-smtp/` for optional live relay.
+- **Details**: Windows XAMPP environment lacks built-in `sendmail`. In Phase 3 and Phase 4, `OtpService` and `AdminReviewService` utilize `wp_mail()` with graceful local fallback and database-backed verification (`wp_ft_email_otps`). FluentSMTP is present in `wp-content/plugins/fluent-smtp/` for optional live relay.
 - **Action Required**: Configure production SMTP credentials (e.g. Amazon SES, Postmark, SendGrid) prior to Phase 11 production launch.
 
 ---
@@ -58,8 +58,9 @@ This document tracks all external dependencies, missing credentials, infrastruct
 
 ### BLK-05: Private Document Storage Root Outside Webroot
 - **Impacted Phase**: Phase 3 (Ownership Document Upload), Phase 4 (Admin Review), Phase 6 (Property Documents)
-- **Status**: `IMPLEMENTED, HARDENED & VERIFIED IN PHASE 3`
+- **Status**: `IMPLEMENTED, HARDENED & VERIFIED IN PHASE 3 & PHASE 4`
 - **Details**: Implemented `DocumentService` in `wp-content/plugins/fraud-tenant-core/includes/Services/DocumentService.php`. Uses private directory `wp-content/uploads/fraud-tenant-protected/` secured by Apache `.htaccess` (`Deny from all`, `Require all denied`), `index.php` (403 Exit), and IIS `web.config` (`<deny users="*" />`).
+- **Phase 4 Operational Verification**: Authorized streaming endpoint `admin_post_ft_view_document` implemented in `DocumentService::stream_protected_document()`. Enforces reviewer capability check, one-time action nonces, strict database resolution, path canonicalization via `realpath()`, traversal trapping (`../`), MIME whitelisting, and tamper-evident audit logging.
 - **Web Server Protection Matrix**:
   1. **Apache**: Fully protected via generated `.htaccess` rules (`<IfModule mod_authz_core.c> Require all denied </IfModule>` and legacy `Order Deny,Allow` / `Deny from all`). Verified live via automated tests returning `HTTP/1.1 403 Forbidden`.
   2. **IIS**: Fully protected via auto-generated `web.config` with `<authorization><deny users="*" /></authorization>`.
@@ -72,4 +73,4 @@ This document tracks all external dependencies, missing credentials, infrastruct
            return 403;
        }
        ```
-- **Application-Level Security**: Zero public streaming routes or REST endpoints currently stream uploaded files. Authorized streaming controllers with capability and ownership verification will be introduced in Phase 4 for admin reviews and Phase 6 for property owners.
+- **Application-Level Security**: Zero public streaming routes or direct upload links exist. Authorized streaming controllers with capability and ownership verification are enforced for admin reviews (Phase 4) and property owner access (Phase 6).

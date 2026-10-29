@@ -66,13 +66,13 @@
 ---
 
 ## Phase 4: Administrative User Review and Approval Portal
-- [ ] **Task 4.1**: Build administrative portal shell and menu integration.
-- [ ] **Task 4.2**: Implement pending user review queue for Owners and Tenants.
-- [ ] **Task 4.3**: Build application detail view displaying submitted business and property proof.
-- [ ] **Task 4.4**: Implement approve, reject (with recorded reason), request info, and suspend actions.
-- [ ] **Task 4.5**: Connect decision triggers to automated email notifications.
-- [ ] **Task 4.6**: Implement administrative decision audit logging.
-- [ ] **Task 4.7**: Test approval/rejection workflows and authorization guards.
+- [x] **Task 4.1**: Build administrative portal shell and menu integration. *(Completed: Registered top-level Fraud Tenant menu with shield icon, capability guard ft_review_user_registrations, and User Applications submenu in `AdminPortal.php`)*
+- [x] **Task 4.2**: Implement pending user review queue for Owners and Tenants. *(Completed: `UserReviewController::render_list()` with status tabs, count badges, role filter, search input, pagination, and empty states)*
+- [x] **Task 4.3**: Build application detail view displaying submitted business and property proof. *(Completed: `UserReviewController::render_detail()` with two-column responsive layout, owner property details & deed card, tenant residence & history, and decision audit timeline)*
+- [x] **Task 4.4**: Implement approve, reject (with recorded reason), request info, and suspend actions. *(Completed: `AdminReviewService.php` with server-side validation, minimum reason lengths, status transitions, and CSRF nonce verification)*
+- [x] **Task 4.5**: Connect decision triggers to automated email notifications. *(Completed: Integrated `wp_mail()` dispatches for approvals, rejections, and information requests with graceful fallback)*
+- [x] **Task 4.6**: Implement administrative decision audit logging. *(Completed: Logged `admin.application_approved`, `admin.application_rejected`, `admin.info_requested`, `admin.property_verified`, `admin.property_rejected`, `admin.document_viewed`, and `admin.document_access_denied` via `AuditLogger`)*
+- [x] **Task 4.7**: Test approval/rejection workflows and authorization guards. *(Completed: 23 preflight assertions and 35 Phase 4 integration assertions PASS; Headless Chrome screenshots captured at 1440px and 375px; strict separation of account and property decisions verified)*
 
 ---
 

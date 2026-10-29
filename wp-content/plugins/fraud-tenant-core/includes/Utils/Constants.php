@@ -21,7 +21,7 @@ class Constants {
 	/**
 	 * Database schema version.
 	 */
-	public const DB_VERSION = '1.1.0';
+	public const DB_VERSION = '1.2.0';
 
 	/**
 	 * Option key storing database schema version.
@@ -44,6 +44,7 @@ class Constants {
 	 */
 	public const STATUS_EMAIL_UNVERIFIED = 'email_unverified';
 	public const STATUS_PENDING_APPROVAL = 'pending_approval';
+	public const STATUS_INFO_REQUESTED   = 'info_requested';
 	public const STATUS_APPROVED         = 'approved';
 	public const STATUS_REJECTED         = 'rejected';
 	public const STATUS_SUSPENDED        = 'suspended';

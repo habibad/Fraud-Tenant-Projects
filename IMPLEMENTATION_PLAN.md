@@ -13,8 +13,8 @@ Fraud Tenant is a secure, modern, responsive WordPress-based rental incident rep
 | **Phase 1** | Custom Plugin Foundation and Database Architecture | **COMPLETED** | Core Backend Foundation |
 | **Phase 2** | Custom Theme, Design System and Public Website | **COMPLETED** | Presentation & Content Layer |
 | **Phase 3** | Registration, Email OTP, Login and Password Recovery | **COMPLETED** | Authentication & Lifecycle |
-| **Phase 4** | Administrative User Review and Approval Portal | Planned | Pending User Authorization |
-| **Phase 5** | Owner and Tenant Dashboards | Planned | Pending Phase 4 |
+| **Phase 4** | Administrative User Review and Approval Portal | **COMPLETED** | Compliance & Approval Queue |
+| **Phase 5** | Owner and Tenant Dashboards | Planned | Pending User Authorization |
 | **Phase 6** | Property Management and Secure Document Uploads | Planned | Pending Phase 5 |
 | **Phase 7** | Authorized Tenant Search Using SSN | Planned | Pending Phase 6 |
 | **Phase 8** | Incident Reporting, Evidence Review and Tenant Disputes | Planned | Pending Phase 7 |
@@ -129,8 +129,40 @@ Fraud Tenant is a secure, modern, responsive WordPress-based rental incident rep
 ---
 
 ### PHASE 4 — Administrative User Review and Approval Portal
-- **Objective**: Build admin management portal for reviewing, approving, rejecting, and suspending owner and tenant applications.
-- **Status**: Planned
+- **Objective**: Build admin management portal for reviewing, approving, rejecting, requesting additional info, and suspending owner and tenant applications, with private document inspection and strict property verification separation.
+- **Status**: **COMPLETED** (2026-10-29)
+- **Delivered**:
+  - **Menu & Portal Integration (`AdminPortal.php`)**:
+    - Registered top-level menu "Fraud Tenant" with `dashicons-shield` icon and capability guard `Capabilities::REVIEW_USER_REGISTRATIONS`.
+    - Integrated "Applications" submenu and registered secure action POST handlers for review and property actions.
+  - **Review Queue Interface (`UserReviewController::render_list()`)**:
+    - Status tabs (All Active, Pending Review, Info Requested, Approved, Rejected, Suspended) with real-time counter badges.
+    - Role filter dropdown (All, Property Owners, Tenants), search bar (name, email, phone), pagination (20/page), and empty states.
+    - Color-coded badges matching design system (Navy, Teal, Amber, Red).
+  - **Applicant Detail Screen (`UserReviewController::render_detail()`)**:
+    - Two-column responsive interface displaying full collected registration data.
+    - Property Owner view: Primary rental property address, property verification status, ownership document metadata card with secure inspection button, and separate property ownership decision box.
+    - Tenant view: Current residential address, previous rental history (if supplied), and identity tokenization status.
+    - Decision history & compliance audit trail timeline for the applicant.
+  - **Secure Document Streaming (`DocumentService::stream_protected_document()`)**:
+    - Enforced capability check (`REVIEW_USER_REGISTRATIONS` / `manage_options`).
+    - One-time nonce validation (`ft_view_doc_<id>`).
+    - Strict database resolution and directory canonicalization with path traversal protection (`strpos($canonical_file, $canonical_base) === 0`).
+    - Emitted safe headers (`X-Content-Type-Options: nosniff`, `Cache-Control: private, no-store`, `Expires: 0`).
+    - Logged `admin.document_viewed` in `AuditLogger`.
+  - **Review Action Service (`AdminReviewService.php`)**:
+    - Application approval: Updates status to `approved`, logs `admin.application_approved`, and notifies applicant via `wp_mail()`.
+    - Application rejection: Requires meaningful rejection reason (>= 10 chars), updates status to `rejected`, stores reason, logs `admin.application_rejected`, and notifies applicant.
+    - Request additional information: Requires clear request message (>= 10 chars), updates status to `info_requested`, stores request note in profile, keeps account restricted from dashboard features, logs `admin.info_requested`, and notifies applicant.
+    - Separate property verification: Explicitly isolates property deed verification from user account approval. Verifying/rejecting property updates `wp_ft_properties.status` (`verified` / `rejected`) and logs `admin.property_verified` / `admin.property_rejected` without modifying user account status.
+  - **Database Schema Version 1.2.0**:
+    - Non-destructively added `admin_notes` column to `wp_ft_user_profiles`.
+    - Added `STATUS_INFO_REQUESTED = 'info_requested'` in `Constants.php`.
+    - Updated `page-account-status.php` holding page to display information request callout with reviewer notes.
+  - **Testing & Verification**:
+    - Executed 23 Step 0 preflight assertions (**23/23 PASS**).
+    - Executed 35 Phase 4 integration assertions covering queues, filters, applicant details, document security, state transitions, property separation, and audit logging (**35/35 PASS**).
+    - Captured Headless Chrome screenshots across desktop (1440px) and mobile (375px) for queue list and review detail views.
 
 ---
 

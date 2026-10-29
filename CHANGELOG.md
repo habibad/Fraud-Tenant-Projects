@@ -4,6 +4,48 @@ All notable changes to the Fraud Tenant platform will be documented in this file
 
 ---
 
+## [Phase 4] — Administrative User Review and Approval Portal (2026-10-29)
+
+### Administrative Portal Shell & Review Queue (`AdminPortal.php`, `UserReviewController.php`)
+- Registered top-level WordPress admin menu `Fraud Tenant` with `dashicons-shield` icon, protected by capability `Capabilities::REVIEW_USER_REGISTRATIONS` (`ft_review_user_registrations`).
+- Built pending applications queue table (`#ft-admin-queue`) with status filter tabs (All Active, Pending Review, Info Requested, Approved, Rejected, Suspended) featuring live database counter badges.
+- Built account type filter (All, Property Owners, Tenants), real-time applicant search input (matches name, email, phone, login), pagination (20 items/page), and empty states.
+- Implemented color-coded badges matching the approved Design System (Navy `#14263E`, Teal `#0E9488`, Amber `#D97706`, Red `#DC2626`).
+
+### Detailed Applicant Review Screen (`UserReviewController::render_detail()`)
+- Built two-column responsive interface presenting only real collected and stored registration data.
+- **Property Owner View**: Legal name, contact details, primary rental property address (street, unit, city, state, zip), property verification badge, attached ownership proof document metadata card, and separate property ownership decision box.
+- **Tenant View**: Legal name, contact details, current residential address, and optional previous rental history (street, city, state, zip).
+- **Compliance Audit Timeline**: Real-time activity history displaying actor, target, timestamp, and sanitized details JSON.
+
+### Secure Private Document Streaming (`DocumentService.php`, `AdminPortal.php`)
+- Implemented authorized streaming controller `DocumentService::stream_protected_document()` invoked via `admin_post_ft_view_document`.
+- Enforced reviewer capability check (`REVIEW_USER_REGISTRATIONS` or `manage_options`) on every request.
+- Verified one-time action nonces (`ft_view_doc_<id>`).
+- Enforced strict database lookup from `wp_ft_documents` and directory canonicalization via `realpath()`.
+- Implemented path traversal trapping (`strpos($canonical_file, $canonical_base) === 0`) rejecting any relative traversal (`../`).
+- Set safe security headers (`X-Content-Type-Options: nosniff`, `Cache-Control: private, no-store, no-cache, must-revalidate`, `Expires: 0`).
+- Recorded `admin.document_viewed` in `wp_ft_audit_log` without exposing physical paths or sensitive contents.
+
+### Review Actions & Strict Property Separation (`AdminReviewService.php`)
+- **Approve Application**: Transitions status to `approved`, activates platform login access, logs `admin.application_approved`, and dispatches approval email via `wp_mail()`.
+- **Reject Application**: Requires mandatory meaningful rejection reason (>= 10 characters), transitions status to `rejected`, stores reason in `wp_ft_user_profiles.rejection_reason`, logs `admin.application_rejected`, and dispatches rejection email.
+- **Request Additional Information**: Requires clear request explanation (>= 10 characters), transitions status to `info_requested`, stores request note in profile, keeps account restricted from dashboard and screening features, logs `admin.info_requested`, and dispatches notification email.
+- **Strict Separation of Account and Property Decisions**: Approving an owner's account deliberately leaves attached primary properties in `pending_verification` status. Separate property verification action (`verify_property()` / `reject_property()`) updates `wp_ft_properties.status` (`verified` / `rejected`) and logs `admin.property_verified` without modifying user account status.
+
+### Database Schema Version 1.2.0
+- Added `Constants::STATUS_INFO_REQUESTED = 'info_requested'`.
+- Updated `Constants::DB_VERSION` to `1.2.0`.
+- Applied idempotent `dbDelta()` migration adding `admin_notes (text)` column to `wp_ft_user_profiles`.
+- Updated `page-account-status.php` holding page to present clear instructions and reviewer request notes when an account is in `info_requested` status.
+
+### Testing & Verification
+- Executed 23 Step 0 preflight assertions covering nonces, open redirects, logout, role isolation, and lifecycle guards (**23/23 PASS**).
+- Executed 35 Phase 4 integration assertions covering queue filtering, search, applicant detail fidelity, document traversal protection, state transitions, property separation, and audit logging (**35/35 PASS**).
+- Captured and verified 4 Headless Chrome screenshots across desktop (1440px) and mobile (375px) for queue and review views.
+
+---
+
 ## [Phase 3.2] — Phase 3 Final Release-Gate Audit & Hardening (2026-10-29)
 
 ### Privacy and Terms Consent Alignment
