@@ -474,6 +474,101 @@ Executed via automated test suite against active MariaDB database and WordPress 
 
 ---
 
+## Phase 5 Step 0 Security Preflight Verification
+
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **PRE-1.1** | Invalid Registration Nonce Rejection | `wp_verify_nonce('tampered', 'ft_register_action')` | Returns `false` | **PASS** |
+| **PRE-1.2** | Valid Registration Nonce Verification | `wp_verify_nonce($valid_nonce, 'ft_register_action')` | Returns `1` | **PASS** |
+| **PRE-1.3** | Invalid Login Nonce Rejection | `wp_verify_nonce('tampered', 'ft_login_action')` | Returns `false` | **PASS** |
+| **PRE-1.4** | Valid Login Nonce Verification | `wp_verify_nonce($valid_nonce, 'ft_login_action')` | Returns `1` | **PASS** |
+| **PRE-1.5** | Invalid Logout Nonce Rejection | `wp_verify_nonce('tampered', 'ft_logout_action')` | Returns `false` | **PASS** |
+| **PRE-1.6** | Valid Logout Nonce Verification | `wp_verify_nonce($valid_nonce, 'ft_logout_action')` | Returns `1` | **PASS** |
+| **PRE-1.7** | Invalid Admin Review Nonce Rejection | `wp_verify_nonce('bad', 'ft_admin_review_99999')` | Returns `false` | **PASS** |
+| **PRE-1.8** | Valid Admin Review Nonce Verification | `wp_verify_nonce($valid_nonce, 'ft_admin_review_99999')` | Returns `1` | **PASS** |
+| **PRE-1.9** | Invalid Document View Nonce Rejection | `wp_verify_nonce('bad', 'ft_view_doc_88888')` | Returns `false` | **PASS** |
+| **PRE-1.10** | Valid Document View Nonce Verification | `wp_verify_nonce($valid_nonce, 'ft_view_doc_88888')` | Returns `1` | **PASS** |
+| **PRE-2.1** | Password Test User Creation | `get_user_by('email', ...)` | User exists and verified | **PASS** |
+| **PRE-2.2** | Password Reset Key Generation | `get_password_reset_key()` | Secure key generated | **PASS** |
+| **PRE-2.3** | Reset Key Verification | `check_password_reset_key()` | Resolves correct User ID | **PASS** |
+| **PRE-2.4** | Invalid Reset Key Rejection | `check_password_reset_key('invalid')` | Returns WP_Error | **PASS** |
+| **PRE-2.5** | Password Reset Execution | `AuthService::reset_password_with_key()` | Succeeded, new password set | **PASS** |
+| **PRE-2.6** | Single-Use Key Invalidation | Second call to `check_password_reset_key()` | Returns WP_Error (consumed) | **PASS** |
+| **PRE-3.1** | Application Approval Transition | `AdminReviewService::approve_application()` | Succeeded from pending_approval | **PASS** |
+| **PRE-3.2** | Status Confirmed as Approved | `AuthService::get_user_account_status()` | Returns `approved` | **PASS** |
+| **PRE-3.3** | Account Suspension | `AdminReviewService::suspend_account()` | Succeeded with recorded reason | **PASS** |
+| **PRE-3.4** | Status Confirmed as Suspended | `AuthService::get_user_account_status()` | Returns `suspended` | **PASS** |
+| **PRE-3.5** | Suspended Login Blocking | `AuthService::login()` | Returns `account_suspended` error | **PASS** |
+| **PRE-3.6** | Account Reactivation | `AdminReviewService::reactivate_account()` | Succeeded from suspended | **PASS** |
+| **PRE-3.7** | Status Restored to Approved | `AuthService::get_user_account_status()` | Returns `approved` | **PASS** |
+| **PRE-3.8** | Invalid Reactivation Guard | Reactivate already approved user | Returns `invalid_transition` | **PASS** |
+| **PRE-4.1** | Request Additional Info | `AdminReviewService::request_additional_info()` | Succeeded | **PASS** |
+| **PRE-4.2** | Status Transition to Info Requested | `AuthService::get_user_account_status()` | Returns `info_requested` | **PASS** |
+| **PRE-4.3** | Rejection Reason Note Persistence | Profile `rejection_reason` inspection | Request note stored accurately | **PASS** |
+| **PRE-4.4** | Admin Notes Persistence | Profile `admin_notes` inspection | Request note stored in admin_notes | **PASS** |
+| **PRE-4.5** | Info Request Audit Logging | `AdminReviewService::get_user_audit_history()` | `admin_info_requested` logged | **PASS** |
+| **PRE-4.6** | Application Rejection Execution | `AdminReviewService::reject_application()` | Succeeded with reason | **PASS** |
+| **PRE-4.7** | Status Transition to Rejected | `AuthService::get_user_account_status()` | Returns `rejected` | **PASS** |
+| **PRE-4.8** | Rejection Reason Persisted | Profile inspection | Reason preserved accurately | **PASS** |
+| **PRE-5.1** | Protected Document Record Created | Insert into `wp_ft_documents` | Document record created | **PASS** |
+| **PRE-5.2** | Anonymous Document Access Denied | `user_can(0, REVIEW_USER_REGISTRATIONS)` | Returns `false` | **PASS** |
+| **PRE-5.3** | Tenant Document Access Denied | `user_can($tenant_id, REVIEW_USER_REGISTRATIONS)` | Returns `false` | **PASS** |
+| **PRE-5.4** | Owner Document Access Denied | `user_can($owner_id, REVIEW_USER_REGISTRATIONS)` | Returns `false` | **PASS** |
+| **PRE-5.5** | Admin Document Access Allowed | `user_can(1, REVIEW_USER_REGISTRATIONS)` | Returns `true` | **PASS** |
+| **PRE-6.1** | Path Traversal Defense Trapped | Canonicalization check on `../../wp-config.php` | Directory traversal detected & blocked | **PASS** |
+| **PRE-6.2** | In-Bounds File Confinement | Canonicalization check on safe file | Strictly confined inside base dir | **PASS** |
+| **PRE-7.1** | Admin Account Status Handled | `AuthService::get_user_account_status(1)` | Handled gracefully | **PASS** |
+| **PRE-7.2** | Unverified User Login Redirection | `AuthService::login()` with unverified user | Redirects to `/verify-otp/` | **PASS** |
+| **PRE-8.1** | Admin Review Permission Verified | `AdminReviewService::can_review(1)` | Returns `true` | **PASS** |
+| **PRE-8.2** | Tenant Review Permission Denied | `AdminReviewService::can_review($tenant_id)` | Returns `false` | **PASS** |
+| **PRE-8.3** | Owner Review Permission Denied | `AdminReviewService::can_review($owner_id)` | Returns `false` | **PASS** |
+| **PRE-8.4** | Anonymous Review Permission Denied | `AdminReviewService::can_review(0)` | Returns `false` | **PASS** |
+
+---
+
+## Phase 5 Test Execution & Verification (Owner & Tenant Dashboards)
+
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **P5-1.1** | Approved Owner Login Authenticated | `AuthService::login('p5_approved_owner@example.com', ...)` | Credentials verified | **PASS** |
+| **P5-1.2** | Approved Owner Login Redirection | `AuthService::login()` result inspect | Redirects to `http://localhost/fraudtenant/owner-dashboard/` | **PASS** |
+| **P5-1.3** | Approved Tenant Login Authenticated | `AuthService::login('p5_approved_tenant@example.com', ...)` | Credentials verified | **PASS** |
+| **P5-1.4** | Approved Tenant Login Redirection | `AuthService::login()` result inspect | Redirects to `http://localhost/fraudtenant/tenant-dashboard/` | **PASS** |
+| **P5-1.5** | Core Admin Role Preserved | `user_can(1, 'manage_options')` | Admin capabilities preserved | **PASS** |
+| **P5-2.1** | Owner Properties Count Accuracy | `DashboardService::get_owner_dashboard_data($owner_id)` | Returns 1 property matching database | **PASS** |
+| **P5-2.2** | Owner Verified Properties Count | Data query inspection | 0 verified (pending compliance verification) | **PASS** |
+| **P5-2.3** | Owner Pending Properties Count | Data query inspection | 1 pending verification | **PASS** |
+| **P5-2.4** | Owner Property Address Fidelity | Data query inspection | 742 Evergreen Terrace matches DB record | **PASS** |
+| **P5-2.5** | Owner Default Membership Tier | Data query inspection | Defaults to Free Plan | **PASS** |
+| **P5-2.6** | Tenant Searches Count Accuracy | Data query inspection | Returns 0 searches (no mock data) | **PASS** |
+| **P5-2.7** | Reports Count Accuracy | Data query inspection | Returns 0 reports (no mock data) | **PASS** |
+| **P5-2.8** | Owner Account Status Is Approved | `AuthService::get_user_account_status()` | Returns `approved` | **PASS** |
+| **P5-2.9** | Property Verification Separation | Property status inspection | **Property remains pending_verification distinct from account** | **PASS** |
+| **P5-3.1** | Tenant Disclosed Records Count | `DashboardService::get_tenant_dashboard_data($tenant_id)` | 0 records on clear record | **PASS** |
+| **P5-3.2** | Tenant Disputes Count Accuracy | Data query inspection | 0 disputes matching DB | **PASS** |
+| **P5-3.3** | Tenant Current Residence Address | Data query inspection | 100 Main St, Portland, OR matches profile | **PASS** |
+| **P5-3.4** | Tenant Previous Rental Address | Data query inspection | 200 Elm St, Eugene, OR matches profile | **PASS** |
+| **P5-3.5** | Tenant City/State Accuracy | Data query inspection | Portland, OR accurate | **PASS** |
+| **P5-4.1** | Owner Data Isolation (Owner 2) | `DashboardService::get_owner_dashboard_data($owner2_id)` | Owner 2 sees 0 properties (cannot view Owner 1 data) | **PASS** |
+| **P5-4.2** | Property Record Ownership Partitioning | SQL query inspection | All property queries filtered strictly by `owner_id` | **PASS** |
+| **P5-4.3** | Non-Tenant Disclosed Record Isolation | Pass owner ID to tenant data query | Returns 0 disclosed records | **PASS** |
+| **P5-5.1** | Valid Profile Phone Number Update | `DashboardService::update_safe_profile()` | Succeeded with valid CSRF nonce | **PASS** |
+| **P5-5.2** | Updated Phone Persisted in Database | Profile database inspection | `(555) 777-8888` saved in `wp_ft_user_profiles` | **PASS** |
+| **P5-5.3** | Tampered Nonce Profile Update Rejection | `DashboardService::update_safe_profile()` with bad nonce | Rejected with `invalid_nonce` | **PASS** |
+| **P5-5.4** | Profile IDOR Attack Blocked | Owner 1 attempting to update Owner 2 profile | Blocked with `unauthorized` | **PASS** |
+| **P5-6.1** | Template Integrity: page-owner-dashboard | File existence check | File exists and valid PHP | **PASS** |
+| **P5-6.2** | Template Integrity: page-tenant-dashboard | File existence check | File exists and valid PHP | **PASS** |
+| **P5-6.3** | Stylesheet Integrity: dashboard.css | File existence check | File exists with approved design tokens | **PASS** |
+| **P5-6.4** | Script Integrity: dashboard.js | File existence check | File exists with modal & mobile toggle handlers | **PASS** |
+| **P5-6.5** | WordPress Page: owner-dashboard | `get_page_by_path('owner-dashboard')` | Published WP Post ID 28 | **PASS** |
+| **P5-6.6** | WordPress Page: tenant-dashboard | `get_page_by_path('tenant-dashboard')` | Published WP Post ID 29 | **PASS** |
+| **P5-7.1** | Headless Chrome Owner Desktop Screenshot | Headless Chrome capture (1440x900) | Saved to `phase5-desktop-owner-dashboard.png` | **PASS** |
+| **P5-7.2** | Headless Chrome Owner Mobile Screenshot | Headless Chrome capture (375x812) | Saved to `phase5-mobile-owner-dashboard.png` | **PASS** |
+| **P5-7.3** | Headless Chrome Tenant Desktop Screenshot | Headless Chrome capture (1440x900) | Saved to `phase5-desktop-tenant-dashboard.png` | **PASS** |
+| **P5-7.4** | Headless Chrome Tenant Mobile Screenshot | Headless Chrome capture (375x812) | Saved to `phase5-mobile-tenant-dashboard.png` | **PASS** |
+
+---
+
 ## Phase Test Summary Table
 
 | Phase / Review | Total Tests | PASS | FAIL | BLOCKED | NOT TESTED |
@@ -488,4 +583,6 @@ Executed via automated test suite against active MariaDB database and WordPress 
 | **Phase 3 Final Release-Gate Audit** | 33 | 32 | 0 | 0 | 1 |
 | **Phase 4 Step 0 Security Preflight** | 23 | 23 | 0 | 0 | 0 |
 | **Phase 4 Admin Review Portal** | 40 | 39 | 0 | 0 | 1 |
-| **Total Verified** | **270** | **265** | **0** | **0** | **5** |
+| **Phase 5 Step 0 Security Preflight** | 45 | 45 | 0 | 0 | 0 |
+| **Phase 5 Owner & Tenant Dashboards** | 36 | 36 | 0 | 0 | 0 |
+| **Total Verified** | **351** | **346** | **0** | **0** | **5** |

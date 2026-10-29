@@ -614,6 +614,28 @@ class UserReviewController {
 									</form>
 								</div>
 							<?php endif; ?>
+
+							<!-- ACTION 5: REACTIVATE ACCOUNT (FOR SUSPENDED ACCOUNTS) -->
+							<?php if ( Constants::STATUS_SUSPENDED === $profile->approval_status ) : ?>
+								<div class="ft-decision-block">
+									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+										<input type="hidden" name="action" value="ft_admin_review_action" />
+										<input type="hidden" name="review_decision" value="reactivate" />
+										<input type="hidden" name="user_id" value="<?php echo (int) $user_id; ?>" />
+										<?php wp_nonce_field( 'ft_admin_review_' . $user_id, 'ft_review_nonce' ); ?>
+
+										<label for="reactivation_reason" style="display:block; font-size:12px; font-weight:600; color:#0E9488; margin-bottom:4px;">
+											<?php esc_html_e( 'Reactivate Suspended Account', 'fraud-tenant-core' ); ?>
+										</label>
+										<textarea name="reactivation_reason" id="reactivation_reason" rows="2" style="width:100%; font-size:12px; margin-bottom:8px;" placeholder="<?php esc_attr_e( 'Optional reactivation note...', 'fraud-tenant-core' ); ?>"></textarea>
+
+										<button type="submit" class="button button-primary button-large" style="width:100%; background:#0E9488; border-color:#0E9488; height:38px; font-weight:600;" onclick="return confirm('Reactivate this suspended user account?');">
+											<span class="dashicons dashicons-unlock" style="vertical-align:text-bottom;"></span>
+											<?php esc_html_e( 'Reactivate Account Access', 'fraud-tenant-core' ); ?>
+										</button>
+									</form>
+								</div>
+							<?php endif; ?>
 						</div>
 					</div>
 

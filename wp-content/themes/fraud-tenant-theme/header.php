@@ -19,12 +19,57 @@ if ( ! defined( 'ABSPATH' ) ) {
 <body <?php body_class(); ?>>
 <?php wp_body_open(); ?>
 <?php
-$is_auth_page = is_page( array( 'login', 'register', 'verify-otp', 'forgot-password', 'reset-password', 'account-status' ) );
+$is_auth_page      = is_page( array( 'login', 'register', 'verify-otp', 'forgot-password', 'reset-password', 'account-status' ) );
+$is_dashboard_page = is_page( array( 'owner-dashboard', 'tenant-dashboard' ) );
+$current_user      = wp_get_current_user();
 ?>
 
 <a class="skip-link" href="#main-content"><?php esc_html_e( 'Skip to content', 'fraud-tenant-theme' ); ?></a>
 
-<?php if ( $is_auth_page ) : ?>
+<?php if ( $is_dashboard_page ) : ?>
+<header class="dashboard-topbar">
+	<div class="dashboard-topbar-inner">
+		<div class="dashboard-topbar-left">
+			<button type="button" class="dashboard-mobile-toggle" id="ftDashboardMobileToggle" aria-label="<?php esc_attr_e( 'Toggle Navigation Menu', 'fraud-tenant-theme' ); ?>">
+				<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+			</button>
+			<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="dashboard-brand" rel="home">
+				<svg class="dashboard-brand-icon" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+					<path d="M18 3L4 9V17C4 24.5 10 31.4 18 33C26 31.4 32 24.5 32 17V9L18 3Z" fill="#0E9488" fill-opacity="0.15" stroke="#0E9488" stroke-width="2.5" stroke-linejoin="round"/>
+					<path d="M18 10V26" stroke="#0E9488" stroke-width="2.5" stroke-linecap="round"/>
+					<path d="M12 18H24" stroke="#0E9488" stroke-width="2.5" stroke-linecap="round"/>
+				</svg>
+				<span class="brand-text">Fraud<span>Tenant</span></span>
+			</a>
+			<div class="dashboard-topbar-divider"></div>
+			<div class="dashboard-topbar-title">
+				<?php echo is_page( 'owner-dashboard' ) ? esc_html__( 'Property Owner Dashboard', 'fraud-tenant-theme' ) : esc_html__( 'Tenant Dashboard', 'fraud-tenant-theme' ); ?>
+			</div>
+		</div>
+		<div class="dashboard-topbar-right">
+			<button type="button" class="dashboard-notif-btn" aria-label="<?php esc_attr_e( 'Notifications', 'fraud-tenant-theme' ); ?>" data-ft-modal-target="ftNotificationsModal">
+				<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+				<span class="dashboard-notif-badge"></span>
+			</button>
+			<div class="dashboard-user-capsule">
+				<div class="dashboard-avatar">
+					<?php echo esc_html( strtoupper( substr( $current_user->display_name ?: $current_user->user_login, 0, 1 ) ) ); ?>
+				</div>
+				<div class="dashboard-user-info">
+					<span class="dashboard-user-name"><?php echo esc_html( $current_user->display_name ?: $current_user->user_login ); ?></span>
+					<span class="dashboard-user-role">
+						<?php echo is_page( 'owner-dashboard' ) ? esc_html__( 'Property Owner', 'fraud-tenant-theme' ) : esc_html__( 'Tenant', 'fraud-tenant-theme' ); ?>
+					</span>
+				</div>
+			</div>
+			<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=ft_logout' ), 'ft_logout_action' ) ); ?>" class="dashboard-signout-btn" title="<?php esc_attr_e( 'Sign Out', 'fraud-tenant-theme' ); ?>">
+				<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+				<span><?php esc_html_e( 'Sign Out', 'fraud-tenant-theme' ); ?></span>
+			</a>
+		</div>
+	</div>
+</header>
+<?php elseif ( $is_auth_page ) : ?>
 <header class="site-header auth-header">
 	<div class="container auth-header-inner">
 		<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="brand-logo" rel="home">

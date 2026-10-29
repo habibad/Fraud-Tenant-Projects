@@ -40,6 +40,29 @@ class AuthHandler {
 		add_action( 'admin_post_ft_forgot_password', array( __CLASS__, 'handle_forgot_password' ) );
 		add_action( 'admin_post_nopriv_ft_reset_password', array( __CLASS__, 'handle_reset_password' ) );
 		add_action( 'admin_post_ft_reset_password', array( __CLASS__, 'handle_reset_password' ) );
+
+		// Safe Profile Updates
+		add_action( 'admin_post_ft_update_profile', array( __CLASS__, 'handle_update_profile' ) );
+	}
+
+	/**
+	 * Handle Safe Profile Update POST.
+	 */
+	public static function handle_update_profile(): void {
+		$user_id = get_current_user_id();
+		if ( ! $user_id ) {
+			wp_die( esc_html__( 'Unauthorized access.', 'fraud-tenant-core' ), 403 );
+		}
+
+		$result   = \FraudTenant\Services\DashboardService::update_safe_profile( $user_id, $_POST );
+		$fallback = home_url( '/' );
+		$redirect = isset( $_POST['redirect_to'] ) ? wp_validate_redirect( wp_sanitize_redirect( $_POST['redirect_to'] ), $fallback ) : $fallback;
+
+		self::set_flash_notice( $result['success'] ? 'success' : 'error', $result['message'] );
+		wp_safe_redirect( $redirect );
+		if ( ! defined( 'FT_DOING_TESTS' ) ) {
+			exit;
+		}
 	}
 
 	/**

@@ -89,7 +89,7 @@ get_header();
 
 					<p class="auth-subtitle">
 						<?php if ( Constants::STATUS_APPROVED === $status ) : ?>
-							<?php esc_html_e( 'Your account has been fully verified and approved. Platform dashboards are launching in Phase 5.', 'fraud-tenant-theme' ); ?>
+							<?php esc_html_e( 'Your account has been fully verified and approved. You now have full access to your platform dashboard.', 'fraud-tenant-theme' ); ?>
 						<?php elseif ( Constants::STATUS_REJECTED === $status ) : ?>
 							<?php esc_html_e( 'Your registration application was not approved during administrative compliance check. Please reach out to support if you have questions.', 'fraud-tenant-theme' ); ?>
 						<?php elseif ( Constants::STATUS_SUSPENDED === $status ) : ?>
@@ -226,6 +226,14 @@ get_header();
 
 				<!-- Actions Toolbar -->
 				<div class="status-actions-row">
+					<?php if ( Constants::STATUS_APPROVED === $status ) : ?>
+						<?php
+						$dash_url = $is_owner ? home_url( '/owner-dashboard/' ) : ( $is_tenant ? home_url( '/tenant-dashboard/' ) : home_url( '/' ) );
+						?>
+						<a href="<?php echo esc_url( $dash_url ); ?>" class="btn btn-primary" style="background:#0E9488; border-color:#0E9488;">
+							<?php esc_html_e( 'Go to Your Dashboard →', 'fraud-tenant-theme' ); ?>
+						</a>
+					<?php endif; ?>
 					<a href="<?php echo esc_url( home_url( '/' ) ); ?>" class="btn btn-outline"><?php esc_html_e( 'Return to Homepage', 'fraud-tenant-theme' ); ?></a>
 					<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=ft_logout' ), 'ft_logout_action' ) ); ?>" class="btn btn-secondary"><?php esc_html_e( 'Sign Out', 'fraud-tenant-theme' ); ?></a>
 				</div>

@@ -152,3 +152,20 @@ FluentSMTP is installed in `wp-content/plugins/fluent-smtp/`. To configure outbo
 1. Access WordPress Admin at `http://localhost/fraudtenant/wp-admin/`.
 2. Activate FluentSMTP.
 3. Configure a test SMTP connection (e.g. Mailpit at `localhost:1025`, Brevo, SendGrid, or Gmail SMTP).
+
+---
+
+## 6. Phase 5 Authenticated Dashboard Routing
+
+The platform features distinct authenticated application shells for approved users:
+- **Property Owner Dashboard**: `http://localhost/fraudtenant/owner-dashboard/` (template: `page-owner-dashboard.php`)
+- **Tenant Dashboard**: `http://localhost/fraudtenant/tenant-dashboard/` (template: `page-tenant-dashboard.php`)
+
+### Access Gate Enforcement:
+- Unauthenticated requests are automatically redirected to `http://localhost/fraudtenant/login/`.
+- Unverified accounts (`email_unverified`) are redirected to `http://localhost/fraudtenant/verify-otp/`.
+- Accounts awaiting review (`pending_approval` / `info_requested`) are redirected to `http://localhost/fraudtenant/account-status/`.
+- Suspended or rejected accounts have sessions terminated and are redirected to `/login/?error=status`.
+- Cross-role isolation is strictly enforced (`ft_owner` cannot access tenant dashboard; `ft_tenant` cannot access owner dashboard).
+- Administrators possess inspection access for testing.
+

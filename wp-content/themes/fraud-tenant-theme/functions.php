@@ -58,6 +58,11 @@ function fraud_tenant_enqueue_assets(): void {
 	wp_enqueue_style( 'fraud-tenant-main', get_template_directory_uri() . '/assets/css/main.css', array( 'fraud-tenant-style' ), FRAUD_TENANT_THEME_VERSION );
 
 	wp_enqueue_script( 'fraud-tenant-main', get_template_directory_uri() . '/assets/js/main.js', array(), FRAUD_TENANT_THEME_VERSION, true );
+
+	if ( is_page( array( 'owner-dashboard', 'tenant-dashboard' ) ) ) {
+		wp_enqueue_style( 'fraud-tenant-dashboard', get_template_directory_uri() . '/assets/css/dashboard.css', array( 'fraud-tenant-main' ), FRAUD_TENANT_THEME_VERSION );
+		wp_enqueue_script( 'fraud-tenant-dashboard', get_template_directory_uri() . '/assets/js/dashboard.js', array( 'fraud-tenant-main' ), FRAUD_TENANT_THEME_VERSION, true );
+	}
 }
 add_action( 'wp_enqueue_scripts', 'fraud_tenant_enqueue_assets' );
 

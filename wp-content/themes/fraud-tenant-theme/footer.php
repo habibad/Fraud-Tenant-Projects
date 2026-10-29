@@ -12,10 +12,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 </main><!-- /#main-content -->
 
 <?php
-$is_auth_page = is_page( array( 'login', 'register', 'verify-otp', 'forgot-password', 'reset-password', 'account-status' ) );
+$is_auth_page      = is_page( array( 'login', 'register', 'verify-otp', 'forgot-password', 'reset-password', 'account-status' ) );
+$is_dashboard_page = is_page( array( 'owner-dashboard', 'tenant-dashboard' ) );
 ?>
 
-<?php if ( $is_auth_page ) : ?>
+<?php if ( $is_auth_page || $is_dashboard_page ) : ?>
 <footer class="site-footer auth-footer">
 	<div class="container auth-footer-inner">
 		<div class="auth-footer-copy">

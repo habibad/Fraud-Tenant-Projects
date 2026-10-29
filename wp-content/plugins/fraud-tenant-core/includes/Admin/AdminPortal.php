@@ -105,6 +105,11 @@ class AdminPortal {
 				$reason = isset( $_POST['suspension_reason'] ) ? sanitize_textarea_field( wp_unslash( $_POST['suspension_reason'] ) ) : '';
 				$result = AdminReviewService::suspend_account( $user_id, $reviewer_id, $reason );
 				break;
+
+			case 'reactivate':
+				$reason = isset( $_POST['reactivation_reason'] ) ? sanitize_textarea_field( wp_unslash( $_POST['reactivation_reason'] ) ) : '';
+				$result = AdminReviewService::reactivate_account( $user_id, $reviewer_id, $reason );
+				break;
 		}
 
 		self::set_flash_notice(

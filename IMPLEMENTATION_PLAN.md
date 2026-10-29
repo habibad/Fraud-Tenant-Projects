@@ -168,7 +168,42 @@ Fraud Tenant is a secure, modern, responsive WordPress-based rental incident rep
 
 ### PHASE 5 — Owner and Tenant Dashboards
 - **Objective**: Construct role-specific application shells for approved Property Owners and Tenants.
-- **Status**: Planned
+- **Status**: Completed (2026-10-29)
+- **Key Deliverables & Architecture**:
+  - **Separation of Shells**:
+    - Created dedicated dashboard top header bar (`.dashboard-topbar`) and single-line clean footer (`.auth-footer`) for dashboard templates.
+    - Completely suppressed the oversized public marketing navigation bar and large public footer on authenticated dashboard pages.
+  - **Access Control & Lifecycle Gate (`DashboardService::enforce_access()`)**:
+    - Enforced strict authentication: Unauthenticated visitors redirected to `/login/`.
+    - Lifecycle enforcement: `email_unverified` redirected to `/verify-otp/`, `pending_approval` / `info_requested` redirected to `/account-status/`, `rejected` / `suspended` logged out and redirected to `/login/?error=status`.
+    - Role isolation: `ft_owner` attempting to access `/tenant-dashboard/` redirected to `/owner-dashboard/`; `ft_tenant` attempting to access `/owner-dashboard/` redirected to `/tenant-dashboard/`. Administrators permitted inspection access.
+  - **Service Layer (`DashboardService.php`)**:
+    - `get_owner_dashboard_data(int $owner_id)`: Queries real registered properties from `wp_ft_properties`, screening searches from `wp_ft_screening_requests`, incident reports from `wp_ft_incident_reports`, membership plan from `wp_ft_subscriptions` / `wp_ft_membership_plans`, and profile metadata with zero mock data.
+    - `get_tenant_dashboard_data(int $tenant_id)`: Queries disclosed incident records, disputes, notifications, residential addresses, and recent audit activity timeline.
+    - `update_safe_profile(int $user_id, array $data)`: Safe profile field updates (phone) protected by CSRF nonce and IDOR verification.
+  - **Property Owner Dashboard Template (`page-owner-dashboard.php`)**:
+    - Matches approved design showcase (`Fraud Tenant Product UI Showcase.png`).
+    - Navy `#14263E` sidebar with active teal `Dashboard` state and icons for My Properties, Search Tenants, My Reports, Membership, Notifications, Profile Settings.
+    - Top greeting banner: "Welcome back, {First Name}!" with "+ Add Property" button triggering Phase 6 informational modal.
+    - 4-column Stat Metrics bar: My Properties (real count + verification tag), Tenant Searches (real count), My Reports (real count), Membership ("Free Plan" badge + "Upgrade" CTA).
+    - "Search Tenant Rental History" box with formatted `XXX-XX-XXXX` input, lock indicator, Search button, and Phase 7 compliance modal.
+    - Two-column grid: "My Properties" table displaying real street, city, state, zip, and status badge (`pending_verification` / `verified`), Property Verification Notice; "Recent Searches" table; "Upgrade Your Membership" promo card with checklist; and Account profile card.
+  - **Tenant Dashboard Template (`page-tenant-dashboard.php`)**:
+    - Navy `#14263E` sidebar with active Dashboard, My Records, My Disputes, Notifications, Profile Settings, and "Know Your Rights" FCRA info in the footer.
+    - Top greeting banner: "Welcome back, {First Name}! Manage your rental information and account activity."
+    - 3-column Stat Metrics bar: My Records (disclosed count or clean record status), My Disputes (real count), Notifications (account alerts).
+    - Two-column grid: "Recent Activity" timeline with real audit log timestamps; "Residential Information on File" displaying current and previous addresses; "My Rental Records" with clean status state; "Your Rights Matter" card with "View My Records" CTA; and FCRA Dispute Resolution card.
+  - **Interactive Modals & Interactivity (`assets/js/dashboard.js`, `assets/css/dashboard.css`)**:
+    - Add Property informational modal (Phase 6 placeholder).
+    - Tenant Screening compliance modal (Phase 7 permissible purpose notice).
+    - Membership Plans modal showing Free ($0), Standard Monthly ($29/mo), Standard Annual ($290/yr).
+    - Safe Profile Edit modal (phone number update via CSRF nonce).
+    - Mobile sidebar drawer toggle with backdrop dismissal.
+  - **Testing & Verification**:
+    - Executed 45 Step 0 security preflight assertions (**45/45 PASS**).
+    - Executed 32 Phase 5 functional suite assertions covering access control, role boundaries, data isolation, IDOR defense, and template integrity (**32/32 PASS**).
+    - Executed 35 Phase 4 regression assertions (**35/35 PASS**).
+    - Captured Headless Chrome screenshots across desktop (1440x900) and mobile (375x812) for both Owner and Tenant dashboards.
 
 ---
 

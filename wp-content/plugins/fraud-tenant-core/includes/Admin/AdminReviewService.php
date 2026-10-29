@@ -572,6 +572,86 @@ class AdminReviewService {
 	}
 
 	/**
+	 * Reactivate a suspended account back to approved status.
+	 *
+	 * @param int    $user_id     User ID.
+	 * @param int    $reviewer_id Reviewer ID.
+	 * @param string $reason      Reactivation explanation.
+	 * @return array
+	 */
+	public static function reactivate_account( int $user_id, int $reviewer_id, string $reason = '' ): array {
+		if ( ! self::can_review( $reviewer_id ) ) {
+			return array(
+				'success' => false,
+				'error'   => 'unauthorized',
+				'message' => __( 'You do not have permission to reactivate accounts.', 'fraud-tenant-core' ),
+			);
+		}
+
+		$detail = self::get_application_detail( $user_id );
+		if ( ! $detail ) {
+			return array(
+				'success' => false,
+				'error'   => 'user_not_found',
+				'message' => __( 'Applicant profile not found.', 'fraud-tenant-core' ),
+			);
+		}
+
+		$current_status = $detail['profile']->approval_status;
+		if ( Constants::STATUS_SUSPENDED !== $current_status ) {
+			return array(
+				'success' => false,
+				'error'   => 'invalid_transition',
+				'message' => __( 'Only suspended accounts can be reactivated.', 'fraud-tenant-core' ),
+			);
+		}
+
+		global $wpdb;
+		$p_table = $wpdb->prefix . Constants::TABLE_USER_PROFILES;
+		$now     = current_time( 'mysql', true );
+
+		$updated = $wpdb->update(
+			$p_table,
+			array(
+				'approval_status'  => Constants::STATUS_APPROVED,
+				'rejection_reason' => null,
+				'reviewed_by'      => $reviewer_id,
+				'reviewed_at'      => $now,
+				'updated_at'       => $now,
+			),
+			array( 'user_id' => $user_id ),
+			array( '%s', '%s', '%d', '%s', '%s' ),
+			array( '%d' )
+		);
+
+		if ( false === $updated ) {
+			return array(
+				'success' => false,
+				'error'   => 'database_error',
+				'message' => __( 'Failed to reactivate account.', 'fraud-tenant-core' ),
+			);
+		}
+
+		AuditLogger::log(
+			'admin.account_reactivated',
+			'user',
+			$user_id,
+			array(
+				'previous_status' => $current_status,
+				'new_status'      => Constants::STATUS_APPROVED,
+				'reason'          => sanitize_text_field( $reason ),
+				'reviewer_id'     => $reviewer_id,
+			),
+			$reviewer_id
+		);
+
+		return array(
+			'success' => true,
+			'message' => __( 'Account has been reactivated successfully.', 'fraud-tenant-core' ),
+		);
+	}
+
+	/**
 	 * Separately verify a primary rental property.
 	 *
 	 * Requires that ownership documents have been inspected.

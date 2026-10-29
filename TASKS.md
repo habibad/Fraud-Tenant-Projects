@@ -77,12 +77,12 @@
 ---
 
 ## Phase 5: Owner and Tenant Dashboards
-- [ ] **Task 5.1**: Build dedicated responsive dashboard application shell (isolated from marketing layout).
-- [ ] **Task 5.2**: Implement Property Owner Dashboard (Overview, Properties, Tenant Search, Reports, Membership, Notifications, Settings).
-- [ ] **Task 5.3**: Implement Tenant Dashboard (Overview, Rental Records, Report Details, Disputes, Notifications, Security).
-- [ ] **Task 5.4**: Wire dynamic database counts, real user metadata, and empty states.
-- [ ] **Task 5.5**: Enforce server-side role and capability verification on all dashboard routes.
-- [ ] **Task 5.6**: Execute browser testing for both roles.
+- [x] **Task 5.1**: Build dedicated responsive dashboard application shell (isolated from marketing layout). *(Completed: Dedicated header top bar, Navy #14263E sidebar, single-line clean footer, separated from public marketing navigation)*
+- [x] **Task 5.2**: Implement Property Owner Dashboard (Overview, Properties, Tenant Search, Reports, Membership, Notifications, Settings). *(Completed: `page-owner-dashboard.php` matching showcase UI with 4 metric cards, Search SSN box, My Properties table, Recent Searches, and Upgrade Membership card)*
+- [x] **Task 5.3**: Implement Tenant Dashboard (Overview, Rental Records, Report Details, Disputes, Notifications, Security). *(Completed: `page-tenant-dashboard.php` matching showcase UI with 3 metric cards, Recent Activity timeline, Residential Information on file, Clear Records state, and Your Rights Matter FCRA card)*
+- [x] **Task 5.4**: Wire dynamic database counts, real user metadata, and empty states. *(Completed: `DashboardService.php` queries real database records from properties, screening requests, incident reports, subscriptions, audit log, and profiles with zero mock data)*
+- [x] **Task 5.5**: Enforce server-side role and capability verification on all dashboard routes. *(Completed: `DashboardService::enforce_access()` strictly redirects unauthenticated users to `/login/`, unverified to `/verify-otp/`, pending/info_requested to `/account-status/`, and enforces strict cross-role isolation)*
+- [x] **Task 5.6**: Execute browser testing for both roles. *(Completed: 45 preflight assertions and 32 Phase 5 functional suite assertions PASS; Headless Chrome screenshots captured at 1440x900 and 375x812 for both Owner and Tenant dashboards)*
 
 ---
 

@@ -4,6 +4,58 @@ All notable changes to the Fraud Tenant platform will be documented in this file
 
 ---
 
+## [Phase 5] — Owner and Tenant Dashboards (2026-10-29)
+
+### Separation of Shells & Dashboard Architecture (`header.php`, `footer.php`, `dashboard.css`, `dashboard.js`)
+- Completely decoupled the authenticated application shell from the public marketing website: suppressed the public marketing header and oversized marketing footer on authenticated dashboard pages.
+- Built sticky application top bar (`.dashboard-topbar`) featuring brand logo, role title ("Property Owner Dashboard" / "Tenant Dashboard"), notification bell with unread indicator badge, user capsule with avatar initials/name/role, and secure sign-out action.
+- Built responsive mobile navigation drawer with hamburger toggle button and outside-click dismissal.
+- Built minimal, compliant dashboard footer (`.auth-footer`) presenting copyright and direct legal links (Terms of Service, Privacy Policy, Tenant Rights, Support).
+
+### Dashboard Service & Real Database Integration (`DashboardService.php`)
+- Built `DashboardService` with single-responsibility queries retrieving only authentic database records with zero mock data.
+- `get_owner_dashboard_data(int $owner_id)`: Queries properties from `wp_ft_properties`, screening searches from `wp_ft_screening_requests`, incident reports from `wp_ft_incident_reports`, membership subscription from `wp_ft_subscriptions` / `wp_ft_membership_plans`, unread notifications, and user profile.
+- `get_tenant_dashboard_data(int $tenant_id)`: Queries disclosed incident records, disputes, unread notifications, residential addresses, and recent audit activity timeline from `wp_ft_audit_log`.
+- `update_safe_profile(int $user_id, array $data)`: Safe profile field updates (phone number) protected by user-specific CSRF nonces (`ft_update_profile_<user_id>`) and IDOR ownership verification.
+- Protected email, role, and SSN tokenization from silent modification.
+
+### Strict Access Gate & Role Isolation (`DashboardService::enforce_access()`, `AuthService::login()`)
+- Unauthenticated requests to `/owner-dashboard/` or `/tenant-dashboard/` strictly redirect to `/login/`.
+- Unverified accounts (`email_unverified`) redirect to `/verify-otp/`.
+- Accounts in review (`pending_approval`, `info_requested`) redirect to holding page `/account-status/`.
+- Suspended or rejected accounts have sessions terminated and redirect to `/login/?error=status`.
+- Role boundaries strictly enforced: `ft_owner` attempting to view `/tenant-dashboard/` redirects to `/owner-dashboard/`; `ft_tenant` attempting to view `/owner-dashboard/` redirects to `/tenant-dashboard/`. Administrators possess inspection privileges.
+- Updated `AuthService::login()` to route approved owners to `/owner-dashboard/` and approved tenants to `/tenant-dashboard/`.
+- Updated holding page `page-account-status.php` with direct CTA for approved users: "Go to Your Dashboard →".
+
+### Property Owner Dashboard (`page-owner-dashboard.php`)
+- Pixel-matched the approved design showcase (`Fraud Tenant Product UI Showcase.png`):
+  - Left Navy sidebar (`#14263E`) with active teal `Dashboard` state and navigation items (Dashboard, My Properties, Search Tenants, My Reports, Membership, Notifications, Profile Settings).
+  - Welcome greeting banner with owner first name and "+ Add Property" button triggering Phase 6 informational modal.
+  - 4-column Stat Metrics bar: My Properties (real count + verification tag), Tenant Searches (real count), My Reports (real count), Membership ("Free Plan" badge + "Upgrade" pill).
+  - "Search Tenant Rental History" box with formatted `XXX-XX-XXXX` input, lock indicator, Search button, and Phase 7 compliance modal.
+  - Two-column grid: "My Properties" table displaying real street, city, state, zip, and status badge (`pending_verification` / `verified`), Property Verification Notice; "Recent Searches" table; "Upgrade Your Membership" promo card with checklist; and Account profile card.
+
+### Tenant Dashboard (`page-tenant-dashboard.php`)
+- Pixel-matched the approved design showcase:
+  - Left Navy sidebar with active Dashboard, My Records, My Disputes, Notifications, Profile Settings, and "Know Your Rights" FCRA info in the footer.
+  - Welcome greeting banner with tenant first name.
+  - 3-column Stat Metrics bar: My Records (disclosed count or clean record status), My Disputes (real count), Notifications (account alerts).
+  - Two-column grid: "Recent Activity" timeline with real audit log timestamps; "Residential Information on File" displaying current and previous addresses; "My Rental Records" with clean status state; "Your Rights Matter" card with "View My Records" CTA; and FCRA Dispute Resolution card.
+
+### Account Reactivation Implementation (`AdminReviewService.php`, `AdminPortal.php`, `UserReviewController.php`)
+- Added `AdminReviewService::reactivate_account(int $user_id, int $reviewer_id, string $reason)` enabling administrators to restore suspended accounts back to `approved` status.
+- Added "Reactivate Suspended Account" form and button in `UserReviewController.php` when inspecting suspended applicants.
+- Handled `reactivate` action in `AdminPortal.php` and recorded `admin.account_reactivated` in the audit log.
+
+### Testing & Verification
+- Executed 45 Step 0 security preflight assertions (**45/45 PASS**).
+- Executed 32 Phase 5 functional suite assertions covering routing, role boundaries, data isolation, IDOR defense, and template integrity (**32/32 PASS**).
+- Executed 35 Phase 4 regression assertions (**35/35 PASS**).
+- Captured Headless Chrome screenshots across desktop (1440x900) and mobile (375x812) for both Owner and Tenant dashboards.
+
+---
+
 ## [Phase 4] — Administrative User Review and Approval Portal (2026-10-29)
 
 ### Administrative Portal Shell & Review Queue (`AdminPortal.php`, `UserReviewController.php`)

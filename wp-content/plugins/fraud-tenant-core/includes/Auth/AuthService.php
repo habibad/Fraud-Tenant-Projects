@@ -724,12 +724,18 @@ class AuthService {
 				);
 
 			case Constants::STATUS_APPROVED:
-				// Approved account: set auth cookie. Route to holding page / home until Phase 5 dashboards
+				// Approved account: set auth cookie and route to role-specific dashboard
 				wp_set_auth_cookie( $user->ID, $remember );
+				$dashboard_url = home_url( '/account-status/' );
+				if ( in_array( Constants::ROLE_OWNER, (array) $user->roles, true ) ) {
+					$dashboard_url = home_url( '/owner-dashboard/' );
+				} elseif ( in_array( Constants::ROLE_TENANT, (array) $user->roles, true ) ) {
+					$dashboard_url = home_url( '/tenant-dashboard/' );
+				}
 				return array(
 					'success'  => true,
 					'status'   => Constants::STATUS_APPROVED,
-					'redirect' => home_url( '/account-status/' ),
+					'redirect' => $dashboard_url,
 					'message'  => __( 'Login successful.', 'fraud-tenant-core' ),
 				);
 
