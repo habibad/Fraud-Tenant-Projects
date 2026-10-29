@@ -236,7 +236,7 @@ get_header();
 								<?php
 								printf(
 									/* translators: 1: terms url */
-									__( 'I agree to the <a href="%1$s" target="_blank" rel="noopener">Terms of Service</a> as a Property Owner. <span class="required">*</span>', 'fraud-tenant-theme' ),
+									__( 'I agree to the <a href="%1$s" target="_blank" rel="noopener">Terms of Service</a>. <span class="required">*</span>', 'fraud-tenant-theme' ),
 									esc_url( home_url( '/terms-of-service/' ) )
 								);
 								?>
@@ -249,7 +249,7 @@ get_header();
 								<?php
 								printf(
 									/* translators: 1: privacy url */
-									__( 'I acknowledge and agree to the <a href="%1$s" target="_blank" rel="noopener">Privacy Policy</a> and FCRA permissible purpose requirements. <span class="required">*</span>', 'fraud-tenant-theme' ),
+									__( 'I have read and acknowledge the <a href="%1$s" target="_blank" rel="noopener">Privacy Policy</a>. <span class="required">*</span>', 'fraud-tenant-theme' ),
 									esc_url( home_url( '/privacy-policy/' ) )
 								);
 								?>
@@ -420,7 +420,7 @@ get_header();
 								<?php
 								printf(
 									/* translators: 1: terms url */
-									__( 'I agree to the <a href="%1$s" target="_blank" rel="noopener">Terms of Service</a> as a Tenant. <span class="required">*</span>', 'fraud-tenant-theme' ),
+									__( 'I agree to the <a href="%1$s" target="_blank" rel="noopener">Terms of Service</a>. <span class="required">*</span>', 'fraud-tenant-theme' ),
 									esc_url( home_url( '/terms-of-service/' ) )
 								);
 								?>
@@ -433,7 +433,7 @@ get_header();
 								<?php
 								printf(
 									/* translators: 1: privacy url */
-									__( 'I acknowledge and agree to the <a href="%1$s" target="_blank" rel="noopener">Privacy Policy</a> and understand my dispute rights under FCRA. <span class="required">*</span>', 'fraud-tenant-theme' ),
+									__( 'I have read and acknowledge the <a href="%1$s" target="_blank" rel="noopener">Privacy Policy</a>. <span class="required">*</span>', 'fraud-tenant-theme' ),
 									esc_url( home_url( '/privacy-policy/' ) )
 								);
 								?>

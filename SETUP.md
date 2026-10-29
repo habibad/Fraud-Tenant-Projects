@@ -40,7 +40,24 @@ define( 'FT_OTP_SECRET_KEY', 'replace-with-a-random-64-character-hex-string' );
 
 // Dedicated HMAC Secret for SSN Matching Tokenization (Phase 7)
 define( 'FT_MATCH_SECRET_KEY', 'replace-with-a-different-random-64-character-hex-string' );
+
+// Optional: Custom Private Document Storage Directory Outside Webroot (Phase 3)
+// define( 'FT_PROTECTED_STORAGE_DIR', 'C:/xampp/fraud-tenant-protected' );
 ```
+
+### Web Server Document Protection Configuration
+Uploaded ownership proof documents are stored in protected storage. Server-level protection must be configured as follows:
+- **Apache (Default Local & Shared)**: Auto-generated `.htaccess` file inside `fraud-tenant-protected/` blocks all direct web requests (`Require all denied`).
+- **Microsoft IIS**: Auto-generated `web.config` inside `fraud-tenant-protected/` blocks access (`<authorization><deny users="*" /></authorization>`).
+- **Nginx (Production Deployments)**: Because Nginx does not process `.htaccess` files, implement either:
+  1. *Recommended*: Define `FT_PROTECTED_STORAGE_DIR` in `wp-config.php` pointing to an absolute directory outside the web root (e.g. `/var/www/fraud-tenant-protected`).
+  2. *Alternative*: Add the following block to your Nginx site configuration:
+     ```nginx
+     location ^~ /wp-content/uploads/fraud-tenant-protected/ {
+         deny all;
+         return 403;
+     }
+     ```
 
 ---
 

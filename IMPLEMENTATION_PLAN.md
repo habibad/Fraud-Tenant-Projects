@@ -98,13 +98,14 @@ Fraud Tenant is a secure, modern, responsive WordPress-based rental incident rep
 
 ### PHASE 3 — Registration, Email OTP, Login and Password Recovery
 - **Objective**: Build secure authentication for Owners and Tenants with two distinct role-specific registration experiences, secure ownership document storage, 6-digit email OTP verification, password recovery, anti-enumeration safeguards, and lifecycle routing.
-- **Status**: **COMPLETED & CORRECTED** (2026-10-28)
+- **Status**: **COMPLETED, HARDENED & RELEASE-GATE AUDITED** (2026-10-29)
 - **Delivered**:
   - **Two Distinct Registration Forms**:
-    - **Property Owner Form (`#ft-register-owner-form`)**: Full legal name (first/last), email address, phone number, password & confirmation, primary rental property street address, city, US state select, ZIP code, property ownership document upload (`ownership_document`), Terms of Service acceptance, and Privacy Policy / FCRA permissible purpose acknowledgement.
+    - **Property Owner Form (`#ft-register-owner-form`)**: Full legal name (first/last), email address, phone number, password & confirmation, primary rental property street address, city, US state select, ZIP code, property ownership document upload (`ownership_document`), Terms of Service acceptance, and Privacy Policy acknowledgement.
     - **Tenant Form (`#ft-register-tenant-form`)**: Full legal name (first/last), email address, phone number, password & confirmation, current residential street address, city, US state select, ZIP code, conditional previous rental history toggle & fields (`prev_street`, `prev_city`, `prev_state`, `prev_zip`), Terms of Service acceptance, and Privacy Policy acknowledgement. Explicitly zero Date of Birth field.
+    - **Consent & FCRA Alignment**: Form disclosures and handlers represent standard agreement to Terms of Service and acknowledgement of the Privacy Policy, removing premature screening permissible purpose assertions. Screening-specific permissible purpose certification is reserved for Phase 7.
   - **Secure Document Management Service (`DocumentService`)**:
-    - Private protected storage located at `wp-content/uploads/fraud-tenant-protected/`.
+    - Private protected storage located at `wp-content/uploads/fraud-tenant-protected/` (configurable outside webroot via `FT_PROTECTED_STORAGE_DIR`).
     - Protected by Apache `.htaccess` (`Order Deny,Allow`, `Deny from all`, `<IfModule mod_authz_core.c> Require all denied </IfModule>`), `index.php` blocking directory traversal, and IIS `web.config`.
     - Strictly verified direct HTTP access blocking returning `HTTP 403 Forbidden`.
     - Strict server-side validation: MIME type check via PHP `finfo` (`application/pdf`, `image/jpeg`, `image/png`), extension check (`.pdf`, `.png`, `.jpg`, `.jpeg`), and maximum 10MB file size limit.

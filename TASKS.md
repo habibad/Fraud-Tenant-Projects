@@ -61,6 +61,7 @@
 - [x] **Task 3.9**: Implement secure property ownership document upload pipeline (`DocumentService`). *(Completed: Private storage in `fraud-tenant-protected/` with `.htaccess` `Deny from all`, `Require all denied`, index.php, web.config, MIME/extension/size validation, randomized filenames, and zero public URL exposure)*
 - [x] **Task 3.10**: Update schema to version `1.1.0` and migrate new profile columns. *(Completed: Added `prev_address_line1`, `prev_city`, `prev_state`, `prev_postal_code`, `terms_accepted_at`, `privacy_accepted_at` via versioned `dbDelta()`)*
 - [x] **Task 3.11**: Execute comprehensive 43-test suite covering distinct registration forms, validation rejections, document storage security, and OTP lifecycle. *(Completed: 43/43 assertions PASS)*
+- [x] **Task 3.12**: Phase 3 Final Release-Gate Audit & Hardening. *(Completed: Refined Terms and Privacy wording to remove blanket FCRA claims; added FT_PROTECTED_STORAGE_DIR support; hardened OTP invalidation on resend; executed 32-assertion release-gate audit covering consent wording, OTP lifecycle, login throttling, status restrictions, role isolation, document access controls, password recovery, and public regression; 32/32 assertions PASS)*
 
 ---
 

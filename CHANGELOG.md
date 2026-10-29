@@ -4,6 +4,33 @@ All notable changes to the Fraud Tenant platform will be documented in this file
 
 ---
 
+## [Phase 3.2] — Phase 3 Final Release-Gate Audit & Hardening (2026-10-29)
+
+### Privacy and Terms Consent Alignment
+- **`page-register.php`**:
+  - Simplified Property Owner Terms of Service checkbox label to strictly represent agreement to the Terms of Service.
+  - Simplified Property Owner Privacy Policy checkbox label to acknowledge the Privacy Policy, removing premature wording regarding blanket FCRA permissible purpose requirements.
+  - Simplified Tenant Terms of Service and Privacy Policy checkbox labels to standard agreement and acknowledgement, removing premature FCRA dispute claims.
+- **`AuthService.php`**:
+  - Aligned server-side validation error messages to neutral, standard wording (`"You must agree to the Terms of Service to register."` and `"You must acknowledge the Privacy Policy to register."`).
+  - Documented that screening-specific permissible purpose certification belongs to Phase 7 and requires US legal review.
+
+### Protected Document Storage Hardening
+- **`DocumentService.php`**:
+  - Added support for `FT_PROTECTED_STORAGE_DIR` configuration constant, allowing production environments to place the protected document repository completely outside the web server root.
+  - Retained triple-layer server protections (Apache `.htaccess` `Require all denied`, IIS `web.config`, `index.php` 403 exit).
+  - Documented web server deployment requirements for Apache, Microsoft IIS, and Nginx.
+
+### OTP Invalidation on Resend
+- **`OtpService.php`**:
+  - Relocated unconsumed OTP cancellation query to execute unconditionally on every code generation call, ensuring any prior unconsumed verifiers are invalidated upon resend.
+
+### Quality Assurance & Release Gate
+- Executed 32 automated integration test assertions via `scratch/run_release_gate_audit.php` covering privacy wording, OTP lifecycle, login throttling, status restrictions, role isolation, document access control, password recovery, and public regression (`Passed: 32 | Failed: 0`).
+- Recommendation: **`READY FOR PHASE 4`**.
+
+---
+
 ## [Phase 3.1] — Phase 3 Correction: Distinct Registration Forms & Secure Document Storage (2026-10-28)
 
 ### Distinct Role-Specific Registration Experiences

@@ -76,17 +76,17 @@ class OtpService {
 					),
 				);
 			}
-
-			// Invalidate prior active OTP on legitimate resend
-			$wpdb->query(
-				$wpdb->prepare(
-					"UPDATE {$table} SET consumed_at = %s WHERE email = %s AND purpose = %s AND consumed_at IS NULL",
-					$now,
-					$clean_email,
-					$purpose
-				)
-			);
 		}
+
+		// Invalidate all prior unconsumed OTPs on new code generation (ensures single active code)
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$table} SET consumed_at = %s WHERE email = %s AND purpose = %s AND consumed_at IS NULL",
+				$now,
+				$clean_email,
+				$purpose
+			)
+		);
 
 		// 2. Cryptographically Secure 6-digit numeric OTP
 		try {

@@ -284,6 +284,69 @@
 
 ---
 
+## Phase 3 Final Release-Gate Audit Execution & Verification
+
+Executed via dedicated CLI audit suite `scratch/run_release_gate_audit.php` against live MariaDB and WordPress runtime.
+
+### Section 1: Privacy and Terms Consent Verification
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **GATE-1.1** | Terms Agreement Scope | Inspect `page-register.php` Owner & Tenant terms checkboxes | Checkbox represents agreement to Terms of Service without excess claims | **PASS** |
+| **GATE-1.2** | Privacy Policy Scope | Inspect `page-register.php` Owner & Tenant privacy checkboxes | Checkbox represents acknowledgement of Privacy Policy without blanket FCRA authorization | **PASS** |
+| **GATE-1.3** | No Premature Screening Authorization | Inspect registration templates and handlers | Registration form does not imply registration alone authorizes screening | **PASS** |
+
+### Section 2: Complete OTP Security & Lifecycle Verification
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **GATE-2.1** | OTP Generation | `OtpService::generate_otp(1, $email, 'registration')` | 6-digit numeric OTP generated successfully | **PASS** |
+| **GATE-2.2** | 60s Resend Cooldown | `OtpService::generate_otp()` immediately after generation | Rejected with `cooldown_active` error and seconds remaining | **PASS** |
+| **GATE-2.3** | Resend Post-Cooldown | `OtpService::generate_otp()` after cooldown elapsed | Succeeded with new challenge generated | **PASS** |
+| **GATE-2.4** | Resend Invalidation | `OtpService::verify_otp()` using first code after second generated | Rejected; previous unconsumed code marked consumed | **PASS** |
+| **GATE-2.5** | Max Attempts Limit (5 Attempts) | 5 consecutive invalid code submissions | Challenge invalidated; subsequent attempt returns `attempts_exceeded` / `no_active_otp` | **PASS** |
+| **GATE-2.6** | OTP Expiration | Submit valid code after `expires_at` past | Rejected with `expired_otp` error | **PASS** |
+| **GATE-2.7** | Valid Code Verification | Submit correct 6-digit code before expiry | Verification succeeds; single-use timestamp applied | **PASS** |
+| **GATE-2.8** | Single-Use / Anti-Replay | Re-submitting previously verified code | Rejected with `no_active_otp` error | **PASS** |
+
+### Section 3: Login Throttling, Status Restrictions & Role Isolation
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **GATE-3.1** | IP Lockout Throttling | 5 consecutive failed logins from test IP | 6th attempt returns `rate_limited` (15-min lockout) | **PASS** |
+| **GATE-3.2** | Owner Registration with Deed | `AuthService::register_owner()` with valid PDF | Owner created, property attached, document stored privately | **PASS** |
+| **GATE-3.3** | Unverified Status Login Block | `AuthService::login()` with `email_unverified` account | Blocked with `email_unverified` error | **PASS** |
+| **GATE-3.4** | Pending Approval Routing | `AuthService::login()` with `pending_approval` account | Authentication succeeds with redirect to `/account-status/` | **PASS** |
+| **GATE-3.5** | Rejected Account Login Block | `AuthService::login()` with `rejected` account | Blocked with `account_rejected` error | **PASS** |
+| **GATE-3.6** | Suspended Account Login Block | `AuthService::login()` with `suspended` account | Blocked with `account_suspended` error | **PASS** |
+| **GATE-3.7** | Admin Account Preservation | `get_user_by('id', 1)` and roles check | User ID 1 exists and retains `administrator` role | **PASS** |
+| **GATE-3.8** | Owner Role Admin Isolation | `user_can($owner_id, $cap)` checks | `ft_owner` denied all admin capabilities & `manage_options` | **PASS** |
+| **GATE-3.9** | Tenant Registration | `AuthService::register_tenant()` with valid data | Tenant created with `ft_tenant` role | **PASS** |
+| **GATE-3.10** | Tenant Role Owner Isolation | `user_can($tenant_id, $cap)` checks | `ft_tenant` denied `ft_manage_properties` and reports | **PASS** |
+| **GATE-3.11** | Tenant Role Admin Isolation | `user_can($tenant_id, $cap)` checks | `ft_tenant` denied `ft_approve_user_registrations` & `manage_options` | **PASS** |
+
+### Section 4: Document Storage & Access Control Verification
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **GATE-4.1** | Private Document Record | SQL check on `wp_ft_documents` | `access_permission` is strictly `'private'` | **PASS** |
+| **GATE-4.2** | Physical Storage on Disk | `file_exists($doc_abs_path)` | Uploaded file exists in protected directory | **PASS** |
+| **GATE-4.3** | Direct Web HTTP Access Block | `wp_remote_get()` to uploaded document public URL | Apache server returns `HTTP 403 Forbidden` (`.htaccess` enforced) | **PASS** |
+| **GATE-4.4** | MIME & Extension Mismatch | Upload plain text file renamed to `.pdf` | Rejected with `disallowed_mime_type` error | **PASS** |
+
+### Section 5: CSRF, Nonce & Password Recovery Protection
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **GATE-5.1** | Password Reset Request | `AuthService::request_password_reset()` for existing user | Request succeeds without leaking reset key in response | **PASS** |
+| **GATE-5.2** | Anti-Enumeration on Reset | `AuthService::request_password_reset()` for nonexistent user | Returns generic success without disclosing account nonexistence | **PASS** |
+| **GATE-5.3** | Reset Password with Key | `AuthService::reset_password_with_key()` with core key | Password updated successfully | **PASS** |
+| **GATE-5.4** | Post-Reset Authentication | `wp_authenticate()` with updated password | User authenticated successfully | **PASS** |
+
+### Section 6: Public Pages & Contact Regression Verification
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **GATE-6.1** | 9 Public Pages Availability | `wp_remote_get()` for all 9 public URLs | All 9 pages return `HTTP 200 OK` | **PASS** |
+| **GATE-6.2** | Contact Enquiry SSN Protection | Submit contact form with SSN pattern in message | Form rejects pre-dispatch and redirects with `ssn_detected` | **PASS** |
+| **GATE-6.3** | Production Live SMTP Dispatch | Live outbound email relay to external mail server | Local development environment; mock/DB verification verified | **NOT TESTED** |
+
+---
+
 ## Phase Test Summary Table
 
 | Phase / Review | Total Tests | PASS | FAIL | BLOCKED | NOT TESTED |
@@ -295,4 +358,5 @@
 | **Phase 2 Final Corrective Audit** | 35 | 34 | 0 | 0 | 1 |
 | **Phase 3 Auth, OTP & Recovery** | 30 | 30 | 0 | 0 | 0 |
 | **Phase 3 Correction: Forms & Docs** | 44 | 43 | 0 | 0 | 1 |
-| **Total Verified** | **174** | **171** | **0** | **0** | **3** |
+| **Phase 3 Final Release-Gate Audit** | 33 | 32 | 0 | 0 | 1 |
+| **Total Verified** | **207** | **203** | **0** | **0** | **4** |

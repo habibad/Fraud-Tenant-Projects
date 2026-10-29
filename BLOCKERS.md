@@ -43,13 +43,14 @@ This document tracks all external dependencies, missing credentials, infrastruct
 - **Impacted Phases**: Phase 7 (SSN Search), Phase 8 (Incident Reports & Disputes), Phase 11 (Launch)
 - **Status**: `PRODUCTION LAUNCH BLOCKER`
 - **Details**: Operating an SSN-based tenant screening and rental incident reporting service in the US subjects the platform to the Fair Credit Reporting Act (FCRA), state privacy regulations, and fair housing laws.
-- **Requirements**:
-  1. Permissible purpose certification for property owners before initiating a screening request.
-  2. Clear tenant authorization and disclosure requirements.
+- **Phase 3 Clarification**: Registration forms and handlers have been explicitly updated to represent standard agreement to the Terms of Service and acknowledgement of the Privacy Policy. Registration does not constitute blanket FCRA authorization or establish legal permissible purpose for tenant searches.
+- **Requirements for Phase 7**:
+  1. Standalone permissible purpose attestation and certification workflow for property owners before initiating each screening request.
+  2. Qualified legal review of tenant disclosure, authorization, and consent workflows prior to Phase 7 and production deployment.
   3. Pre-adverse action and adverse action notice procedures.
   4. 30-day dispute investigation and correction mandates.
   5. Prohibition against publishing unverified defamatory allegations or automated "fraudulent" tenant labels.
-- **Resolution**: Production deployment must not occur without sign-off from qualified US legal counsel.
+- **Resolution**: Production deployment must not occur without formal sign-off from qualified US legal counsel.
 
 ---
 
@@ -57,6 +58,18 @@ This document tracks all external dependencies, missing credentials, infrastruct
 
 ### BLK-05: Private Document Storage Root Outside Webroot
 - **Impacted Phase**: Phase 3 (Ownership Document Upload), Phase 4 (Admin Review), Phase 6 (Property Documents)
-- **Status**: `IMPLEMENTED & VERIFIED IN PHASE 3`
-- **Details**: Implemented `DocumentService` in `wp-content/plugins/fraud-tenant-core/includes/Services/DocumentService.php`. Uses private directory `wp-content/uploads/fraud-tenant-protected/` secured by Apache `.htaccess` (`Deny from all`, `Require all denied`), `index.php` (403 Exit), and IIS `web.config`.
-- **Verification**: Verified live via `curl.exe` returning `HTTP/1.1 403 Forbidden` on direct web access. Authorized PHP streaming controller to be utilized in Phase 4 admin review and Phase 6 document access.
+- **Status**: `IMPLEMENTED, HARDENED & VERIFIED IN PHASE 3`
+- **Details**: Implemented `DocumentService` in `wp-content/plugins/fraud-tenant-core/includes/Services/DocumentService.php`. Uses private directory `wp-content/uploads/fraud-tenant-protected/` secured by Apache `.htaccess` (`Deny from all`, `Require all denied`), `index.php` (403 Exit), and IIS `web.config` (`<deny users="*" />`).
+- **Web Server Protection Matrix**:
+  1. **Apache**: Fully protected via generated `.htaccess` rules (`<IfModule mod_authz_core.c> Require all denied </IfModule>` and legacy `Order Deny,Allow` / `Deny from all`). Verified live via automated tests returning `HTTP/1.1 403 Forbidden`.
+  2. **IIS**: Fully protected via auto-generated `web.config` with `<authorization><deny users="*" /></authorization>`.
+  3. **Nginx**: Because Nginx ignores `.htaccess` files by design, Nginx deployments **must** implement either:
+     - **Option A (Recommended)**: Define `FT_PROTECTED_STORAGE_DIR` in `wp-config.php` pointing to an absolute directory completely outside the web server document root (e.g. `define( 'FT_PROTECTED_STORAGE_DIR', '/var/www/fraud-tenant-protected' );`), eliminating any web server bypass exposure.
+     - **Option B**: Add an explicit Nginx server block directive:
+       ```nginx
+       location ^~ /wp-content/uploads/fraud-tenant-protected/ {
+           deny all;
+           return 403;
+       }
+       ```
+- **Application-Level Security**: Zero public streaming routes or REST endpoints currently stream uploaded files. Authorized streaming controllers with capability and ownership verification will be introduced in Phase 4 for admin reviews and Phase 6 for property owners.

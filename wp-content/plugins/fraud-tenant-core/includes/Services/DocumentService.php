@@ -37,12 +37,17 @@ class DocumentService {
 
 	/**
 	 * Get the absolute directory path for private, protected documents.
+	 * Allows overriding storage path outside webroot via FT_PROTECTED_STORAGE_DIR.
 	 *
 	 * @return string Absolute directory path.
 	 */
 	public static function get_protected_dir(): string {
-		$upload_dir = wp_upload_dir();
-		$base_dir   = $upload_dir['basedir'] . '/fraud-tenant-protected';
+		if ( defined( 'FT_PROTECTED_STORAGE_DIR' ) && ! empty( constant( 'FT_PROTECTED_STORAGE_DIR' ) ) ) {
+			$base_dir = rtrim( constant( 'FT_PROTECTED_STORAGE_DIR' ), '/\\' );
+		} else {
+			$upload_dir = wp_upload_dir();
+			$base_dir   = $upload_dir['basedir'] . '/fraud-tenant-protected';
+		}
 
 		self::ensure_storage_security( $base_dir );
 
@@ -314,3 +319,4 @@ class DocumentService {
 		return $row ?: null;
 	}
 }
+

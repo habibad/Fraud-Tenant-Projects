@@ -210,7 +210,7 @@ class AuthService {
 			return array(
 				'success' => false,
 				'error'   => 'terms_unacknowledged',
-				'message' => __( 'You must accept the Terms of Service to register as a Property Owner.', 'fraud-tenant-core' ),
+				'message' => __( 'You must agree to the Terms of Service to register.', 'fraud-tenant-core' ),
 			);
 		}
 
@@ -218,7 +218,7 @@ class AuthService {
 			return array(
 				'success' => false,
 				'error'   => 'privacy_unacknowledged',
-				'message' => __( 'You must acknowledge the Privacy Policy to register as a Property Owner.', 'fraud-tenant-core' ),
+				'message' => __( 'You must acknowledge the Privacy Policy to register.', 'fraud-tenant-core' ),
 			);
 		}
 
@@ -495,7 +495,7 @@ class AuthService {
 			return array(
 				'success' => false,
 				'error'   => 'terms_unacknowledged',
-				'message' => __( 'You must accept the Terms of Service to register as a Tenant.', 'fraud-tenant-core' ),
+				'message' => __( 'You must agree to the Terms of Service to register.', 'fraud-tenant-core' ),
 			);
 		}
 
@@ -503,7 +503,7 @@ class AuthService {
 			return array(
 				'success' => false,
 				'error'   => 'privacy_unacknowledged',
-				'message' => __( 'You must acknowledge the Privacy Policy to register as a Tenant.', 'fraud-tenant-core' ),
+				'message' => __( 'You must acknowledge the Privacy Policy to register.', 'fraud-tenant-core' ),
 			);
 		}
 
