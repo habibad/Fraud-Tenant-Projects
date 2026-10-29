@@ -109,7 +109,7 @@ get_header();
 					<span class="metric-tag">
 						<?php
 						if ( 0 === $data['records_count'] ) {
-							esc_html_e( 'Clear Record on File', 'fraud-tenant-theme' );
+							esc_html_e( 'No Disclosed Incidents', 'fraud-tenant-theme' );
 						} else {
 							printf( /* translators: %d: count */ esc_html__( '%d Disclosed Record(s)', 'fraud-tenant-theme' ), (int) $data['records_count'] );
 						}
@@ -167,41 +167,17 @@ get_header();
 									</div>
 									<div class="dash-timeline-content">
 										<div class="dash-timeline-title">
-											<?php echo esc_html( ucwords( str_replace( array( '.', '_' ), ' ', $act->action ) ) ); ?>
+											<?php echo esc_html( $act['title'] ?? ucwords( str_replace( array( '.', '_' ), ' ', is_array( $act ) ? $act['action'] : $act->action ) ) ); ?>
 										</div>
 										<div class="dash-timeline-time">
-											<?php echo esc_html( gmdate( 'M j, Y - g:i A', strtotime( $act->created_at ) ) ); ?>
+											<?php echo esc_html( gmdate( 'M j, Y - g:i A', strtotime( is_array( $act ) ? $act['created_at'] : $act->created_at ) ) ); ?>
 										</div>
 									</div>
 								</div>
 							<?php endforeach; ?>
 						<?php else : ?>
-							<div class="dash-timeline-item">
-								<div class="dash-timeline-icon" style="background:#D1FAE5; color:#065F46;">
-									<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0E9488" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-								</div>
-								<div class="dash-timeline-content">
-									<div class="dash-timeline-title"><?php esc_html_e( 'Your account has been approved', 'fraud-tenant-theme' ); ?></div>
-									<div class="dash-timeline-time"><?php echo esc_html( gmdate( 'M j, Y - g:i A', strtotime( $user_profile->reviewed_at ?: $user_profile->updated_at ) ) ); ?></div>
-								</div>
-							</div>
-							<div class="dash-timeline-item">
-								<div class="dash-timeline-icon">
-									<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0284C7" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-								</div>
-								<div class="dash-timeline-content">
-									<div class="dash-timeline-title"><?php esc_html_e( 'Email verification completed', 'fraud-tenant-theme' ); ?></div>
-									<div class="dash-timeline-time"><?php echo esc_html( gmdate( 'M j, Y - g:i A', strtotime( $user_profile->created_at ) ) ); ?></div>
-								</div>
-							</div>
-							<div class="dash-timeline-item">
-								<div class="dash-timeline-icon">
-									<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 8v4l3 3"></path></svg>
-								</div>
-								<div class="dash-timeline-content">
-									<div class="dash-timeline-title"><?php esc_html_e( 'Profile information registered', 'fraud-tenant-theme' ); ?></div>
-									<div class="dash-timeline-time"><?php echo esc_html( gmdate( 'M j, Y - g:i A', strtotime( $user_profile->created_at ) ) ); ?></div>
-								</div>
+							<div class="dash-empty-state" style="padding: 24px 16px;">
+								<p style="color: #64748B; margin: 0; font-size: 0.875rem;"><?php esc_html_e( 'No recent activity recorded for your account.', 'fraud-tenant-theme' ); ?></p>
 							</div>
 						<?php endif; ?>
 					</div>
@@ -215,10 +191,10 @@ get_header();
 
 					<div class="dash-detail-list">
 						<div class="dash-detail-row">
-							<span class="dash-detail-key"><?php esc_html_e( 'Current Residence', 'fraud-tenant-theme' ); ?></span>
+							<span class="dash-detail-key"><?php esc_html_e( 'Current Address on File', 'fraud-tenant-theme' ); ?></span>
 							<span class="dash-detail-val">
 								<?php
-								if ( ! empty( $user_profile->address_line1 ) ) {
+								if ( ! empty( $user_profile?->address_line1 ) ) {
 									echo esc_html( $user_profile->address_line1 . ', ' . $user_profile->city . ', ' . $user_profile->state . ' ' . $user_profile->postal_code );
 								} else {
 									echo esc_html__( 'Not specified', 'fraud-tenant-theme' );
@@ -227,10 +203,10 @@ get_header();
 							</span>
 						</div>
 						<div class="dash-detail-row">
-							<span class="dash-detail-key"><?php esc_html_e( 'Previous Residence', 'fraud-tenant-theme' ); ?></span>
+							<span class="dash-detail-key"><?php esc_html_e( 'Previous Address Reported During Registration', 'fraud-tenant-theme' ); ?></span>
 							<span class="dash-detail-val">
 								<?php
-								if ( ! empty( $user_profile->prev_address_line1 ) ) {
+								if ( ! empty( $user_profile?->prev_address_line1 ) ) {
 									echo esc_html( $user_profile->prev_address_line1 . ', ' . $user_profile->prev_city . ', ' . $user_profile->prev_state . ' ' . $user_profile->prev_postal_code );
 								} else {
 									echo esc_html__( 'None reported during registration', 'fraud-tenant-theme' );
@@ -241,7 +217,7 @@ get_header();
 						<div class="dash-detail-row">
 							<span class="dash-detail-key"><?php esc_html_e( 'Identity Token Security', 'fraud-tenant-theme' ); ?></span>
 							<span class="dash-detail-val" style="color:#0E9488;">
-								&bull;&bull;&bull;&bull; <?php esc_html_e( 'Tokenized HMAC Protected', 'fraud-tenant-theme' ); ?>
+								&bull;&bull;&bull;&bull; <?php esc_html_e( 'Identity Matching Token Active (HMAC Protected)', 'fraud-tenant-theme' ); ?>
 							</span>
 						</div>
 					</div>
@@ -255,11 +231,11 @@ get_header();
 
 					<?php if ( empty( $data['records'] ) ) : ?>
 						<div class="dash-empty-state">
-							<div class="dash-empty-icon" style="color:#10B981;">
-								<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+							<div class="dash-empty-icon" style="color:#0E9488;">
+								<svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
 							</div>
-							<h4><?php esc_html_e( 'No Negative Incident Records on File', 'fraud-tenant-theme' ); ?></h4>
-							<p><?php esc_html_e( 'Your rental record with Fraud Tenant is currently clear. Any verified reports filed with permissible purpose will appear here.', 'fraud-tenant-theme' ); ?></p>
+							<h4><?php esc_html_e( 'No Disclosable Incident Records Available', 'fraud-tenant-theme' ); ?></h4>
+							<p><?php esc_html_e( 'No disclosable incident records are currently available for your account. Please note: Available platform information may be incomplete and does not certify a completely clear rental history.', 'fraud-tenant-theme' ); ?></p>
 						</div>
 					<?php else : ?>
 						<div class="dash-table-wrapper">
@@ -352,7 +328,7 @@ get_header();
 						</div>
 						<div class="dash-detail-row">
 							<span class="dash-detail-key"><?php esc_html_e( 'Phone', 'fraud-tenant-theme' ); ?></span>
-							<span class="dash-detail-val"><?php echo esc_html( $user_profile->phone ?? '—' ); ?></span>
+							<span class="dash-detail-val"><?php echo esc_html( $user_profile?->phone ?? '—' ); ?></span>
 						</div>
 						<div class="dash-detail-row">
 							<span class="dash-detail-key"><?php esc_html_e( 'Account Status', 'fraud-tenant-theme' ); ?></span>
@@ -408,7 +384,7 @@ get_header();
 				<label for="tenant_phone_edit" style="display:block; font-size:12px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
 					<?php esc_html_e( 'Phone Number', 'fraud-tenant-theme' ); ?>
 				</label>
-				<input type="tel" id="tenant_phone_edit" name="phone" value="<?php echo esc_attr( $user_profile->phone ?? '' ); ?>" class="search-ssn-input" style="height:42px; background:#FFFFFF;" placeholder="(555) 000-0000" required />
+				<input type="tel" id="tenant_phone_edit" name="phone" value="<?php echo esc_attr( $user_profile?->phone ?? '' ); ?>" class="search-ssn-input" style="height:42px; background:#FFFFFF;" placeholder="(555) 000-0000" required />
 			</div>
 
 			<button type="submit" class="dashboard-btn-add" style="width:100%; justify-content:center;">
@@ -435,3 +411,4 @@ get_header();
 
 <?php
 get_footer();
+

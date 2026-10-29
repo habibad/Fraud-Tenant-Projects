@@ -207,6 +207,41 @@ Fraud Tenant is a secure, modern, responsive WordPress-based rental incident rep
 
 ---
 
+### PHASE 5.1 — Dashboard Hardening and Release Gate
+- **Objective**: Conduct strict security, privacy, and data-accuracy hardening of owner and tenant dashboards prior to Phase 6 authorization.
+- **Status**: **COMPLETED** (2026-10-29)
+- **Delivered**:
+  - **Tenant Record Messaging Accuracy**:
+    - Eliminated all statements implying guaranteed clean rental records ("Clear Record on File", "Your record with Fraud Tenant is currently clear").
+    - Replaced with neutral, factual wording: *"No Disclosable Incident Records Available"* and *"No Disclosed Incidents"*.
+    - Added explicit legal caveat: *"Please note: Available platform information may be incomplete and does not certify a completely clear rental history."*
+    - Enforced strict double-gate in `DashboardService::get_tenant_dashboard_data`: reports must have `disclosable = 1 AND status = 'approved'`.
+  - **Address Verification Labels**:
+    - Relabeled addresses in tenant dashboard to *"Current Address on File"* and *"Previous Address Reported During Registration"*.
+    - Removed any wording inferring address verification from account approval.
+    - Updated identity token status to *"Identity Matching Token Active (HMAC Protected)"*.
+  - **Phase 7 SSN Preview Immunity**:
+    - Converted Owner Dashboard SSN search input to `disabled` and `readonly` with preview placeholder.
+    - Changed search action button to `type="button" data-ft-modal-target="ftScreeningModal"`, triggering informational compliance modal directly.
+    - Removed input and submit listeners from `assets/js/dashboard.js`. Verified zero SSN collection, serialization, logging, or transmission, and zero screening requests created.
+  - **Secure Tenant Activity Timeline**:
+    - Restricted query in `DashboardService::get_tenant_dashboard_data` to `object_type = 'user' AND object_id = %d` and an explicit safe allowlist: `admin_application_approved`, `auth_otp_verified`, `auth_tenant_registered`, `user_profile_updated`.
+    - Sanitized and mapped to user-facing titles, selecting only `id, action, created_at` from `wp_ft_audit_log`. Zero leak of admin notes, reviewer IDs, client telemetry, or raw JSON.
+    - Clean neutral empty state displayed when no safe activity exists.
+  - **Owner Data Scoping & Real Membership Verification**:
+    - Enforced strict `owner_id = %d` on all owner queries (properties, searches, reports).
+    - Verified recent searches display only masked `••••-XXXX` last 4 digits, never HMAC token.
+    - Verified genuine plan data (`Free Plan`, `Standard Monthly`, `Standard Annual`) with zero fabricated active benefits.
+  - **Admin Review Historical Continuity**:
+    - Verified that repeated rejection or info-request actions preserve an immutable audit trail in `wp_ft_audit_log` without overwriting history.
+    - Enhanced admin detail review history view in `UserReviewController.php` to cleanly display and highlight past reviewer notes and reasons.
+  - **Testing & Verification**:
+    - Executed 34 Phase 5.1 hardening assertions (**34/34 PASS**).
+    - Executed 24 Phase 4 & 5 regression assertions (**24/24 PASS**).
+    - Recaptured Headless Chrome desktop (1440x1050) and mobile (390x844) screenshots reflecting hardened UI states.
+
+---
+
 ### PHASE 6 — Property Management and Secure Document Uploads
 - **Objective**: Allow owners to manage rental units and securely upload/view verification documents.
 - **Status**: Planned

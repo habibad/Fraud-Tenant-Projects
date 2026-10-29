@@ -231,21 +231,21 @@ class DashboardService {
 			)
 		);
 
-		// 2. Incident Records Disclosed for Tenant
+		// 2. Incident Records Disclosed for Tenant (Strictly approved AND disclosable)
 		$records_count = 0;
 		$records       = array();
 
 		if ( $identity ) {
 			$records_count = (int) $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT COUNT(*) FROM {$rep_table} WHERE tenant_identity_id = %d AND disclosable = 1",
+					"SELECT COUNT(*) FROM {$rep_table} WHERE tenant_identity_id = %d AND disclosable = 1 AND status = 'approved'",
 					$identity->id
 				)
 			);
 
 			$records = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT * FROM {$rep_table} WHERE tenant_identity_id = %d AND disclosable = 1 ORDER BY id DESC LIMIT 5",
+					"SELECT * FROM {$rep_table} WHERE tenant_identity_id = %d AND disclosable = 1 AND status = 'approved' ORDER BY id DESC LIMIT 5",
 					$identity->id
 				)
 			) ?: array();
@@ -281,17 +281,43 @@ class DashboardService {
 			)
 		) ?: array();
 
-		// 5. Recent Activity Timeline
-		$recent_activity = $wpdb->get_results(
+		// 5. Recent Activity Timeline (Strictly allowlisted, user-safe events where target user is the tenant)
+		$safe_actions = array(
+			'admin_application_approved',
+			'auth_otp_verified',
+			'auth_tenant_registered',
+			'user_profile_updated',
+		);
+		$in_clause = "'" . implode( "','", array_map( 'esc_sql', $safe_actions ) ) . "'";
+
+		$recent_activity_rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$audit_tbl} 
-				 WHERE (object_type = 'user' AND object_id = %d) 
-				    OR (user_id = %d) 
+				"SELECT id, action, created_at FROM {$audit_tbl} 
+				 WHERE object_type = 'user' AND object_id = %d 
+				   AND action IN ({$in_clause})
 				 ORDER BY id DESC LIMIT 5",
-				$tenant_id,
 				$tenant_id
 			)
 		) ?: array();
+
+		$action_labels = array(
+			'admin_application_approved' => __( 'Your account has been approved', 'fraud-tenant-core' ),
+			'auth_otp_verified'          => __( 'Email verification completed', 'fraud-tenant-core' ),
+			'auth_tenant_registered'     => __( 'Account registration submitted', 'fraud-tenant-core' ),
+			'user_profile_updated'       => __( 'Profile information updated', 'fraud-tenant-core' ),
+		);
+
+		$recent_activity = array();
+		foreach ( $recent_activity_rows as $row ) {
+			if ( isset( $action_labels[ $row->action ] ) ) {
+				$recent_activity[] = array(
+					'id'         => (int) $row->id,
+					'action'     => $row->action,
+					'title'      => $action_labels[ $row->action ],
+					'created_at' => $row->created_at,
+				);
+			}
+		}
 
 		// 6. User and Profile
 		$user    = get_user_by( 'id', $tenant_id );

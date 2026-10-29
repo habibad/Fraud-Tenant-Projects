@@ -492,8 +492,15 @@ class UserReviewController {
 											</div>
 											<div style="font-size:12px; color:#475569; margin-top:2px;">
 												<?php printf( /* translators: %s: actor */ esc_html__( 'Actor: %s', 'fraud-tenant-core' ), esc_html( $evt->actor_name ?: 'System / Self' ) ); ?>
-												<?php if ( ! empty( $evt->details_json ) ) : ?>
-													<code style="display:block; margin-top:4px; font-size:11px; background:#F8FAFC; padding:4px 8px; border-radius:4px; word-break:break-all;">
+												<?php if ( ! empty( $evt->details_json ) ) : 
+													$evt_details  = json_decode( $evt->details_json, true );
+													$display_note = is_array( $evt_details ) ? ( $evt_details['request_message'] ?? $evt_details['reason'] ?? null ) : null;
+													if ( $display_note ) : ?>
+														<div style="margin-top:4px; font-size:12px; color:#1E293B; background:#F1F5F9; padding:6px 10px; border-radius:4px; border-left:3px solid #0E9488;">
+															<strong><?php esc_html_e( 'Note / Reason:', 'fraud-tenant-core' ); ?></strong> <?php echo esc_html( $display_note ); ?>
+														</div>
+													<?php endif; ?>
+													<code style="display:block; margin-top:4px; font-size:11px; background:#F8FAFC; padding:4px 8px; border-radius:4px; word-break:break-all; color:#64748B;">
 														<?php echo esc_html( $evt->details_json ); ?>
 													</code>
 												<?php endif; ?>

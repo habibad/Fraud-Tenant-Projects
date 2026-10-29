@@ -75,28 +75,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   });
 
-  // 3. SSN Formatter Helper
-  var ssnInput = document.getElementById('ftSsnSearchInput');
-  if (ssnInput) {
-    ssnInput.addEventListener('input', function(e) {
-      var val = e.target.value.replace(/\D/g, '').substring(0, 9);
-      var formatted = '';
-      if (val.length > 5) {
-        formatted = val.substring(0, 3) + '-' + val.substring(3, 5) + '-' + val.substring(5);
-      } else if (val.length > 3) {
-        formatted = val.substring(0, 3) + '-' + val.substring(3);
-      } else {
-        formatted = val;
-      }
-      e.target.value = formatted;
-    });
-
-    var ssnForm = document.getElementById('ftSsnSearchForm');
-    if (ssnForm) {
-      ssnForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        openModal('ftScreeningModal');
-      });
-    }
-  }
+  // 3. Phase 7 SSN Preview is purely informational.
+  // The input is disabled and readonly. Clicks on the preview button trigger ftScreeningModal directly via data-ft-modal-target.
+  // Zero SSN values are accepted, processed, serialized, or transmitted.
 });
+

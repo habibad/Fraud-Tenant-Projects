@@ -4,6 +4,52 @@ All notable changes to the Fraud Tenant platform will be documented in this file
 
 ---
 
+## [Phase 5.1] — Dashboard Hardening and Release Gate (2026-10-29)
+
+### Tenant Record Messaging Hardening (`page-tenant-dashboard.php`, `DashboardService.php`)
+- Eliminated all statements claiming or implying a guaranteed clean rental history:
+  - Replaced metric card tag `"Clear Record on File"` with `"No Disclosed Incidents"`.
+  - Replaced empty records panel heading `"No Negative Incident Records on File"` and text `"Your rental record with Fraud Tenant is currently clear"` with:
+    - Heading: `"No Disclosable Incident Records Available"`.
+    - Body: `"No disclosable incident records are currently available for your account. Please note: Available platform information may be incomplete and does not certify a completely clear rental history."`
+- Hardened `DashboardService::get_tenant_dashboard_data()` to strictly require `status = 'approved' AND disclosable = 1` on incident record queries. Pending, submitted, rejected, or unapproved records are never disclosed or counted.
+
+### Address Verification Label Corrections (`page-tenant-dashboard.php`)
+- Relabeled residential address fields:
+  - Current residence relabeled to `"Current Address on File"`.
+  - Previous residence relabeled to `"Previous Address Reported During Registration"`.
+  - Removed all misleading "verified" address claims or badges; address verification is not inferred from account approval.
+  - Relabeled identity security badge to `"Identity Matching Token Active (HMAC Protected)"`.
+
+### Phase 7 SSN Preview Immunity (`page-owner-dashboard.php`, `dashboard.js`)
+- Converted the owner dashboard SSN search input to `disabled readonly aria-disabled="true"` with placeholder `"XXX-XX-XXXX (Preview — Screening Engine in Phase 7)"`.
+- Converted the search action to `type="button" data-ft-modal-target="ftScreeningModal"`, triggering the informational compliance modal directly.
+- Removed SSN input event listeners and form submission interceptors from `assets/js/dashboard.js`. Verified zero SSN values are accepted, processed, serialized, logged, or transmitted, and zero screening requests are generated in `wp_ft_screening_requests`.
+
+### Secure Tenant Activity Timeline (`DashboardService.php`, `page-tenant-dashboard.php`)
+- Refined audit query in `DashboardService::get_tenant_dashboard_data()`:
+  - Restricted query strictly to `object_type = 'user' AND object_id = %d` where the target subject is the current tenant.
+  - Restricts actions strictly to a safe user-facing allowlist: `admin_application_approved`, `auth_otp_verified`, `auth_tenant_registered`, `user_profile_updated`.
+  - Queries ONLY `id, action, created_at` from `wp_ft_audit_log`, excluding `details_json`, `ip_address`, `user_agent`, and admin notes.
+  - Returns human-friendly, escaped display titles.
+  - When no allowlisted events exist, displays a neutral empty state (`"No recent activity recorded for your account."`) instead of hardcoded fallback events.
+
+### Real Membership and Owner Data Scoping (`DashboardService.php`, `page-owner-dashboard.php`)
+- Enforced strict `owner_id = %d` scoping on all owner queries (properties, searches, reports).
+- Ensured recent searches display only masked `••••-XXXX` last 4 digits, never HMAC token.
+- Verified real membership plan data (`Free Plan`, `Standard Monthly`, `Standard Annual`) with zero fabricated active benefits.
+
+### Admin Review Historical Continuity (`UserReviewController.php`, `AdminReviewService.php`)
+- Verified that repeated rejection or info-request actions preserve an immutable audit trail in `wp_ft_audit_log` without overwriting history.
+- Enhanced the admin review history timeline in `UserReviewController.php` to cleanly display and highlight past reviewer notes and reasons.
+
+### Testing & Screenshots
+- Executed 34 Phase 5.1 hardening assertions (**34/34 PASS**).
+- Executed 24 Phase 4 & 5 regression assertions (**24/24 PASS**).
+- Recaptured Headless Chrome desktop (1440x1050) and mobile (390x844) screenshots reflecting hardened UI states.
+
+---
+
 ## [Phase 5] — Owner and Tenant Dashboards (2026-10-29)
 
 ### Separation of Shells & Dashboard Architecture (`header.php`, `footer.php`, `dashboard.css`, `dashboard.js`)

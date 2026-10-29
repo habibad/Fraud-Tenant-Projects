@@ -569,6 +569,52 @@ Executed via automated test suite against active MariaDB database and WordPress 
 
 ---
 
+## Phase 5.1 Hardening & Release Gate Test Execution
+
+Executed via `scratch/test_phase5_1_hardening.php` (34 assertions) and `scratch/test_phase4_and_5_regression.php` (24 assertions).
+
+| Test ID | Test Description | Command / Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **P5.1-1.1** | Clean Record Tag Removed | Template inspection | 'Clear Record on File' completely removed | **PASS** |
+| **P5.1-1.2** | Clean Record Claim Removed | Template inspection | 'Your rental record with Fraud Tenant is currently clear' removed | **PASS** |
+| **P5.1-1.3** | Neutral Tag Added | Template inspection | 'No Disclosed Incidents' displayed in metric card | **PASS** |
+| **P5.1-1.4** | Neutral Records Heading | Template inspection | 'No Disclosable Incident Records Available' displayed | **PASS** |
+| **P5.1-1.5** | Incomplete Info Disclaimer | Template inspection | 'Available platform information may be incomplete and does not certify a completely clear rental history' displayed | **PASS** |
+| **P5.1-1.6** | Unapproved Reports Excluded | `DashboardService::get_tenant_dashboard_data()` | Unapproved incident reports (`status = 'submitted'`) count = 0 | **PASS** |
+| **P5.1-1.7** | Undisclosable Reports Excluded | Data query inspection | Undisclosable reports (`disclosable = 0`) excluded from records | **PASS** |
+| **P5.1-2.1** | Current Address on File Label | Template inspection | Relabeled to 'Current Address on File' | **PASS** |
+| **P5.1-2.2** | Previous Address Reported Label | Template inspection | Relabeled to 'Previous Address Reported During Registration' | **PASS** |
+| **P5.1-2.3** | No Misleading Verified Label | Template inspection | Addresses are NOT labeled 'verified' | **PASS** |
+| **P5.1-2.4** | Identity Token Badge Label | Template inspection | Labeled 'Identity Matching Token Active (HMAC Protected)' | **PASS** |
+| **P5.1-3.1** | SSN Search Input Disabled & Readonly | Template inspection | `ftSsnSearchInput` has `disabled readonly aria-disabled="true"` | **PASS** |
+| **P5.1-3.2** | SSN Preview Button Direct Modal Trigger | Template inspection | Button has `data-ft-modal-target="ftScreeningModal"`, triggers modal directly | **PASS** |
+| **P5.1-3.3** | Zero SSN Event Listeners or Transmission | `dashboard.js` inspection | No form submit listener or SSN formatting logic; zero SSN transmission | **PASS** |
+| **P5.1-3.4** | No Screening Request Generated | Database inspection | SSN preview interaction creates 0 rows in `wp_ft_screening_requests` | **PASS** |
+| **P5.1-4.1** | Admin Internal Events Excluded | `DashboardService::get_tenant_dashboard_data()` | Admin internal audit events never returned to tenant | **PASS** |
+| **P5.1-4.2** | Strict Allowlist for Tenant Activity | Data inspection | All returned events match safe allowlist (`approved`, `otp`, `registered`, `profile`) | **PASS** |
+| **P5.1-4.3** | Zero Leak of Notes/Telemetry | Return payload inspection | Zero `details_json`, `admin_notes`, `ip_address`, or `user_agent` returned | **PASS** |
+| **P5.1-5.1** | Strict Owner Property Scoping | Database query inspection | Every returned property strictly belongs to current `owner_id` | **PASS** |
+| **P5.1-5.2** | Real Membership Plan Fidelity | Data query inspection | Plan name matches genuine DB record (`Free Plan` / `Standard Monthly` / `Standard Annual`) | **PASS** |
+| **P5.1-5.3** | SSN Masking Fidelity | Template inspection | Masked strictly as `••••-XXXX` (last 4 digits only); zero HMAC token shown | **PASS** |
+| **P5.1-6.1** | Profile Update IDOR Defense | Cross-user profile update attempt | Rejects attempt with `unauthorized` error | **PASS** |
+| **P5.1-6.2** | Profile Update CSRF Nonce Guard | Bad nonce submission | Rejects attempt with `invalid_nonce` error | **PASS** |
+| **P5.1-6.3** | Valid Authorized Profile Update | Valid phone update submission | Succeeded with valid CSRF nonce | **PASS** |
+| **P5.1-6.4** | Profile Phone DB Persistence | `wp_ft_user_profiles` inspection | Updated phone number correctly persisted in database | **PASS** |
+| **P5.1-6.5** | Role Isolation Verified | Tenant role inspection | Tenant has `ft_tenant` and lacks `ft_owner` | **PASS** |
+| **P5.1-7.1** | Admin Review Action 1 Preserved | `AdminReviewService::request_additional_info()` | Succeeded and logged to `wp_ft_audit_log` | **PASS** |
+| **P5.1-7.2** | Repeated Info Request Preserved | `AdminReviewService::request_additional_info()` | Succeeded without erasing Action 1 audit row | **PASS** |
+| **P5.1-7.3** | Subsequent Rejection Preserved | `AdminReviewService::reject_application()` | Succeeded without erasing Actions 1 & 2 audit rows | **PASS** |
+| **P5.1-7.4** | Audit History Completeness | `AdminReviewService::get_user_audit_history()` | Returns all 3 historical events in reverse chronological order | **PASS** |
+| **P5.1-7.5** | Historical Action 1 Details Preserved | Audit details inspection | Note 1 text preserved in audit log | **PASS** |
+| **P5.1-7.6** | Historical Action 2 Details Preserved | Audit details inspection | Note 2 text preserved in audit log | **PASS** |
+| **P5.1-7.7** | Historical Action 3 Details Preserved | Audit details inspection | Rejection reason text preserved in audit log | **PASS** |
+| **P5.1-8.1** | Regression: Templates and Assets | File system inspection | All dashboard PHP templates, CSS, and JS verified intact | **PASS** |
+| **P5.1-8.2** | Regression: Header/Footer Shell Isolation | Template inspection | Marketing header and footer suppressed on dashboard pages | **PASS** |
+| **P5.1-8.3** | Regression: Admin Review Queue | `AdminReviewService::get_applications()` | Returns valid pagination, items, and total count | **PASS** |
+| **P5.1-8.4** | Regression: Audit Redaction | `AuditLogger::log()` | Plain SSN, OTP, and passwords strictly redacted | **PASS** |
+
+---
+
 ## Phase Test Summary Table
 
 | Phase / Review | Total Tests | PASS | FAIL | BLOCKED | NOT TESTED |
@@ -585,4 +631,5 @@ Executed via automated test suite against active MariaDB database and WordPress 
 | **Phase 4 Admin Review Portal** | 40 | 39 | 0 | 0 | 1 |
 | **Phase 5 Step 0 Security Preflight** | 45 | 45 | 0 | 0 | 0 |
 | **Phase 5 Owner & Tenant Dashboards** | 36 | 36 | 0 | 0 | 0 |
-| **Total Verified** | **351** | **346** | **0** | **0** | **5** |
+| **Phase 5.1 Hardening & Release Gate** | 37 | 37 | 0 | 0 | 0 |
+| **Total Verified** | **388** | **383** | **0** | **0** | **5** |

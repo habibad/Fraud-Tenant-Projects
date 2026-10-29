@@ -186,21 +186,21 @@ get_header();
 			</div>
 			<p class="search-tenants-subtext"><?php esc_html_e( "Enter the applicant's Social Security Number (SSN) to find matching rental history (limited view for free users).", 'fraud-tenant-theme' ); ?></p>
 			
-			<form class="search-ssn-form" id="ftSsnSearchForm" onsubmit="return false;">
+			<div class="search-ssn-form" id="ftSsnSearchContainer">
 				<div class="search-ssn-input-group">
 					<div class="search-ssn-field-wrapper">
-						<input type="text" class="search-ssn-input" id="ftSsnSearchInput" placeholder="XXX-XX-XXXX" maxlength="11" autocomplete="off" />
+						<input type="text" class="search-ssn-input" id="ftSsnSearchInput" placeholder="XXX-XX-XXXX (Preview — Screening Engine in Phase 7)" disabled readonly aria-disabled="true" />
 						<span class="search-ssn-lock">
 							<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
 						</span>
 					</div>
-					<button type="submit" class="search-ssn-btn"><?php esc_html_e( 'Search', 'fraud-tenant-theme' ); ?></button>
+					<button type="button" class="search-ssn-btn" data-ft-modal-target="ftScreeningModal"><?php esc_html_e( 'Search Preview', 'fraud-tenant-theme' ); ?></button>
 				</div>
 				<p class="search-compliance-note">
 					<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-					<?php esc_html_e( 'For authorized rental screening only. Permissible purpose required under FCRA.', 'fraud-tenant-theme' ); ?>
+					<?php esc_html_e( 'Informational preview only. Authorized tenant screening will be available in Phase 7 with verified FCRA permissible purpose.', 'fraud-tenant-theme' ); ?>
 				</p>
-			</form>
+			</div>
 		</div>
 
 		<!-- Two Column Content Grid -->
@@ -372,7 +372,7 @@ get_header();
 						</div>
 						<div class="dash-detail-row">
 							<span class="dash-detail-key"><?php esc_html_e( 'Phone', 'fraud-tenant-theme' ); ?></span>
-							<span class="dash-detail-val"><?php echo esc_html( $user_profile->phone ?? '—' ); ?></span>
+							<span class="dash-detail-val"><?php echo esc_html( $user_profile?->phone ?? '—' ); ?></span>
 						</div>
 						<div class="dash-detail-row">
 							<span class="dash-detail-key"><?php esc_html_e( 'Account Status', 'fraud-tenant-theme' ); ?></span>
@@ -485,7 +485,7 @@ get_header();
 				<label for="owner_phone_edit" style="display:block; font-size:12px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
 					<?php esc_html_e( 'Phone Number', 'fraud-tenant-theme' ); ?>
 				</label>
-				<input type="tel" id="owner_phone_edit" name="phone" value="<?php echo esc_attr( $user_profile->phone ?? '' ); ?>" class="search-ssn-input" style="height:42px; background:#FFFFFF;" placeholder="(555) 000-0000" required />
+				<input type="tel" id="owner_phone_edit" name="phone" value="<?php echo esc_attr( $user_profile?->phone ?? '' ); ?>" class="search-ssn-input" style="height:42px; background:#FFFFFF;" placeholder="(555) 000-0000" required />
 			</div>
 
 			<button type="submit" class="dashboard-btn-add" style="width:100%; justify-content:center;">

@@ -43,7 +43,10 @@ This document tracks all external dependencies, missing credentials, infrastruct
 - **Impacted Phases**: Phase 7 (SSN Search), Phase 8 (Incident Reports & Disputes), Phase 11 (Launch)
 - **Status**: `PRODUCTION LAUNCH BLOCKER`
 - **Details**: Operating an SSN-based tenant screening and rental incident reporting service in the US subjects the platform to the Fair Credit Reporting Act (FCRA), state privacy regulations, and fair housing laws.
-- **Phase 3 Clarification**: Registration forms and handlers have been explicitly updated to represent standard agreement to the Terms of Service and acknowledgement of the Privacy Policy. Registration does not constitute blanket FCRA authorization or establish legal permissible purpose for tenant searches.
+- **Phase 3 & Phase 5.1 Clarifications**:
+  1. Registration forms and handlers represent standard agreement to the Terms of Service and acknowledgement of the Privacy Policy. Registration does not constitute blanket FCRA authorization or establish legal permissible purpose for tenant searches.
+  2. Phase 5.1 dashboard hardening eliminated all absolute "clear rental record" claims. Dashboards display neutral notices ("No disclosable incident records are currently available for your account") with explicit disclosures that platform data may be incomplete and does not certify a clear rental history.
+  3. Address labels reflect unverified registration inputs ("Current Address on File", "Previous Address Reported During Registration") and are not marked "verified".
 - **Requirements for Phase 7**:
   1. Standalone permissible purpose attestation and certification workflow for property owners before initiating each screening request.
   2. Qualified legal review of tenant disclosure, authorization, and consent workflows prior to Phase 7 and production deployment.
