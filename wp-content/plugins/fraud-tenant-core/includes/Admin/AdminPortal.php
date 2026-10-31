@@ -64,7 +64,7 @@ class AdminPortal {
 			'fraud-tenant-admin',
 			__( 'Property Verification Queue', 'fraud-tenant-core' ),
 			__( 'Properties', 'fraud-tenant-core' ),
-			Capabilities::REVIEW_USER_REGISTRATIONS,
+			Capabilities::REVIEW_PROPERTIES,
 			'fraud-tenant-properties',
 			array( PropertyReviewController::class, 'render' )
 		);
@@ -191,7 +191,7 @@ class AdminPortal {
 	public static function handle_property_review_action(): void {
 		$reviewer_id = get_current_user_id();
 
-		if ( ! current_user_can( Capabilities::REVIEW_USER_REGISTRATIONS ) && ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( Capabilities::REVIEW_PROPERTIES ) && ! current_user_can( Capabilities::REVIEW_USER_REGISTRATIONS ) && ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'Unauthorized to perform property verification review actions.', 'fraud-tenant-core' ), 403 );
 		}
 

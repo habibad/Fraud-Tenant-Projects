@@ -834,7 +834,7 @@ class AdminReviewService {
 	 * @return array
 	 */
 	public static function verify_property( int $property_id, int $reviewer_id, string $notes = '' ): array {
-		if ( ! self::can_review( $reviewer_id ) ) {
+		if ( ! self::can_review_property( $reviewer_id ) ) {
 			return array(
 				'success' => false,
 				'error'   => 'unauthorized',
@@ -880,13 +880,32 @@ class AdminReviewService {
 			);
 		}
 
-		// Approve associated ownership documents for this property
-		$wpdb->query(
+		// Approve only current (latest) ownership document; mark older versions superseded
+		$latest_doc_id = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"UPDATE {$doc_table} SET review_status = 'approved' WHERE object_type = 'property_ownership' AND object_id = %d",
+				"SELECT id FROM {$doc_table} WHERE object_type = 'property_ownership' AND object_id = %d ORDER BY id DESC LIMIT 1",
 				$property_id
 			)
 		);
+
+		if ( $latest_doc_id > 0 ) {
+			$wpdb->update(
+				$doc_table,
+				array( 'review_status' => Constants::DOC_STATUS_APPROVED ),
+				array( 'id' => $latest_doc_id ),
+				array( '%s' ),
+				array( '%d' )
+			);
+
+			$wpdb->query(
+				$wpdb->prepare(
+					"UPDATE {$doc_table} SET review_status = %s WHERE object_type = 'property_ownership' AND object_id = %d AND id != %d",
+					Constants::DOC_STATUS_SUPERSEDED,
+					$property_id,
+					$latest_doc_id
+				)
+			);
+		}
 
 		AuditLogger::log(
 			'admin.property_verified',
@@ -918,7 +937,7 @@ class AdminReviewService {
 	 * @return array
 	 */
 	public static function reject_property( int $property_id, int $reviewer_id, string $reason = '' ): array {
-		if ( ! self::can_review( $reviewer_id ) ) {
+		if ( ! self::can_review_property( $reviewer_id ) ) {
 			return array(
 				'success' => false,
 				'error'   => 'unauthorized',
@@ -976,13 +995,23 @@ class AdminReviewService {
 			);
 		}
 
-		// Update associated documents
-		$wpdb->query(
+		// Mark only current (latest) document as rejected
+		$latest_doc_id = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"UPDATE {$doc_table} SET review_status = 'rejected' WHERE object_type = 'property_ownership' AND object_id = %d",
+				"SELECT id FROM {$doc_table} WHERE object_type = 'property_ownership' AND object_id = %d ORDER BY id DESC LIMIT 1",
 				$property_id
 			)
 		);
+
+		if ( $latest_doc_id > 0 ) {
+			$wpdb->update(
+				$doc_table,
+				array( 'review_status' => Constants::DOC_STATUS_REJECTED ),
+				array( 'id' => $latest_doc_id ),
+				array( '%s' ),
+				array( '%d' )
+			);
+		}
 
 		AuditLogger::log(
 			'admin.property_rejected',
@@ -1014,7 +1043,7 @@ class AdminReviewService {
 	 * @return array
 	 */
 	public static function request_property_info( int $property_id, int $reviewer_id, string $request_note ): array {
-		if ( ! self::can_review( $reviewer_id ) ) {
+		if ( ! self::can_review_property( $reviewer_id ) ) {
 			return array(
 				'success' => false,
 				'error'   => 'unauthorized',
@@ -1125,6 +1154,22 @@ class AdminReviewService {
 	public static function can_review( int $user_id ): bool {
 		return user_can( $user_id, Capabilities::REVIEW_USER_REGISTRATIONS ) ||
 			   user_can( $user_id, Capabilities::APPROVE_USER_REGISTRATIONS ) ||
+			   user_can( $user_id, 'manage_options' );
+	}
+
+	/**
+	 * Verify if an actor has permission to review properties.
+	 *
+	 * Supports dedicated property review capabilities while preserving
+	 * backward compatibility for general registration reviewers and administrators.
+	 *
+	 * @param int $user_id Reviewer user ID.
+	 * @return bool
+	 */
+	public static function can_review_property( int $user_id ): bool {
+		return user_can( $user_id, Capabilities::REVIEW_PROPERTIES ) ||
+			   user_can( $user_id, Capabilities::VERIFY_PROPERTIES ) ||
+			   user_can( $user_id, Capabilities::REVIEW_USER_REGISTRATIONS ) ||
 			   user_can( $user_id, 'manage_options' );
 	}
 }

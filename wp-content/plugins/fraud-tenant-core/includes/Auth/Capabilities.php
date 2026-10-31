@@ -41,6 +41,8 @@ class Capabilities {
 	public const REVIEW_USER_REGISTRATIONS  = 'ft_review_user_registrations';
 	public const APPROVE_USER_REGISTRATIONS = 'ft_approve_user_registrations';
 	public const REJECT_USER_REGISTRATIONS  = 'ft_reject_user_registrations';
+	public const REVIEW_PROPERTIES          = 'ft_review_properties';
+	public const VERIFY_PROPERTIES          = 'ft_verify_properties';
 	public const SUSPEND_USERS              = 'ft_suspend_users';
 	public const REVIEW_INCIDENT_REPORTS    = 'ft_review_incident_reports';
 	public const APPROVE_INCIDENT_REPORTS   = 'ft_approve_incident_reports';
@@ -105,6 +107,8 @@ class Capabilities {
 			self::REVIEW_USER_REGISTRATIONS,
 			self::APPROVE_USER_REGISTRATIONS,
 			self::REJECT_USER_REGISTRATIONS,
+			self::REVIEW_PROPERTIES,
+			self::VERIFY_PROPERTIES,
 			self::SUSPEND_USERS,
 			self::REVIEW_INCIDENT_REPORTS,
 			self::APPROVE_INCIDENT_REPORTS,

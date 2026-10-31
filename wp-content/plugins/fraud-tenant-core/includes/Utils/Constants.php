@@ -61,9 +61,10 @@ class Constants {
 	/**
 	 * Document Review Statuses.
 	 */
-	public const DOC_STATUS_PENDING  = 'pending';
-	public const DOC_STATUS_APPROVED = 'approved';
-	public const DOC_STATUS_REJECTED = 'rejected';
+	public const DOC_STATUS_PENDING    = 'pending';
+	public const DOC_STATUS_APPROVED   = 'approved';
+	public const DOC_STATUS_REJECTED   = 'rejected';
+	public const DOC_STATUS_SUPERSEDED = 'superseded';
 
 	/**
 	 * Database Table Names (without prefix).

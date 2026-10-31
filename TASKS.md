@@ -150,3 +150,23 @@
 - [ ] **Task 11.2**: Conduct security testing (SQLi, XSS, CSRF, IDOR, brute-force, data leakage).
 - [ ] **Task 11.3**: Conduct accessibility audit (WCAG AA compliance, keyboard navigation).
 - [ ] **Task 11.4**: Compile final QA report, legal launch gate review, and deployment guide.
+
+
+## Phase 6.1: Final Security & QA Reconciliation
+- [x] Document authorization: verify authenticated user ownership, property_id vs owner_id cross-verification <!-- id: FT-P6-SEC-01 -->
+- [x] Bidirectional cross-owner document streaming denial <!-- id: FT-P6-SEC-02 -->
+- [x] Tenant & anonymous document streaming denial <!-- id: FT-P6-SEC-03 -->
+- [x] Single-action nonce enforcement on document endpoints <!-- id: FT-P6-SEC-04 -->
+- [x] File path security: realpath() confinement, trailing directory separator boundary <!-- id: FT-P6-SEC-05 -->
+- [x] Traversal, symlink escape, and sibling-prefix path defense <!-- id: FT-P6-SEC-06 -->
+- [x] Zero filesystem path disclosure in errors/exceptions <!-- id: FT-P6-SEC-07 -->
+- [x] Bidirectional Owner A/B property & dashboard isolation <!-- id: FT-P6-SEC-08 -->
+- [x] Bidirectional Tenant A/B identity, notification, dispute & activity isolation <!-- id: FT-P6-SEC-09 -->
+- [x] Document version history: replacement creates new record, prior files preserved <!-- id: FT-P6-SEC-10 -->
+- [x] Property review updates latest document to approved and prior to superseded <!-- id: FT-P6-SEC-11 -->
+- [x] Dedicated property review capabilities: ft_review_properties, ft_verify_properties <!-- id: FT-P6-SEC-12 -->
+- [x] Compliance reverification: unit number change triggers reset to pending_verification <!-- id: FT-P6-SEC-13 -->
+- [x] Production outside-webroot storage & Nginx configuration documented <!-- id: FT-P6-SEC-14 -->
+- [x] Reconcile 113 Phase 6 test execution runs and 33 Phase 6.1 assertions <!-- id: FT-P6-SEC-15 -->
+- [x] Maintain cumulative unique count: 500 total, 495 PASS, 5 NOT TESTED (SMTP) <!-- id: FT-P6-SEC-16 -->
+- [x] Update documentation: QA_REPORT.md, BLOCKERS.md, SETUP.md, CHANGELOG.md, TASKS.md <!-- id: FT-P6-SEC-17 -->

@@ -744,6 +744,88 @@ Executed via `scratch/test_phase5_1_1_reconciliation.php` (44 assertions).
 
 ---
 
+
+## Phase 6.1 Security & QA Reconciliation Test Execution & Verification
+
+| Test ID | Test Name | Method | Expected Output / Acceptance Criteria | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **SEC 1.1** | Owner Document Streaming | `DocumentService::stream_protected_document()` as Owner A | Streams valid PDF stream with safe headers | **PASS** |
+| **SEC 1.2** | Bidirectional Isolation 1 (B -> A) | Owner B requests Owner A document | Strictly blocked with HTTP 403 Forbidden | **PASS** |
+| **SEC 1.3** | Bidirectional Isolation 2 (A -> B) | Owner A requests Owner B document | Strictly blocked with HTTP 403 Forbidden | **PASS** |
+| **SEC 1.4** | Tenant Document Access Gate | Tenant user requests ownership document | Blocked fail-closed with 403, logged to audit | **PASS** |
+| **SEC 1.5** | Anonymous Visitor Access Gate | Visitor (`user_id = 0`) requests document | Blocked fail-closed with 403 Forbidden | **PASS** |
+| **SEC 1.6** | Ownership Linkage Cross-Verification | Document user_id desynced from property owner | Cross-check detects mismatch, blocks access | **PASS** |
+| **SEC 1.7** | Single-Action Nonce Enforcement | Document streaming request with invalid nonce | Blocked with 403, nonces single-action enforced | **PASS** |
+| **SEC 2.1** | Canonical Storage Root Trailing Separator | `DocumentService` base normalization | Normalizes canonical root with trailing separator | **PASS** |
+| **SEC 2.2** | Relative Path Traversal Trapping | Document with `../../wp-config.php` path | Trapped by canonical prefix check, returns 404 | **PASS** |
+| **SEC 2.3** | Sibling-Prefix Directory Trapping | Path sharing identical directory name prefix | Trapped by directory separator boundary | **PASS** |
+| **SEC 2.4** | Zero Path Disclosure | Document error outputs & exceptions | Zero internal server filesystem paths disclosed | **PASS** |
+| **SEC 3.1** | Bidirectional Property Read 1 (A -> B) | Owner A retrieves Owner B property | Returns null / unauthorized | **PASS** |
+| **SEC 3.2** | Bidirectional Property Read 2 (B -> A) | Owner B retrieves Owner A property | Returns null / unauthorized | **PASS** |
+| **SEC 3.3** | Bidirectional Property Update 1 (A -> B) | Owner A modifies Owner B property | Mutation rejected (`not_found_or_forbidden`) | **PASS** |
+| **SEC 3.4** | Bidirectional Property Update 2 (B -> A) | Owner B modifies Owner A property | Mutation rejected (`not_found_or_forbidden`) | **PASS** |
+| **SEC 3.5** | Bidirectional Property Archival 1 (A -> B) | Owner A archives Owner B property | Mutation rejected (`not_found_or_forbidden`) | **PASS** |
+| **SEC 3.6** | Bidirectional Property Archival 2 (B -> A) | Owner B archives Owner A property | Mutation rejected (`not_found_or_forbidden`) | **PASS** |
+| **SEC 3.7** | Bidirectional Owner Dashboard Isolation | `get_owner_dashboard_data()` A vs B | Properties strictly scoped to authenticating owner | **PASS** |
+| **SEC 3.8** | Tenant A/B Identity Isolation | `ft_tenant_identities` tokens & SSN | Tokens & SSN hashes strictly scoped by user_id | **PASS** |
+| **SEC 3.9** | Tenant A/B Notification & Dispute Isolation | Tenant A vs B notifications & disputes | B dashboard contains zero records from Tenant A | **PASS** |
+| **SEC 3.10** | Tenant A/B Audit Timeline Isolation | Tenant A vs B activity timeline feed | B feed strictly excludes Tenant A audit events | **PASS** |
+| **SEC 4.1** | Document History Record Preservation | Property document replacement upload | Creates new row; prior historical rows preserved | **PASS** |
+| **SEC 4.2** | Physical Prior File Disk Preservation | Physical filesystem inspection after replace | Prior file remains intact; no unlinking/overwrites | **PASS** |
+| **SEC 4.3** | Latest-Only Approval Lifecycle | Admin verifies property with multi-docs | Latest doc set to `approved`; prior marked `superseded` | **PASS** |
+| **SEC 5.1** | Dedicated Property Capabilities Registration | Inspect `Capabilities::get_admin_caps()` | `ft_review_properties` & `ft_verify_properties` registered | **PASS** |
+| **SEC 5.2** | Administrator Dedicated Caps Assignment | `user_can( $admin_id, 'ft_review_properties' )` | Administrator possesses dedicated review caps | **PASS** |
+| **SEC 5.3** | Least-Privilege Verification Scoping | `can_review_property()` across roles | True for admin/reviewer; false for owner & tenant | **PASS** |
+| **SEC 6.1** | Critical Unit Reverification Trigger | Verified property unit number altered | Status automatically resets to `pending_verification` | **PASS** |
+| **SEC 6.2** | Critical Postal Code Reverification Trigger | Verified property postal code altered | Status automatically resets to `pending_verification` | **PASS** |
+| **SEC 6.3** | Non-Critical Metadata Update Immunity | Verified property title altered | Update succeeds without resetting verified status | **PASS** |
+| **SEC 6.4** | Verification Metadata Tampering Defense | Owner attempts status override via payload | Tamper payload ignored; server-controlled | **PASS** |
+| **SEC 7.1** | Protected Storage Barrier Files | Inspect `uploads/fraud-tenant-protected/` | `.htaccess`, `index.php`, `web.config` active | **PASS** |
+| **SEC 7.2** | Custom Outside-Webroot Storage Setting | `FT_PROTECTED_STORAGE_DIR` integration | Supported natively outside web document root | **PASS** |
+
+---
+
+## Phase 6 & Phase 6.1 QA Execution Reconciliation
+
+### Test Suite Execution Summary
+During Phase 6 and Phase 6.1, the automated test suites were executed to verify both new functionality and end-to-end regression across all completed phases:
+
+1. **Phase 6 Comprehensive Test Suite** (`scratch/test_phase6_property_management.php`):
+   - **45 assertions**, covering property CRUD, address reverification, soft archival, document uploads, MIME validation, streaming authorization, administrative verification queues, and owner dashboard scoping.
+   - Result: **45 / 45 PASS (100%)**.
+
+2. **Phase 4 & Phase 5 Regression Suite** (`scratch/test_phase4_and_5_regression.php`):
+   - **24 assertions**, covering dashboard template hierarchy, shell isolation, theme functions, admin user review logic, owner/tenant dashboard payload data structures, and audit logger sensitive data redaction.
+   - Result: **24 / 24 PASS (100%)**.
+
+3. **Phase 5.1.1 Release-Gate Reconciliation Suite** (`scratch/test_phase5_1_1_reconciliation.php`):
+   - **44 assertions**, covering runtime environment verification, bidirectional owner and tenant isolation, account lifecycle redirection, SSN preview immunity, and tenant record disclosure filtering.
+   - Result: **44 / 44 PASS (100%)**.
+
+**Phase 6 Execution Runs Total**: 45 + 24 + 44 = **113 test execution runs**, all passing with zero errors.
+
+4. **Phase 6.1 Security Reconciliation Suite** (`scratch/test_phase6_1_security_reconciliation.php`):
+   - **33 deep security assertions**, verifying document ownership cross-verification, directory boundary confinement, traversal trapping, sibling-prefix defense, zero path disclosure, bidirectional owner and tenant data isolation, document version history with `superseded` status, dedicated administrative capabilities (`ft_review_properties`, `ft_verify_properties`), compliance reverification triggers on unit/postal code, and production storage barriers.
+   - Result: **33 / 33 PASS (100%)**.
+
+### Cumulative Unique Test Catalog Accounting
+- **Phase 0 Audit**: 6 unique assertions (6 PASS)
+- **Phase 1 Foundation**: 13 unique assertions (13 PASS)
+- **Phase 1 Security Review**: 21 unique assertions (21 PASS)
+- **Phase 2 Custom Theme & Website**: 25 assertions (24 PASS, 1 NOT TESTED: SMTP email delivery)
+- **Phase 2 Final Corrective Audit**: 35 assertions (34 PASS, 1 NOT TESTED: SMTP email delivery)
+- **Phase 3 Auth, OTP & Recovery**: 30 unique assertions (30 PASS)
+- **Phase 3 Correction: Forms & Docs**: 44 assertions (43 PASS, 1 NOT TESTED: SMTP email delivery)
+- **Phase 3 Final Release-Gate Audit**: 33 assertions (32 PASS, 1 NOT TESTED: SMTP email delivery)
+- **Phase 4 Step 0 Security Preflight**: 23 unique assertions (23 PASS)
+- **Phase 4 Admin Review Portal**: 40 assertions (39 PASS, 1 NOT TESTED: SMTP email delivery)
+- **Phase 5 Step 0 Security Preflight**: 45 unique assertions (45 PASS)
+- **Phase 5 Owner & Tenant Dashboards**: 36 unique assertions (36 PASS)
+- **Phase 5.1 Hardening & Regression**: 60 unique assertions (60 PASS)
+- **Phase 5.1.1 Release-Gate Reconciliation**: 44 unique assertions (44 PASS)
+- **Phase 6 Property Mgmt & Doc Security**: 45 unique assertions (45 PASS)
+- **Cumulative Unique Total**: **500 assertions**: **495 PASS**, **0 FAIL**, **0 BLOCKED**, **5 NOT TESTED** (identifying outbound live SMTP delivery across Phase 2, Phase 3, and Phase 4, pending production mail server credentials).
+
 ## Phase Test Summary Table
 
 | Phase / Review | Total Tests | PASS | FAIL | BLOCKED | NOT TESTED |

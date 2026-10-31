@@ -350,11 +350,21 @@ class DocumentService {
 		}
 
 		// 2. Authorization Check (Reviewer capability OR verified Document Owner)
-		$is_admin = user_can( $requesting_user_id, Capabilities::REVIEW_USER_REGISTRATIONS ) ||
+		$is_admin = user_can( $requesting_user_id, Capabilities::REVIEW_PROPERTIES ) ||
+					user_can( $requesting_user_id, Capabilities::VERIFY_PROPERTIES ) ||
+					user_can( $requesting_user_id, Capabilities::REVIEW_USER_REGISTRATIONS ) ||
 					user_can( $requesting_user_id, Capabilities::APPROVE_USER_REGISTRATIONS ) ||
 					user_can( $requesting_user_id, 'manage_options' );
 
 		$is_owner = ( (int) $doc->user_id === (int) $requesting_user_id );
+
+		// Strictly cross-verify property ownership linkage for property documents
+		if ( $is_owner && 'property_ownership' === $doc->object_type && $doc->object_id > 0 ) {
+			$property = PropertyService::get_property( (int) $doc->object_id );
+			if ( ! $property || (int) $property->owner_id !== (int) $requesting_user_id ) {
+				$is_owner = false;
+			}
+		}
 
 		if ( ! $is_admin && ! $is_owner ) {
 			AuditLogger::log(
@@ -384,21 +394,22 @@ class DocumentService {
 		}
 
 		// 4. Confinement and Canonicalization Check
-		$base_dir       = self::get_protected_dir();
-		$canonical_base = realpath( $base_dir );
+		$base_dir        = self::get_protected_dir();
+		$canonical_base  = realpath( $base_dir );
 		if ( false === $canonical_base ) {
 			wp_die( esc_html__( 'Protected storage directory is unavailable.', 'fraud-tenant-core' ), 500 );
 		}
 
-		$relative_path  = str_replace( array( '/', '\\' ), DIRECTORY_SEPARATOR, ltrim( $doc->file_path, '/\\' ) );
-		$target_path    = $canonical_base . DIRECTORY_SEPARATOR . $relative_path;
-		$canonical_file = realpath( $target_path );
+		$normalized_base = rtrim( $canonical_base, '/\\' ) . DIRECTORY_SEPARATOR;
+		$relative_path   = str_replace( array( '/', '\\' ), DIRECTORY_SEPARATOR, ltrim( $doc->file_path, '/\\' ) );
+		$target_path     = $normalized_base . $relative_path;
+		$canonical_file  = realpath( $target_path );
 
-		// Validate path exists, is a regular file, and is strictly within canonical base directory (path traversal guard)
+		// Validate path exists, is a regular file, and is strictly within canonical base directory (path traversal & sibling-prefix guard)
 		if (
 			false === $canonical_file ||
 			! is_file( $canonical_file ) ||
-			strpos( $canonical_file, $canonical_base . DIRECTORY_SEPARATOR ) !== 0
+			strpos( $canonical_file, $normalized_base ) !== 0
 		) {
 			AuditLogger::log(
 				'document.access_denied',

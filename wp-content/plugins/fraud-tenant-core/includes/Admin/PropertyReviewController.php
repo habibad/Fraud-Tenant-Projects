@@ -24,7 +24,7 @@ class PropertyReviewController {
 	 * Main entry point for the Property Verification admin page.
 	 */
 	public static function render(): void {
-		if ( ! current_user_can( Capabilities::REVIEW_USER_REGISTRATIONS ) && ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( Capabilities::REVIEW_PROPERTIES ) && ! current_user_can( Capabilities::REVIEW_USER_REGISTRATIONS ) && ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'Unauthorized access to Fraud Tenant property verification portal.', 'fraud-tenant-core' ), 403 );
 		}
 

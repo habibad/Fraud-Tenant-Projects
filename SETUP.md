@@ -181,7 +181,7 @@ The platform features distinct authenticated application shells for approved use
 
 ### Accessing the Administrative Property Verification Queue
 - **URL**: `http://localhost/fraudtenant/wp-admin/admin.php?page=fraud-tenant-properties`
-- **Required Capability**: `ft_review_user_registrations` or `manage_options`.
+- **Required Capability**: Dedicated `ft_review_properties` / `ft_verify_properties` (or core `manage_options`).
 - **Features**: Property list with status tabs (`All`, `Pending Verification`, `Verified`, `Action Needed`, `Rejected`, `Archived`), keyword search, pagination, detailed inspection screen, private document streaming, and review decision actions (`verify`, `reject`, `request_info`). Decoupled completely from user account approval.
 
 ### Running Phase 6 Automated Test Suites

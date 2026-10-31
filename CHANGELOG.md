@@ -4,6 +4,63 @@ All notable changes to the Fraud Tenant platform will be documented in this file
 
 ---
 
+## [Phase 6.1] — Final Security & QA Reconciliation (2026-10-31)
+
+### Document Authorization & Ownership Linkage Cross-Verification (`DocumentService.php`)
+- Hardened `DocumentService::stream_protected_document()`:
+  - Added ownership linkage cross-verification: when an owner requests an ownership document (`object_type = 'property_ownership'`), the service now queries `wp_ft_properties` to confirm that the property exists AND that `property->owner_id === `. Prevents cross-property desync or parameter tampering.
+  - Enforced single-action CSRF nonces (`ft_stream_doc_{id}`) on document streaming requests.
+  - Bidirectional verification: Owner B is blocked from Owner A documents, and Owner A is blocked from Owner B documents.
+  - Confirmed tenants and unauthenticated visitors are blocked fail-closed with HTTP 403 Forbidden.
+  - Audited all access denials with `document_access_denied` events.
+
+### File Path Security & Directory Traversal Confinement (`DocumentService.php`)
+- Enforced strict canonical directory separator boundary on protected storage:
+  `$normalized_base = rtrim( $canonical_base, '/\' ) . DIRECTORY_SEPARATOR;`
+- Guaranteed that relative traversal (`../../`), symlink escapes, and sibling-prefix directories sharing identical base names (e.g. `/fraud-tenant-protected_evil/`) cannot bypass confinement.
+- Verified zero internal server filesystem path leakage in error responses and exception messages.
+
+### Dedicated Administrative Capabilities & Least-Privilege Scoping (`Capabilities.php`, `RoleManager.php`, `AdminPortal.php`, `AdminReviewService.php`, `PropertyReviewController.php`)
+- Introduced dedicated property review capabilities:
+  - `Capabilities::REVIEW_PROPERTIES = 'ft_review_properties'`
+  - `Capabilities::VERIFY_PROPERTIES = 'ft_verify_properties'`
+- Added dedicated capabilities to `RoleManager::get_admin_caps()` and registered to the administrator role.
+- Updated `AdminPortal.php` menu registration and action dispatcher to check `REVIEW_PROPERTIES` (with fallback to `manage_options`).
+- Updated `PropertyReviewController.php` to require `REVIEW_PROPERTIES`.
+- Added helper `AdminReviewService::can_review_property( int $user_id ): bool` and enforced across verification, rejection, and info request actions.
+
+### Document Version History & Review Status Lifecycle (`Constants.php`, `AdminReviewService.php`)
+- Added document status constant `Constants::DOC_STATUS_SUPERSEDED = 'superseded'`.
+- Hardened `AdminReviewService::verify_property()`:
+  - Selects only the latest document version (`ORDER BY id DESC LIMIT 1`) and marks it `approved`.
+  - Automatically updates any older prior documents for that property to `superseded`, preserving immutable historical audit integrity.
+- Hardened `AdminReviewService::reject_property()` to mark only the latest document as `rejected`.
+- Confirmed that replacement uploads create new distinct records and that prior physical files remain intact on disk without unlinking or overwriting.
+
+### Compliance Reverification Triggers (`PropertyService.php`)
+- Added unit number modification (`$unit !== $existing->unit_number`) to compliance-critical address fields.
+- Verified that changing unit numbers resets verified property status back to `pending_verification` and triggers an audit log.
+- Verified that non-critical metadata updates (e.g. title) preserve verified status, and owners cannot alter verification metadata through update payloads.
+
+### Cross-User Data Isolation Verification (`DashboardService.php`)
+- Verified bidirectional isolation between Property Owner A and Property Owner B: properties, documents, updates, archives, and dashboard metrics.
+- Verified bidirectional isolation between Tenant A and Tenant B: identity tokens, notifications, disputes, and audit timeline feeds.
+
+### Production Storage & External Environment Guidelines (`BLOCKERS.md`, `SETUP.md`)
+- Documented `FT_PROTECTED_STORAGE_DIR` for production deployments outside webroot.
+- Documented Nginx configuration for environments where `.htaccess` is unparsed.
+- Documented local Apache verification vs. production server verification.
+
+### Automated Testing & Quality Assurance
+- Created and executed Phase 6.1 Security Reconciliation Suite (`scratch/test_phase6_1_security_reconciliation.php`): **33 / 33 assertions PASS (100%)**.
+- Executed full test suite regression across all 4 suites: **146 / 146 assertions PASS (100%)**:
+  - `test_phase6_1_security_reconciliation.php`: 33 / 33 PASS
+  - `test_phase6_property_management.php`: 45 / 45 PASS
+  - `test_phase4_and_5_regression.php`: 24 / 24 PASS
+  - `test_phase5_1_1_reconciliation.php`: 44 / 44 PASS
+- Cumulative unique test catalog: **500 total, 495 PASS, 0 FAIL, 0 BLOCKED, 5 NOT TESTED (outbound SMTP delivery awaiting production mail server credentials)**.
+
+---
 ## [Phase 6] — Property Management & Secure Document Uploads (2026-10-31)
 
 ### Database Schema Version 1.3.0 (`Constants.php`, `Schema.php`, `MigrationManager.php`)
@@ -36,7 +93,7 @@ All notable changes to the Fraud Tenant platform will be documented in this file
   - Excludes archived units from default active owner views.
   - Unarchival restores property to `pending_verification` verification queue.
 - Implemented `PropertyHandler.php`:
-  - Registers query vars (`ft_tab`, `ft_property_id`) and clean URL rewrites (`^owner-dashboard/properties/?$`, `^owner-dashboard/properties/([0-9]+)/?$`)
+  - Registers query vars (`ft_tab`, `ft_property_id`) and clean URL rewrites (`^owner-dashboard/properties/?$`, `^owner-dashboard/properties/([0-9]+)/?$`).
   - Processes secure POST mutations with CSRF nonces for adding, editing, archiving, unarchiving properties, and uploading ownership documents.
 
 ### Secure Ownership Document Upload & Protected Storage (`PropertyService.php`, `DocumentService.php`)
@@ -138,6 +195,94 @@ All notable changes to the Fraud Tenant platform will be documented in this file
 
 ---
 
+## [Phase 6] — Property Management & Secure Document Uploads (2026-10-31)
+
+### Database Schema Version 1.3.0 (`Constants.php`, `Schema.php`, `MigrationManager.php`)
+- Upgraded `Constants::DB_VERSION` to `1.3.0`.
+- Added property verification status constants: `PROP_STATUS_PENDING`, `PROP_STATUS_VERIFIED`, `PROP_STATUS_REJECTED`, `PROP_STATUS_INFO_REQUESTED`, `PROP_STATUS_ARCHIVED`.
+- Added document review status constants: `DOC_STATUS_PENDING`, `DOC_STATUS_APPROVED`, `DOC_STATUS_REJECTED`.
+- Non-destructively added columns to `{$wpdb->prefix}ft_properties`: `admin_notes`, `rejection_reason`, `reviewed_by`, `reviewed_at`, `archived_at`.
+- Non-destructively added columns to `{$wpdb->prefix}ft_documents`: `review_status`, `admin_notes`.
+- Executed `MigrationManager::migrate(true)` idempotently; schema verified in `wp_options`.
+
+### Core Property Management Service Layer (`PropertyService.php`, `PropertyHandler.php`)
+- Implemented `PropertyService::create_property()`:
+  - Validates required street address, city, 2-letter state code, and postal code.
+  - Sanitizes all inputs via `Sanitizer::text()` and `Sanitizer::zip()`.
+  - Assigns initial status `pending_verification`.
+  - Emits `owner_property_created` in append-only application-level audit log.
+- Implemented `PropertyService::get_owner_properties()`:
+  - Scoped strictly to authenticated `owner_id = %d`.
+  - Supports filtering by active vs. archived properties.
+  - Computes attached document counts and latest document status via SQL `LEFT JOIN`.
+- Implemented `PropertyService::get_property()`:
+  - Single-property retrieval with strict server-side `owner_id` verification to prevent IDOR vulnerabilities.
+- Implemented `PropertyService::update_property()`:
+  - Updates non-critical metadata (title, units count, property type) safely.
+  - **Compliance Reverification Trigger**: Detects alterations to compliance-critical fields (street, city, state, zip). If a verified property has its address altered, its status automatically resets to `pending_verification`, requiring administrative re-inspection, and logs `owner_property_reverification_triggered`.
+  - Strictly protects `owner_id` from modification.
+  - Emits `owner_property_updated` audit log.
+- Implemented `PropertyService::archive_property()` & `unarchive_property()`:
+  - Non-destructive soft archival setting `status = 'archived'` and timestamping `archived_at`.
+  - Excludes archived units from default active owner views.
+  - Unarchival restores property to `pending_verification` verification queue.
+- Implemented `PropertyHandler.php`:
+  - Registers query vars (`ft_tab`, `ft_property_id`) and clean URL rewrites (`^owner-dashboard/properties/?$`, `^owner-dashboard/properties/([0-9]+)/?$`).
+  - Processes secure POST mutations with CSRF nonces for adding, editing, archiving, unarchiving properties, and uploading ownership documents.
+
+### Secure Ownership Document Upload & Protected Storage (`PropertyService.php`, `DocumentService.php`)
+- Implemented `PropertyService::upload_property_document()`:
+  - Strict file validation: max size 10MB (`10485760` bytes).
+  - Allowed MIME types: `application/pdf`, `image/jpeg`, `image/png`.
+  - Magic byte inspection and double-extension defense (`script.php.png` rejected).
+  - File stored in protected directory with randomized, unguessable filename (`doc_{hex}_{uuid}.{ext}`).
+  - Preserves original filename in database metadata.
+  - Replacement uploads preserve all prior document history records without destructive deletion.
+- Extended `DocumentService::stream_protected_document()`:
+  - Dual authorization: Permits users with administrative review capabilities (`REVIEW_USER_REGISTRATIONS` / `manage_options`) OR the verified document owner (`(int) $doc->user_id === $requesting_user_id`).
+  - Path canonicalization via `realpath()` with traversal guard (`strpos( $canonical_file, $canonical_base ) === 0`).
+  - Verifies presence of `.htaccess`, `index.php`, and `web.config` barrier files.
+  - Emits secure download headers: `nosniff`, `Cache-Control: private, no-store, no-cache, must-revalidate`, `Content-Disposition: attachment`.
+  - Logs `owner_document_viewed`, `admin_document_viewed`, and `document_access_denied`.
+
+### Dedicated Administrative Property Verification Portal (`AdminPortal.php`, `PropertyReviewController.php`, `AdminReviewService.php`)
+- Added submenu item **Properties** under the top-level **Fraud Tenant** admin menu (`fraud-tenant-properties`).
+- Implemented Property Verification Queue List:
+  - Status tabs with real database counts (`All`, `Pending Verification`, `Verified`, `Action Needed`, `Rejected`, `Archived`).
+  - Address keyword search and pagination.
+  - Table displaying property address, owner name/email, property type, attached document count, status badge, and direct inspection action.
+- Implemented Detailed Property Inspection Screen:
+  - Property information card: Title, address, type, units, submission timestamp.
+  - Owner details card: Full name, account email, phone, business profile, account approval status.
+  - Ownership documents table: Original filename, file size, upload timestamp, review status badge, and secure streaming button.
+  - Review Decision Action Form with CSRF protection:
+    - **Verify**: Sets property status to `verified` and attached document status to `approved`.
+    - **Reject**: Requires substantive explanation (>= 10 characters), sets property to `rejected` and document status to `rejected`.
+    - **Request Info**: Requires note (>= 10 characters), sets property to `info_requested`.
+  - Reviewer notes history and compliance audit trail log.
+- **Decoupled Verification**: Verified that verifying, rejecting, or requesting info on a property operates completely independently of the owner's account approval (`wp_ft_user_profiles.approval_status` remains unaltered).
+
+### Frontend Owner Dashboard Integration (`page-owner-dashboard.php`, `dashboard.css`)
+- Integrated tab routing: Overview tab vs. Properties tab (`?ft_tab=properties`).
+- Properties tab features:
+  - Active Properties vs. Archived Properties sub-tabs.
+  - Responsive table displaying property title, full address, units count, document status pill, and action buttons ("Edit & Documents", "Archive", "Restore").
+  - Property Detail / Edit view (`?ft_tab=properties&property_id=<id>`):
+    - Full address and configuration edit form with reverification warning notice.
+    - Attached documents table with secure download links.
+    - Drag-and-drop / file browser upload box for supplementary ownership proof.
+- Replaced informational modal with functional "+ Add Property" modal submitting directly to `PropertyHandler`.
+
+### Automated Testing & Visual Verification
+- Created comprehensive Phase 6 test suite (`scratch/test_phase6_property_management.php`): **45 / 45 assertions PASS (100%)**.
+- Executed Phases 4 & 5 regression suite (`scratch/test_phase4_and_5_regression.php`): **24 / 24 assertions PASS (100%)**.
+- Executed Phase 5.1.1 reconciliation suite (`scratch/test_phase5_1_1_reconciliation.php`): **44 / 44 assertions PASS (100%)**.
+- **Total verified assertions: 113 / 113 PASS (100%)**.
+- Captured 11 visual QA screenshots across Desktop (1440x900), Tablet Landscape (1024x768), Tablet Portrait (768x1024), Mobile (390x844), and Small Mobile (320x700).
+- Confirmed zero implementation of Phase 7 (SSN screening), Phase 8 (disputes), or Phase 9 (Stripe payments).
+
+---
+
 ## [Phase 5] — Owner and Tenant Dashboards (2026-10-29)
 
 ### Separation of Shells & Dashboard Architecture (`header.php`, `footer.php`, `dashboard.css`, `dashboard.js`)
@@ -190,6 +335,94 @@ All notable changes to the Fraud Tenant platform will be documented in this file
 
 ---
 
+## [Phase 6] — Property Management & Secure Document Uploads (2026-10-31)
+
+### Database Schema Version 1.3.0 (`Constants.php`, `Schema.php`, `MigrationManager.php`)
+- Upgraded `Constants::DB_VERSION` to `1.3.0`.
+- Added property verification status constants: `PROP_STATUS_PENDING`, `PROP_STATUS_VERIFIED`, `PROP_STATUS_REJECTED`, `PROP_STATUS_INFO_REQUESTED`, `PROP_STATUS_ARCHIVED`.
+- Added document review status constants: `DOC_STATUS_PENDING`, `DOC_STATUS_APPROVED`, `DOC_STATUS_REJECTED`.
+- Non-destructively added columns to `{$wpdb->prefix}ft_properties`: `admin_notes`, `rejection_reason`, `reviewed_by`, `reviewed_at`, `archived_at`.
+- Non-destructively added columns to `{$wpdb->prefix}ft_documents`: `review_status`, `admin_notes`.
+- Executed `MigrationManager::migrate(true)` idempotently; schema verified in `wp_options`.
+
+### Core Property Management Service Layer (`PropertyService.php`, `PropertyHandler.php`)
+- Implemented `PropertyService::create_property()`:
+  - Validates required street address, city, 2-letter state code, and postal code.
+  - Sanitizes all inputs via `Sanitizer::text()` and `Sanitizer::zip()`.
+  - Assigns initial status `pending_verification`.
+  - Emits `owner_property_created` in append-only application-level audit log.
+- Implemented `PropertyService::get_owner_properties()`:
+  - Scoped strictly to authenticated `owner_id = %d`.
+  - Supports filtering by active vs. archived properties.
+  - Computes attached document counts and latest document status via SQL `LEFT JOIN`.
+- Implemented `PropertyService::get_property()`:
+  - Single-property retrieval with strict server-side `owner_id` verification to prevent IDOR vulnerabilities.
+- Implemented `PropertyService::update_property()`:
+  - Updates non-critical metadata (title, units count, property type) safely.
+  - **Compliance Reverification Trigger**: Detects alterations to compliance-critical fields (street, city, state, zip). If a verified property has its address altered, its status automatically resets to `pending_verification`, requiring administrative re-inspection, and logs `owner_property_reverification_triggered`.
+  - Strictly protects `owner_id` from modification.
+  - Emits `owner_property_updated` audit log.
+- Implemented `PropertyService::archive_property()` & `unarchive_property()`:
+  - Non-destructive soft archival setting `status = 'archived'` and timestamping `archived_at`.
+  - Excludes archived units from default active owner views.
+  - Unarchival restores property to `pending_verification` verification queue.
+- Implemented `PropertyHandler.php`:
+  - Registers query vars (`ft_tab`, `ft_property_id`) and clean URL rewrites (`^owner-dashboard/properties/?$`, `^owner-dashboard/properties/([0-9]+)/?$`).
+  - Processes secure POST mutations with CSRF nonces for adding, editing, archiving, unarchiving properties, and uploading ownership documents.
+
+### Secure Ownership Document Upload & Protected Storage (`PropertyService.php`, `DocumentService.php`)
+- Implemented `PropertyService::upload_property_document()`:
+  - Strict file validation: max size 10MB (`10485760` bytes).
+  - Allowed MIME types: `application/pdf`, `image/jpeg`, `image/png`.
+  - Magic byte inspection and double-extension defense (`script.php.png` rejected).
+  - File stored in protected directory with randomized, unguessable filename (`doc_{hex}_{uuid}.{ext}`).
+  - Preserves original filename in database metadata.
+  - Replacement uploads preserve all prior document history records without destructive deletion.
+- Extended `DocumentService::stream_protected_document()`:
+  - Dual authorization: Permits users with administrative review capabilities (`REVIEW_USER_REGISTRATIONS` / `manage_options`) OR the verified document owner (`(int) $doc->user_id === $requesting_user_id`).
+  - Path canonicalization via `realpath()` with traversal guard (`strpos( $canonical_file, $canonical_base ) === 0`).
+  - Verifies presence of `.htaccess`, `index.php`, and `web.config` barrier files.
+  - Emits secure download headers: `nosniff`, `Cache-Control: private, no-store, no-cache, must-revalidate`, `Content-Disposition: attachment`.
+  - Logs `owner_document_viewed`, `admin_document_viewed`, and `document_access_denied`.
+
+### Dedicated Administrative Property Verification Portal (`AdminPortal.php`, `PropertyReviewController.php`, `AdminReviewService.php`)
+- Added submenu item **Properties** under the top-level **Fraud Tenant** admin menu (`fraud-tenant-properties`).
+- Implemented Property Verification Queue List:
+  - Status tabs with real database counts (`All`, `Pending Verification`, `Verified`, `Action Needed`, `Rejected`, `Archived`).
+  - Address keyword search and pagination.
+  - Table displaying property address, owner name/email, property type, attached document count, status badge, and direct inspection action.
+- Implemented Detailed Property Inspection Screen:
+  - Property information card: Title, address, type, units, submission timestamp.
+  - Owner details card: Full name, account email, phone, business profile, account approval status.
+  - Ownership documents table: Original filename, file size, upload timestamp, review status badge, and secure streaming button.
+  - Review Decision Action Form with CSRF protection:
+    - **Verify**: Sets property status to `verified` and attached document status to `approved`.
+    - **Reject**: Requires substantive explanation (>= 10 characters), sets property to `rejected` and document status to `rejected`.
+    - **Request Info**: Requires note (>= 10 characters), sets property to `info_requested`.
+  - Reviewer notes history and compliance audit trail log.
+- **Decoupled Verification**: Verified that verifying, rejecting, or requesting info on a property operates completely independently of the owner's account approval (`wp_ft_user_profiles.approval_status` remains unaltered).
+
+### Frontend Owner Dashboard Integration (`page-owner-dashboard.php`, `dashboard.css`)
+- Integrated tab routing: Overview tab vs. Properties tab (`?ft_tab=properties`).
+- Properties tab features:
+  - Active Properties vs. Archived Properties sub-tabs.
+  - Responsive table displaying property title, full address, units count, document status pill, and action buttons ("Edit & Documents", "Archive", "Restore").
+  - Property Detail / Edit view (`?ft_tab=properties&property_id=<id>`):
+    - Full address and configuration edit form with reverification warning notice.
+    - Attached documents table with secure download links.
+    - Drag-and-drop / file browser upload box for supplementary ownership proof.
+- Replaced informational modal with functional "+ Add Property" modal submitting directly to `PropertyHandler`.
+
+### Automated Testing & Visual Verification
+- Created comprehensive Phase 6 test suite (`scratch/test_phase6_property_management.php`): **45 / 45 assertions PASS (100%)**.
+- Executed Phases 4 & 5 regression suite (`scratch/test_phase4_and_5_regression.php`): **24 / 24 assertions PASS (100%)**.
+- Executed Phase 5.1.1 reconciliation suite (`scratch/test_phase5_1_1_reconciliation.php`): **44 / 44 assertions PASS (100%)**.
+- **Total verified assertions: 113 / 113 PASS (100%)**.
+- Captured 11 visual QA screenshots across Desktop (1440x900), Tablet Landscape (1024x768), Tablet Portrait (768x1024), Mobile (390x844), and Small Mobile (320x700).
+- Confirmed zero implementation of Phase 7 (SSN screening), Phase 8 (disputes), or Phase 9 (Stripe payments).
+
+---
+
 ## [Phase 4] — Administrative User Review and Approval Portal (2026-10-29)
 
 ### Administrative Portal Shell & Review Queue (`AdminPortal.php`, `UserReviewController.php`)
@@ -232,6 +465,94 @@ All notable changes to the Fraud Tenant platform will be documented in this file
 
 ---
 
+## [Phase 6] — Property Management & Secure Document Uploads (2026-10-31)
+
+### Database Schema Version 1.3.0 (`Constants.php`, `Schema.php`, `MigrationManager.php`)
+- Upgraded `Constants::DB_VERSION` to `1.3.0`.
+- Added property verification status constants: `PROP_STATUS_PENDING`, `PROP_STATUS_VERIFIED`, `PROP_STATUS_REJECTED`, `PROP_STATUS_INFO_REQUESTED`, `PROP_STATUS_ARCHIVED`.
+- Added document review status constants: `DOC_STATUS_PENDING`, `DOC_STATUS_APPROVED`, `DOC_STATUS_REJECTED`.
+- Non-destructively added columns to `{$wpdb->prefix}ft_properties`: `admin_notes`, `rejection_reason`, `reviewed_by`, `reviewed_at`, `archived_at`.
+- Non-destructively added columns to `{$wpdb->prefix}ft_documents`: `review_status`, `admin_notes`.
+- Executed `MigrationManager::migrate(true)` idempotently; schema verified in `wp_options`.
+
+### Core Property Management Service Layer (`PropertyService.php`, `PropertyHandler.php`)
+- Implemented `PropertyService::create_property()`:
+  - Validates required street address, city, 2-letter state code, and postal code.
+  - Sanitizes all inputs via `Sanitizer::text()` and `Sanitizer::zip()`.
+  - Assigns initial status `pending_verification`.
+  - Emits `owner_property_created` in append-only application-level audit log.
+- Implemented `PropertyService::get_owner_properties()`:
+  - Scoped strictly to authenticated `owner_id = %d`.
+  - Supports filtering by active vs. archived properties.
+  - Computes attached document counts and latest document status via SQL `LEFT JOIN`.
+- Implemented `PropertyService::get_property()`:
+  - Single-property retrieval with strict server-side `owner_id` verification to prevent IDOR vulnerabilities.
+- Implemented `PropertyService::update_property()`:
+  - Updates non-critical metadata (title, units count, property type) safely.
+  - **Compliance Reverification Trigger**: Detects alterations to compliance-critical fields (street, city, state, zip). If a verified property has its address altered, its status automatically resets to `pending_verification`, requiring administrative re-inspection, and logs `owner_property_reverification_triggered`.
+  - Strictly protects `owner_id` from modification.
+  - Emits `owner_property_updated` audit log.
+- Implemented `PropertyService::archive_property()` & `unarchive_property()`:
+  - Non-destructive soft archival setting `status = 'archived'` and timestamping `archived_at`.
+  - Excludes archived units from default active owner views.
+  - Unarchival restores property to `pending_verification` verification queue.
+- Implemented `PropertyHandler.php`:
+  - Registers query vars (`ft_tab`, `ft_property_id`) and clean URL rewrites (`^owner-dashboard/properties/?$`, `^owner-dashboard/properties/([0-9]+)/?$`).
+  - Processes secure POST mutations with CSRF nonces for adding, editing, archiving, unarchiving properties, and uploading ownership documents.
+
+### Secure Ownership Document Upload & Protected Storage (`PropertyService.php`, `DocumentService.php`)
+- Implemented `PropertyService::upload_property_document()`:
+  - Strict file validation: max size 10MB (`10485760` bytes).
+  - Allowed MIME types: `application/pdf`, `image/jpeg`, `image/png`.
+  - Magic byte inspection and double-extension defense (`script.php.png` rejected).
+  - File stored in protected directory with randomized, unguessable filename (`doc_{hex}_{uuid}.{ext}`).
+  - Preserves original filename in database metadata.
+  - Replacement uploads preserve all prior document history records without destructive deletion.
+- Extended `DocumentService::stream_protected_document()`:
+  - Dual authorization: Permits users with administrative review capabilities (`REVIEW_USER_REGISTRATIONS` / `manage_options`) OR the verified document owner (`(int) $doc->user_id === $requesting_user_id`).
+  - Path canonicalization via `realpath()` with traversal guard (`strpos( $canonical_file, $canonical_base ) === 0`).
+  - Verifies presence of `.htaccess`, `index.php`, and `web.config` barrier files.
+  - Emits secure download headers: `nosniff`, `Cache-Control: private, no-store, no-cache, must-revalidate`, `Content-Disposition: attachment`.
+  - Logs `owner_document_viewed`, `admin_document_viewed`, and `document_access_denied`.
+
+### Dedicated Administrative Property Verification Portal (`AdminPortal.php`, `PropertyReviewController.php`, `AdminReviewService.php`)
+- Added submenu item **Properties** under the top-level **Fraud Tenant** admin menu (`fraud-tenant-properties`).
+- Implemented Property Verification Queue List:
+  - Status tabs with real database counts (`All`, `Pending Verification`, `Verified`, `Action Needed`, `Rejected`, `Archived`).
+  - Address keyword search and pagination.
+  - Table displaying property address, owner name/email, property type, attached document count, status badge, and direct inspection action.
+- Implemented Detailed Property Inspection Screen:
+  - Property information card: Title, address, type, units, submission timestamp.
+  - Owner details card: Full name, account email, phone, business profile, account approval status.
+  - Ownership documents table: Original filename, file size, upload timestamp, review status badge, and secure streaming button.
+  - Review Decision Action Form with CSRF protection:
+    - **Verify**: Sets property status to `verified` and attached document status to `approved`.
+    - **Reject**: Requires substantive explanation (>= 10 characters), sets property to `rejected` and document status to `rejected`.
+    - **Request Info**: Requires note (>= 10 characters), sets property to `info_requested`.
+  - Reviewer notes history and compliance audit trail log.
+- **Decoupled Verification**: Verified that verifying, rejecting, or requesting info on a property operates completely independently of the owner's account approval (`wp_ft_user_profiles.approval_status` remains unaltered).
+
+### Frontend Owner Dashboard Integration (`page-owner-dashboard.php`, `dashboard.css`)
+- Integrated tab routing: Overview tab vs. Properties tab (`?ft_tab=properties`).
+- Properties tab features:
+  - Active Properties vs. Archived Properties sub-tabs.
+  - Responsive table displaying property title, full address, units count, document status pill, and action buttons ("Edit & Documents", "Archive", "Restore").
+  - Property Detail / Edit view (`?ft_tab=properties&property_id=<id>`):
+    - Full address and configuration edit form with reverification warning notice.
+    - Attached documents table with secure download links.
+    - Drag-and-drop / file browser upload box for supplementary ownership proof.
+- Replaced informational modal with functional "+ Add Property" modal submitting directly to `PropertyHandler`.
+
+### Automated Testing & Visual Verification
+- Created comprehensive Phase 6 test suite (`scratch/test_phase6_property_management.php`): **45 / 45 assertions PASS (100%)**.
+- Executed Phases 4 & 5 regression suite (`scratch/test_phase4_and_5_regression.php`): **24 / 24 assertions PASS (100%)**.
+- Executed Phase 5.1.1 reconciliation suite (`scratch/test_phase5_1_1_reconciliation.php`): **44 / 44 assertions PASS (100%)**.
+- **Total verified assertions: 113 / 113 PASS (100%)**.
+- Captured 11 visual QA screenshots across Desktop (1440x900), Tablet Landscape (1024x768), Tablet Portrait (768x1024), Mobile (390x844), and Small Mobile (320x700).
+- Confirmed zero implementation of Phase 7 (SSN screening), Phase 8 (disputes), or Phase 9 (Stripe payments).
+
+---
+
 ## [Phase 3.2] — Phase 3 Final Release-Gate Audit & Hardening (2026-10-29)
 
 ### Privacy and Terms Consent Alignment
@@ -256,6 +577,94 @@ All notable changes to the Fraud Tenant platform will be documented in this file
 ### Quality Assurance & Release Gate
 - Executed 32 automated integration test assertions via `scratch/run_release_gate_audit.php` covering privacy wording, OTP lifecycle, login throttling, status restrictions, role isolation, document access control, password recovery, and public regression (`Passed: 32 | Failed: 0`).
 - Recommendation: **`READY FOR PHASE 4`**.
+
+---
+
+## [Phase 6] — Property Management & Secure Document Uploads (2026-10-31)
+
+### Database Schema Version 1.3.0 (`Constants.php`, `Schema.php`, `MigrationManager.php`)
+- Upgraded `Constants::DB_VERSION` to `1.3.0`.
+- Added property verification status constants: `PROP_STATUS_PENDING`, `PROP_STATUS_VERIFIED`, `PROP_STATUS_REJECTED`, `PROP_STATUS_INFO_REQUESTED`, `PROP_STATUS_ARCHIVED`.
+- Added document review status constants: `DOC_STATUS_PENDING`, `DOC_STATUS_APPROVED`, `DOC_STATUS_REJECTED`.
+- Non-destructively added columns to `{$wpdb->prefix}ft_properties`: `admin_notes`, `rejection_reason`, `reviewed_by`, `reviewed_at`, `archived_at`.
+- Non-destructively added columns to `{$wpdb->prefix}ft_documents`: `review_status`, `admin_notes`.
+- Executed `MigrationManager::migrate(true)` idempotently; schema verified in `wp_options`.
+
+### Core Property Management Service Layer (`PropertyService.php`, `PropertyHandler.php`)
+- Implemented `PropertyService::create_property()`:
+  - Validates required street address, city, 2-letter state code, and postal code.
+  - Sanitizes all inputs via `Sanitizer::text()` and `Sanitizer::zip()`.
+  - Assigns initial status `pending_verification`.
+  - Emits `owner_property_created` in append-only application-level audit log.
+- Implemented `PropertyService::get_owner_properties()`:
+  - Scoped strictly to authenticated `owner_id = %d`.
+  - Supports filtering by active vs. archived properties.
+  - Computes attached document counts and latest document status via SQL `LEFT JOIN`.
+- Implemented `PropertyService::get_property()`:
+  - Single-property retrieval with strict server-side `owner_id` verification to prevent IDOR vulnerabilities.
+- Implemented `PropertyService::update_property()`:
+  - Updates non-critical metadata (title, units count, property type) safely.
+  - **Compliance Reverification Trigger**: Detects alterations to compliance-critical fields (street, city, state, zip). If a verified property has its address altered, its status automatically resets to `pending_verification`, requiring administrative re-inspection, and logs `owner_property_reverification_triggered`.
+  - Strictly protects `owner_id` from modification.
+  - Emits `owner_property_updated` audit log.
+- Implemented `PropertyService::archive_property()` & `unarchive_property()`:
+  - Non-destructive soft archival setting `status = 'archived'` and timestamping `archived_at`.
+  - Excludes archived units from default active owner views.
+  - Unarchival restores property to `pending_verification` verification queue.
+- Implemented `PropertyHandler.php`:
+  - Registers query vars (`ft_tab`, `ft_property_id`) and clean URL rewrites (`^owner-dashboard/properties/?$`, `^owner-dashboard/properties/([0-9]+)/?$`).
+  - Processes secure POST mutations with CSRF nonces for adding, editing, archiving, unarchiving properties, and uploading ownership documents.
+
+### Secure Ownership Document Upload & Protected Storage (`PropertyService.php`, `DocumentService.php`)
+- Implemented `PropertyService::upload_property_document()`:
+  - Strict file validation: max size 10MB (`10485760` bytes).
+  - Allowed MIME types: `application/pdf`, `image/jpeg`, `image/png`.
+  - Magic byte inspection and double-extension defense (`script.php.png` rejected).
+  - File stored in protected directory with randomized, unguessable filename (`doc_{hex}_{uuid}.{ext}`).
+  - Preserves original filename in database metadata.
+  - Replacement uploads preserve all prior document history records without destructive deletion.
+- Extended `DocumentService::stream_protected_document()`:
+  - Dual authorization: Permits users with administrative review capabilities (`REVIEW_USER_REGISTRATIONS` / `manage_options`) OR the verified document owner (`(int) $doc->user_id === $requesting_user_id`).
+  - Path canonicalization via `realpath()` with traversal guard (`strpos( $canonical_file, $canonical_base ) === 0`).
+  - Verifies presence of `.htaccess`, `index.php`, and `web.config` barrier files.
+  - Emits secure download headers: `nosniff`, `Cache-Control: private, no-store, no-cache, must-revalidate`, `Content-Disposition: attachment`.
+  - Logs `owner_document_viewed`, `admin_document_viewed`, and `document_access_denied`.
+
+### Dedicated Administrative Property Verification Portal (`AdminPortal.php`, `PropertyReviewController.php`, `AdminReviewService.php`)
+- Added submenu item **Properties** under the top-level **Fraud Tenant** admin menu (`fraud-tenant-properties`).
+- Implemented Property Verification Queue List:
+  - Status tabs with real database counts (`All`, `Pending Verification`, `Verified`, `Action Needed`, `Rejected`, `Archived`).
+  - Address keyword search and pagination.
+  - Table displaying property address, owner name/email, property type, attached document count, status badge, and direct inspection action.
+- Implemented Detailed Property Inspection Screen:
+  - Property information card: Title, address, type, units, submission timestamp.
+  - Owner details card: Full name, account email, phone, business profile, account approval status.
+  - Ownership documents table: Original filename, file size, upload timestamp, review status badge, and secure streaming button.
+  - Review Decision Action Form with CSRF protection:
+    - **Verify**: Sets property status to `verified` and attached document status to `approved`.
+    - **Reject**: Requires substantive explanation (>= 10 characters), sets property to `rejected` and document status to `rejected`.
+    - **Request Info**: Requires note (>= 10 characters), sets property to `info_requested`.
+  - Reviewer notes history and compliance audit trail log.
+- **Decoupled Verification**: Verified that verifying, rejecting, or requesting info on a property operates completely independently of the owner's account approval (`wp_ft_user_profiles.approval_status` remains unaltered).
+
+### Frontend Owner Dashboard Integration (`page-owner-dashboard.php`, `dashboard.css`)
+- Integrated tab routing: Overview tab vs. Properties tab (`?ft_tab=properties`).
+- Properties tab features:
+  - Active Properties vs. Archived Properties sub-tabs.
+  - Responsive table displaying property title, full address, units count, document status pill, and action buttons ("Edit & Documents", "Archive", "Restore").
+  - Property Detail / Edit view (`?ft_tab=properties&property_id=<id>`):
+    - Full address and configuration edit form with reverification warning notice.
+    - Attached documents table with secure download links.
+    - Drag-and-drop / file browser upload box for supplementary ownership proof.
+- Replaced informational modal with functional "+ Add Property" modal submitting directly to `PropertyHandler`.
+
+### Automated Testing & Visual Verification
+- Created comprehensive Phase 6 test suite (`scratch/test_phase6_property_management.php`): **45 / 45 assertions PASS (100%)**.
+- Executed Phases 4 & 5 regression suite (`scratch/test_phase4_and_5_regression.php`): **24 / 24 assertions PASS (100%)**.
+- Executed Phase 5.1.1 reconciliation suite (`scratch/test_phase5_1_1_reconciliation.php`): **44 / 44 assertions PASS (100%)**.
+- **Total verified assertions: 113 / 113 PASS (100%)**.
+- Captured 11 visual QA screenshots across Desktop (1440x900), Tablet Landscape (1024x768), Tablet Portrait (768x1024), Mobile (390x844), and Small Mobile (320x700).
+- Confirmed zero implementation of Phase 7 (SSN screening), Phase 8 (disputes), or Phase 9 (Stripe payments).
 
 ---
 
@@ -301,6 +710,94 @@ All notable changes to the Fraud Tenant platform will be documented in this file
 ### Testing & Verification
 - Executed 43 dedicated automated integration test assertions covering all field validation, role assignment, file upload constraints, protected storage, and account status transitions (`Passed: 43 | Failed: 0`).
 - Captured Headless Chrome screenshots for Desktop Owner, Desktop Tenant, Mobile Owner, and Mobile Tenant registration views.
+
+---
+
+## [Phase 6] — Property Management & Secure Document Uploads (2026-10-31)
+
+### Database Schema Version 1.3.0 (`Constants.php`, `Schema.php`, `MigrationManager.php`)
+- Upgraded `Constants::DB_VERSION` to `1.3.0`.
+- Added property verification status constants: `PROP_STATUS_PENDING`, `PROP_STATUS_VERIFIED`, `PROP_STATUS_REJECTED`, `PROP_STATUS_INFO_REQUESTED`, `PROP_STATUS_ARCHIVED`.
+- Added document review status constants: `DOC_STATUS_PENDING`, `DOC_STATUS_APPROVED`, `DOC_STATUS_REJECTED`.
+- Non-destructively added columns to `{$wpdb->prefix}ft_properties`: `admin_notes`, `rejection_reason`, `reviewed_by`, `reviewed_at`, `archived_at`.
+- Non-destructively added columns to `{$wpdb->prefix}ft_documents`: `review_status`, `admin_notes`.
+- Executed `MigrationManager::migrate(true)` idempotently; schema verified in `wp_options`.
+
+### Core Property Management Service Layer (`PropertyService.php`, `PropertyHandler.php`)
+- Implemented `PropertyService::create_property()`:
+  - Validates required street address, city, 2-letter state code, and postal code.
+  - Sanitizes all inputs via `Sanitizer::text()` and `Sanitizer::zip()`.
+  - Assigns initial status `pending_verification`.
+  - Emits `owner_property_created` in append-only application-level audit log.
+- Implemented `PropertyService::get_owner_properties()`:
+  - Scoped strictly to authenticated `owner_id = %d`.
+  - Supports filtering by active vs. archived properties.
+  - Computes attached document counts and latest document status via SQL `LEFT JOIN`.
+- Implemented `PropertyService::get_property()`:
+  - Single-property retrieval with strict server-side `owner_id` verification to prevent IDOR vulnerabilities.
+- Implemented `PropertyService::update_property()`:
+  - Updates non-critical metadata (title, units count, property type) safely.
+  - **Compliance Reverification Trigger**: Detects alterations to compliance-critical fields (street, city, state, zip). If a verified property has its address altered, its status automatically resets to `pending_verification`, requiring administrative re-inspection, and logs `owner_property_reverification_triggered`.
+  - Strictly protects `owner_id` from modification.
+  - Emits `owner_property_updated` audit log.
+- Implemented `PropertyService::archive_property()` & `unarchive_property()`:
+  - Non-destructive soft archival setting `status = 'archived'` and timestamping `archived_at`.
+  - Excludes archived units from default active owner views.
+  - Unarchival restores property to `pending_verification` verification queue.
+- Implemented `PropertyHandler.php`:
+  - Registers query vars (`ft_tab`, `ft_property_id`) and clean URL rewrites (`^owner-dashboard/properties/?$`, `^owner-dashboard/properties/([0-9]+)/?$`).
+  - Processes secure POST mutations with CSRF nonces for adding, editing, archiving, unarchiving properties, and uploading ownership documents.
+
+### Secure Ownership Document Upload & Protected Storage (`PropertyService.php`, `DocumentService.php`)
+- Implemented `PropertyService::upload_property_document()`:
+  - Strict file validation: max size 10MB (`10485760` bytes).
+  - Allowed MIME types: `application/pdf`, `image/jpeg`, `image/png`.
+  - Magic byte inspection and double-extension defense (`script.php.png` rejected).
+  - File stored in protected directory with randomized, unguessable filename (`doc_{hex}_{uuid}.{ext}`).
+  - Preserves original filename in database metadata.
+  - Replacement uploads preserve all prior document history records without destructive deletion.
+- Extended `DocumentService::stream_protected_document()`:
+  - Dual authorization: Permits users with administrative review capabilities (`REVIEW_USER_REGISTRATIONS` / `manage_options`) OR the verified document owner (`(int) $doc->user_id === $requesting_user_id`).
+  - Path canonicalization via `realpath()` with traversal guard (`strpos( $canonical_file, $canonical_base ) === 0`).
+  - Verifies presence of `.htaccess`, `index.php`, and `web.config` barrier files.
+  - Emits secure download headers: `nosniff`, `Cache-Control: private, no-store, no-cache, must-revalidate`, `Content-Disposition: attachment`.
+  - Logs `owner_document_viewed`, `admin_document_viewed`, and `document_access_denied`.
+
+### Dedicated Administrative Property Verification Portal (`AdminPortal.php`, `PropertyReviewController.php`, `AdminReviewService.php`)
+- Added submenu item **Properties** under the top-level **Fraud Tenant** admin menu (`fraud-tenant-properties`).
+- Implemented Property Verification Queue List:
+  - Status tabs with real database counts (`All`, `Pending Verification`, `Verified`, `Action Needed`, `Rejected`, `Archived`).
+  - Address keyword search and pagination.
+  - Table displaying property address, owner name/email, property type, attached document count, status badge, and direct inspection action.
+- Implemented Detailed Property Inspection Screen:
+  - Property information card: Title, address, type, units, submission timestamp.
+  - Owner details card: Full name, account email, phone, business profile, account approval status.
+  - Ownership documents table: Original filename, file size, upload timestamp, review status badge, and secure streaming button.
+  - Review Decision Action Form with CSRF protection:
+    - **Verify**: Sets property status to `verified` and attached document status to `approved`.
+    - **Reject**: Requires substantive explanation (>= 10 characters), sets property to `rejected` and document status to `rejected`.
+    - **Request Info**: Requires note (>= 10 characters), sets property to `info_requested`.
+  - Reviewer notes history and compliance audit trail log.
+- **Decoupled Verification**: Verified that verifying, rejecting, or requesting info on a property operates completely independently of the owner's account approval (`wp_ft_user_profiles.approval_status` remains unaltered).
+
+### Frontend Owner Dashboard Integration (`page-owner-dashboard.php`, `dashboard.css`)
+- Integrated tab routing: Overview tab vs. Properties tab (`?ft_tab=properties`).
+- Properties tab features:
+  - Active Properties vs. Archived Properties sub-tabs.
+  - Responsive table displaying property title, full address, units count, document status pill, and action buttons ("Edit & Documents", "Archive", "Restore").
+  - Property Detail / Edit view (`?ft_tab=properties&property_id=<id>`):
+    - Full address and configuration edit form with reverification warning notice.
+    - Attached documents table with secure download links.
+    - Drag-and-drop / file browser upload box for supplementary ownership proof.
+- Replaced informational modal with functional "+ Add Property" modal submitting directly to `PropertyHandler`.
+
+### Automated Testing & Visual Verification
+- Created comprehensive Phase 6 test suite (`scratch/test_phase6_property_management.php`): **45 / 45 assertions PASS (100%)**.
+- Executed Phases 4 & 5 regression suite (`scratch/test_phase4_and_5_regression.php`): **24 / 24 assertions PASS (100%)**.
+- Executed Phase 5.1.1 reconciliation suite (`scratch/test_phase5_1_1_reconciliation.php`): **44 / 44 assertions PASS (100%)**.
+- **Total verified assertions: 113 / 113 PASS (100%)**.
+- Captured 11 visual QA screenshots across Desktop (1440x900), Tablet Landscape (1024x768), Tablet Portrait (768x1024), Mobile (390x844), and Small Mobile (320x700).
+- Confirmed zero implementation of Phase 7 (SSN screening), Phase 8 (disputes), or Phase 9 (Stripe payments).
 
 ---
 
@@ -352,6 +849,94 @@ All notable changes to the Fraud Tenant platform will be documented in this file
 
 ---
 
+## [Phase 6] — Property Management & Secure Document Uploads (2026-10-31)
+
+### Database Schema Version 1.3.0 (`Constants.php`, `Schema.php`, `MigrationManager.php`)
+- Upgraded `Constants::DB_VERSION` to `1.3.0`.
+- Added property verification status constants: `PROP_STATUS_PENDING`, `PROP_STATUS_VERIFIED`, `PROP_STATUS_REJECTED`, `PROP_STATUS_INFO_REQUESTED`, `PROP_STATUS_ARCHIVED`.
+- Added document review status constants: `DOC_STATUS_PENDING`, `DOC_STATUS_APPROVED`, `DOC_STATUS_REJECTED`.
+- Non-destructively added columns to `{$wpdb->prefix}ft_properties`: `admin_notes`, `rejection_reason`, `reviewed_by`, `reviewed_at`, `archived_at`.
+- Non-destructively added columns to `{$wpdb->prefix}ft_documents`: `review_status`, `admin_notes`.
+- Executed `MigrationManager::migrate(true)` idempotently; schema verified in `wp_options`.
+
+### Core Property Management Service Layer (`PropertyService.php`, `PropertyHandler.php`)
+- Implemented `PropertyService::create_property()`:
+  - Validates required street address, city, 2-letter state code, and postal code.
+  - Sanitizes all inputs via `Sanitizer::text()` and `Sanitizer::zip()`.
+  - Assigns initial status `pending_verification`.
+  - Emits `owner_property_created` in append-only application-level audit log.
+- Implemented `PropertyService::get_owner_properties()`:
+  - Scoped strictly to authenticated `owner_id = %d`.
+  - Supports filtering by active vs. archived properties.
+  - Computes attached document counts and latest document status via SQL `LEFT JOIN`.
+- Implemented `PropertyService::get_property()`:
+  - Single-property retrieval with strict server-side `owner_id` verification to prevent IDOR vulnerabilities.
+- Implemented `PropertyService::update_property()`:
+  - Updates non-critical metadata (title, units count, property type) safely.
+  - **Compliance Reverification Trigger**: Detects alterations to compliance-critical fields (street, city, state, zip). If a verified property has its address altered, its status automatically resets to `pending_verification`, requiring administrative re-inspection, and logs `owner_property_reverification_triggered`.
+  - Strictly protects `owner_id` from modification.
+  - Emits `owner_property_updated` audit log.
+- Implemented `PropertyService::archive_property()` & `unarchive_property()`:
+  - Non-destructive soft archival setting `status = 'archived'` and timestamping `archived_at`.
+  - Excludes archived units from default active owner views.
+  - Unarchival restores property to `pending_verification` verification queue.
+- Implemented `PropertyHandler.php`:
+  - Registers query vars (`ft_tab`, `ft_property_id`) and clean URL rewrites (`^owner-dashboard/properties/?$`, `^owner-dashboard/properties/([0-9]+)/?$`).
+  - Processes secure POST mutations with CSRF nonces for adding, editing, archiving, unarchiving properties, and uploading ownership documents.
+
+### Secure Ownership Document Upload & Protected Storage (`PropertyService.php`, `DocumentService.php`)
+- Implemented `PropertyService::upload_property_document()`:
+  - Strict file validation: max size 10MB (`10485760` bytes).
+  - Allowed MIME types: `application/pdf`, `image/jpeg`, `image/png`.
+  - Magic byte inspection and double-extension defense (`script.php.png` rejected).
+  - File stored in protected directory with randomized, unguessable filename (`doc_{hex}_{uuid}.{ext}`).
+  - Preserves original filename in database metadata.
+  - Replacement uploads preserve all prior document history records without destructive deletion.
+- Extended `DocumentService::stream_protected_document()`:
+  - Dual authorization: Permits users with administrative review capabilities (`REVIEW_USER_REGISTRATIONS` / `manage_options`) OR the verified document owner (`(int) $doc->user_id === $requesting_user_id`).
+  - Path canonicalization via `realpath()` with traversal guard (`strpos( $canonical_file, $canonical_base ) === 0`).
+  - Verifies presence of `.htaccess`, `index.php`, and `web.config` barrier files.
+  - Emits secure download headers: `nosniff`, `Cache-Control: private, no-store, no-cache, must-revalidate`, `Content-Disposition: attachment`.
+  - Logs `owner_document_viewed`, `admin_document_viewed`, and `document_access_denied`.
+
+### Dedicated Administrative Property Verification Portal (`AdminPortal.php`, `PropertyReviewController.php`, `AdminReviewService.php`)
+- Added submenu item **Properties** under the top-level **Fraud Tenant** admin menu (`fraud-tenant-properties`).
+- Implemented Property Verification Queue List:
+  - Status tabs with real database counts (`All`, `Pending Verification`, `Verified`, `Action Needed`, `Rejected`, `Archived`).
+  - Address keyword search and pagination.
+  - Table displaying property address, owner name/email, property type, attached document count, status badge, and direct inspection action.
+- Implemented Detailed Property Inspection Screen:
+  - Property information card: Title, address, type, units, submission timestamp.
+  - Owner details card: Full name, account email, phone, business profile, account approval status.
+  - Ownership documents table: Original filename, file size, upload timestamp, review status badge, and secure streaming button.
+  - Review Decision Action Form with CSRF protection:
+    - **Verify**: Sets property status to `verified` and attached document status to `approved`.
+    - **Reject**: Requires substantive explanation (>= 10 characters), sets property to `rejected` and document status to `rejected`.
+    - **Request Info**: Requires note (>= 10 characters), sets property to `info_requested`.
+  - Reviewer notes history and compliance audit trail log.
+- **Decoupled Verification**: Verified that verifying, rejecting, or requesting info on a property operates completely independently of the owner's account approval (`wp_ft_user_profiles.approval_status` remains unaltered).
+
+### Frontend Owner Dashboard Integration (`page-owner-dashboard.php`, `dashboard.css`)
+- Integrated tab routing: Overview tab vs. Properties tab (`?ft_tab=properties`).
+- Properties tab features:
+  - Active Properties vs. Archived Properties sub-tabs.
+  - Responsive table displaying property title, full address, units count, document status pill, and action buttons ("Edit & Documents", "Archive", "Restore").
+  - Property Detail / Edit view (`?ft_tab=properties&property_id=<id>`):
+    - Full address and configuration edit form with reverification warning notice.
+    - Attached documents table with secure download links.
+    - Drag-and-drop / file browser upload box for supplementary ownership proof.
+- Replaced informational modal with functional "+ Add Property" modal submitting directly to `PropertyHandler`.
+
+### Automated Testing & Visual Verification
+- Created comprehensive Phase 6 test suite (`scratch/test_phase6_property_management.php`): **45 / 45 assertions PASS (100%)**.
+- Executed Phases 4 & 5 regression suite (`scratch/test_phase4_and_5_regression.php`): **24 / 24 assertions PASS (100%)**.
+- Executed Phase 5.1.1 reconciliation suite (`scratch/test_phase5_1_1_reconciliation.php`): **44 / 44 assertions PASS (100%)**.
+- **Total verified assertions: 113 / 113 PASS (100%)**.
+- Captured 11 visual QA screenshots across Desktop (1440x900), Tablet Landscape (1024x768), Tablet Portrait (768x1024), Mobile (390x844), and Small Mobile (320x700).
+- Confirmed zero implementation of Phase 7 (SSN screening), Phase 8 (disputes), or Phase 9 (Stripe payments).
+
+---
+
 ## [Phase 2.1] — Phase 2 Final Audit & Corrective Review (2026-10-28)
 
 ### UI Alignment & Showcase Fidelity
@@ -390,6 +975,94 @@ All notable changes to the Fraud Tenant platform will be documented in this file
 
 ---
 
+## [Phase 6] — Property Management & Secure Document Uploads (2026-10-31)
+
+### Database Schema Version 1.3.0 (`Constants.php`, `Schema.php`, `MigrationManager.php`)
+- Upgraded `Constants::DB_VERSION` to `1.3.0`.
+- Added property verification status constants: `PROP_STATUS_PENDING`, `PROP_STATUS_VERIFIED`, `PROP_STATUS_REJECTED`, `PROP_STATUS_INFO_REQUESTED`, `PROP_STATUS_ARCHIVED`.
+- Added document review status constants: `DOC_STATUS_PENDING`, `DOC_STATUS_APPROVED`, `DOC_STATUS_REJECTED`.
+- Non-destructively added columns to `{$wpdb->prefix}ft_properties`: `admin_notes`, `rejection_reason`, `reviewed_by`, `reviewed_at`, `archived_at`.
+- Non-destructively added columns to `{$wpdb->prefix}ft_documents`: `review_status`, `admin_notes`.
+- Executed `MigrationManager::migrate(true)` idempotently; schema verified in `wp_options`.
+
+### Core Property Management Service Layer (`PropertyService.php`, `PropertyHandler.php`)
+- Implemented `PropertyService::create_property()`:
+  - Validates required street address, city, 2-letter state code, and postal code.
+  - Sanitizes all inputs via `Sanitizer::text()` and `Sanitizer::zip()`.
+  - Assigns initial status `pending_verification`.
+  - Emits `owner_property_created` in append-only application-level audit log.
+- Implemented `PropertyService::get_owner_properties()`:
+  - Scoped strictly to authenticated `owner_id = %d`.
+  - Supports filtering by active vs. archived properties.
+  - Computes attached document counts and latest document status via SQL `LEFT JOIN`.
+- Implemented `PropertyService::get_property()`:
+  - Single-property retrieval with strict server-side `owner_id` verification to prevent IDOR vulnerabilities.
+- Implemented `PropertyService::update_property()`:
+  - Updates non-critical metadata (title, units count, property type) safely.
+  - **Compliance Reverification Trigger**: Detects alterations to compliance-critical fields (street, city, state, zip). If a verified property has its address altered, its status automatically resets to `pending_verification`, requiring administrative re-inspection, and logs `owner_property_reverification_triggered`.
+  - Strictly protects `owner_id` from modification.
+  - Emits `owner_property_updated` audit log.
+- Implemented `PropertyService::archive_property()` & `unarchive_property()`:
+  - Non-destructive soft archival setting `status = 'archived'` and timestamping `archived_at`.
+  - Excludes archived units from default active owner views.
+  - Unarchival restores property to `pending_verification` verification queue.
+- Implemented `PropertyHandler.php`:
+  - Registers query vars (`ft_tab`, `ft_property_id`) and clean URL rewrites (`^owner-dashboard/properties/?$`, `^owner-dashboard/properties/([0-9]+)/?$`).
+  - Processes secure POST mutations with CSRF nonces for adding, editing, archiving, unarchiving properties, and uploading ownership documents.
+
+### Secure Ownership Document Upload & Protected Storage (`PropertyService.php`, `DocumentService.php`)
+- Implemented `PropertyService::upload_property_document()`:
+  - Strict file validation: max size 10MB (`10485760` bytes).
+  - Allowed MIME types: `application/pdf`, `image/jpeg`, `image/png`.
+  - Magic byte inspection and double-extension defense (`script.php.png` rejected).
+  - File stored in protected directory with randomized, unguessable filename (`doc_{hex}_{uuid}.{ext}`).
+  - Preserves original filename in database metadata.
+  - Replacement uploads preserve all prior document history records without destructive deletion.
+- Extended `DocumentService::stream_protected_document()`:
+  - Dual authorization: Permits users with administrative review capabilities (`REVIEW_USER_REGISTRATIONS` / `manage_options`) OR the verified document owner (`(int) $doc->user_id === $requesting_user_id`).
+  - Path canonicalization via `realpath()` with traversal guard (`strpos( $canonical_file, $canonical_base ) === 0`).
+  - Verifies presence of `.htaccess`, `index.php`, and `web.config` barrier files.
+  - Emits secure download headers: `nosniff`, `Cache-Control: private, no-store, no-cache, must-revalidate`, `Content-Disposition: attachment`.
+  - Logs `owner_document_viewed`, `admin_document_viewed`, and `document_access_denied`.
+
+### Dedicated Administrative Property Verification Portal (`AdminPortal.php`, `PropertyReviewController.php`, `AdminReviewService.php`)
+- Added submenu item **Properties** under the top-level **Fraud Tenant** admin menu (`fraud-tenant-properties`).
+- Implemented Property Verification Queue List:
+  - Status tabs with real database counts (`All`, `Pending Verification`, `Verified`, `Action Needed`, `Rejected`, `Archived`).
+  - Address keyword search and pagination.
+  - Table displaying property address, owner name/email, property type, attached document count, status badge, and direct inspection action.
+- Implemented Detailed Property Inspection Screen:
+  - Property information card: Title, address, type, units, submission timestamp.
+  - Owner details card: Full name, account email, phone, business profile, account approval status.
+  - Ownership documents table: Original filename, file size, upload timestamp, review status badge, and secure streaming button.
+  - Review Decision Action Form with CSRF protection:
+    - **Verify**: Sets property status to `verified` and attached document status to `approved`.
+    - **Reject**: Requires substantive explanation (>= 10 characters), sets property to `rejected` and document status to `rejected`.
+    - **Request Info**: Requires note (>= 10 characters), sets property to `info_requested`.
+  - Reviewer notes history and compliance audit trail log.
+- **Decoupled Verification**: Verified that verifying, rejecting, or requesting info on a property operates completely independently of the owner's account approval (`wp_ft_user_profiles.approval_status` remains unaltered).
+
+### Frontend Owner Dashboard Integration (`page-owner-dashboard.php`, `dashboard.css`)
+- Integrated tab routing: Overview tab vs. Properties tab (`?ft_tab=properties`).
+- Properties tab features:
+  - Active Properties vs. Archived Properties sub-tabs.
+  - Responsive table displaying property title, full address, units count, document status pill, and action buttons ("Edit & Documents", "Archive", "Restore").
+  - Property Detail / Edit view (`?ft_tab=properties&property_id=<id>`):
+    - Full address and configuration edit form with reverification warning notice.
+    - Attached documents table with secure download links.
+    - Drag-and-drop / file browser upload box for supplementary ownership proof.
+- Replaced informational modal with functional "+ Add Property" modal submitting directly to `PropertyHandler`.
+
+### Automated Testing & Visual Verification
+- Created comprehensive Phase 6 test suite (`scratch/test_phase6_property_management.php`): **45 / 45 assertions PASS (100%)**.
+- Executed Phases 4 & 5 regression suite (`scratch/test_phase4_and_5_regression.php`): **24 / 24 assertions PASS (100%)**.
+- Executed Phase 5.1.1 reconciliation suite (`scratch/test_phase5_1_1_reconciliation.php`): **44 / 44 assertions PASS (100%)**.
+- **Total verified assertions: 113 / 113 PASS (100%)**.
+- Captured 11 visual QA screenshots across Desktop (1440x900), Tablet Landscape (1024x768), Tablet Portrait (768x1024), Mobile (390x844), and Small Mobile (320x700).
+- Confirmed zero implementation of Phase 7 (SSN screening), Phase 8 (disputes), or Phase 9 (Stripe payments).
+
+---
+
 ## [Phase 2] — Custom Theme, Design System & Public Website (2026-10-28)
 
 ### Added
@@ -423,6 +1096,94 @@ All notable changes to the Fraud Tenant platform will be documented in this file
 
 ---
 
+## [Phase 6] — Property Management & Secure Document Uploads (2026-10-31)
+
+### Database Schema Version 1.3.0 (`Constants.php`, `Schema.php`, `MigrationManager.php`)
+- Upgraded `Constants::DB_VERSION` to `1.3.0`.
+- Added property verification status constants: `PROP_STATUS_PENDING`, `PROP_STATUS_VERIFIED`, `PROP_STATUS_REJECTED`, `PROP_STATUS_INFO_REQUESTED`, `PROP_STATUS_ARCHIVED`.
+- Added document review status constants: `DOC_STATUS_PENDING`, `DOC_STATUS_APPROVED`, `DOC_STATUS_REJECTED`.
+- Non-destructively added columns to `{$wpdb->prefix}ft_properties`: `admin_notes`, `rejection_reason`, `reviewed_by`, `reviewed_at`, `archived_at`.
+- Non-destructively added columns to `{$wpdb->prefix}ft_documents`: `review_status`, `admin_notes`.
+- Executed `MigrationManager::migrate(true)` idempotently; schema verified in `wp_options`.
+
+### Core Property Management Service Layer (`PropertyService.php`, `PropertyHandler.php`)
+- Implemented `PropertyService::create_property()`:
+  - Validates required street address, city, 2-letter state code, and postal code.
+  - Sanitizes all inputs via `Sanitizer::text()` and `Sanitizer::zip()`.
+  - Assigns initial status `pending_verification`.
+  - Emits `owner_property_created` in append-only application-level audit log.
+- Implemented `PropertyService::get_owner_properties()`:
+  - Scoped strictly to authenticated `owner_id = %d`.
+  - Supports filtering by active vs. archived properties.
+  - Computes attached document counts and latest document status via SQL `LEFT JOIN`.
+- Implemented `PropertyService::get_property()`:
+  - Single-property retrieval with strict server-side `owner_id` verification to prevent IDOR vulnerabilities.
+- Implemented `PropertyService::update_property()`:
+  - Updates non-critical metadata (title, units count, property type) safely.
+  - **Compliance Reverification Trigger**: Detects alterations to compliance-critical fields (street, city, state, zip). If a verified property has its address altered, its status automatically resets to `pending_verification`, requiring administrative re-inspection, and logs `owner_property_reverification_triggered`.
+  - Strictly protects `owner_id` from modification.
+  - Emits `owner_property_updated` audit log.
+- Implemented `PropertyService::archive_property()` & `unarchive_property()`:
+  - Non-destructive soft archival setting `status = 'archived'` and timestamping `archived_at`.
+  - Excludes archived units from default active owner views.
+  - Unarchival restores property to `pending_verification` verification queue.
+- Implemented `PropertyHandler.php`:
+  - Registers query vars (`ft_tab`, `ft_property_id`) and clean URL rewrites (`^owner-dashboard/properties/?$`, `^owner-dashboard/properties/([0-9]+)/?$`).
+  - Processes secure POST mutations with CSRF nonces for adding, editing, archiving, unarchiving properties, and uploading ownership documents.
+
+### Secure Ownership Document Upload & Protected Storage (`PropertyService.php`, `DocumentService.php`)
+- Implemented `PropertyService::upload_property_document()`:
+  - Strict file validation: max size 10MB (`10485760` bytes).
+  - Allowed MIME types: `application/pdf`, `image/jpeg`, `image/png`.
+  - Magic byte inspection and double-extension defense (`script.php.png` rejected).
+  - File stored in protected directory with randomized, unguessable filename (`doc_{hex}_{uuid}.{ext}`).
+  - Preserves original filename in database metadata.
+  - Replacement uploads preserve all prior document history records without destructive deletion.
+- Extended `DocumentService::stream_protected_document()`:
+  - Dual authorization: Permits users with administrative review capabilities (`REVIEW_USER_REGISTRATIONS` / `manage_options`) OR the verified document owner (`(int) $doc->user_id === $requesting_user_id`).
+  - Path canonicalization via `realpath()` with traversal guard (`strpos( $canonical_file, $canonical_base ) === 0`).
+  - Verifies presence of `.htaccess`, `index.php`, and `web.config` barrier files.
+  - Emits secure download headers: `nosniff`, `Cache-Control: private, no-store, no-cache, must-revalidate`, `Content-Disposition: attachment`.
+  - Logs `owner_document_viewed`, `admin_document_viewed`, and `document_access_denied`.
+
+### Dedicated Administrative Property Verification Portal (`AdminPortal.php`, `PropertyReviewController.php`, `AdminReviewService.php`)
+- Added submenu item **Properties** under the top-level **Fraud Tenant** admin menu (`fraud-tenant-properties`).
+- Implemented Property Verification Queue List:
+  - Status tabs with real database counts (`All`, `Pending Verification`, `Verified`, `Action Needed`, `Rejected`, `Archived`).
+  - Address keyword search and pagination.
+  - Table displaying property address, owner name/email, property type, attached document count, status badge, and direct inspection action.
+- Implemented Detailed Property Inspection Screen:
+  - Property information card: Title, address, type, units, submission timestamp.
+  - Owner details card: Full name, account email, phone, business profile, account approval status.
+  - Ownership documents table: Original filename, file size, upload timestamp, review status badge, and secure streaming button.
+  - Review Decision Action Form with CSRF protection:
+    - **Verify**: Sets property status to `verified` and attached document status to `approved`.
+    - **Reject**: Requires substantive explanation (>= 10 characters), sets property to `rejected` and document status to `rejected`.
+    - **Request Info**: Requires note (>= 10 characters), sets property to `info_requested`.
+  - Reviewer notes history and compliance audit trail log.
+- **Decoupled Verification**: Verified that verifying, rejecting, or requesting info on a property operates completely independently of the owner's account approval (`wp_ft_user_profiles.approval_status` remains unaltered).
+
+### Frontend Owner Dashboard Integration (`page-owner-dashboard.php`, `dashboard.css`)
+- Integrated tab routing: Overview tab vs. Properties tab (`?ft_tab=properties`).
+- Properties tab features:
+  - Active Properties vs. Archived Properties sub-tabs.
+  - Responsive table displaying property title, full address, units count, document status pill, and action buttons ("Edit & Documents", "Archive", "Restore").
+  - Property Detail / Edit view (`?ft_tab=properties&property_id=<id>`):
+    - Full address and configuration edit form with reverification warning notice.
+    - Attached documents table with secure download links.
+    - Drag-and-drop / file browser upload box for supplementary ownership proof.
+- Replaced informational modal with functional "+ Add Property" modal submitting directly to `PropertyHandler`.
+
+### Automated Testing & Visual Verification
+- Created comprehensive Phase 6 test suite (`scratch/test_phase6_property_management.php`): **45 / 45 assertions PASS (100%)**.
+- Executed Phases 4 & 5 regression suite (`scratch/test_phase4_and_5_regression.php`): **24 / 24 assertions PASS (100%)**.
+- Executed Phase 5.1.1 reconciliation suite (`scratch/test_phase5_1_1_reconciliation.php`): **44 / 44 assertions PASS (100%)**.
+- **Total verified assertions: 113 / 113 PASS (100%)**.
+- Captured 11 visual QA screenshots across Desktop (1440x900), Tablet Landscape (1024x768), Tablet Portrait (768x1024), Mobile (390x844), and Small Mobile (320x700).
+- Confirmed zero implementation of Phase 7 (SSN screening), Phase 8 (disputes), or Phase 9 (Stripe payments).
+
+---
+
 ## [Phase 1.1] — Corrective Security Review and Remediation (2026-10-28)
 
 ### Security Enhancements & Hardening
@@ -440,6 +1201,94 @@ All notable changes to the Fraud Tenant platform will be documented in this file
   - Implemented `Sanitizer::minimize_payment_payload()` to strip raw card details, customer addresses, and customer emails from payment event payloads before storage in `wp_ft_payment_events`.
   - Verified schema-level deduplication: MySQL `UNIQUE KEY event_id` strictly prevents duplicate webhook processing.
 - **Test Suite**: Executed 21 dedicated security tests across all three tasks; all 21 passed.
+
+---
+
+## [Phase 6] — Property Management & Secure Document Uploads (2026-10-31)
+
+### Database Schema Version 1.3.0 (`Constants.php`, `Schema.php`, `MigrationManager.php`)
+- Upgraded `Constants::DB_VERSION` to `1.3.0`.
+- Added property verification status constants: `PROP_STATUS_PENDING`, `PROP_STATUS_VERIFIED`, `PROP_STATUS_REJECTED`, `PROP_STATUS_INFO_REQUESTED`, `PROP_STATUS_ARCHIVED`.
+- Added document review status constants: `DOC_STATUS_PENDING`, `DOC_STATUS_APPROVED`, `DOC_STATUS_REJECTED`.
+- Non-destructively added columns to `{$wpdb->prefix}ft_properties`: `admin_notes`, `rejection_reason`, `reviewed_by`, `reviewed_at`, `archived_at`.
+- Non-destructively added columns to `{$wpdb->prefix}ft_documents`: `review_status`, `admin_notes`.
+- Executed `MigrationManager::migrate(true)` idempotently; schema verified in `wp_options`.
+
+### Core Property Management Service Layer (`PropertyService.php`, `PropertyHandler.php`)
+- Implemented `PropertyService::create_property()`:
+  - Validates required street address, city, 2-letter state code, and postal code.
+  - Sanitizes all inputs via `Sanitizer::text()` and `Sanitizer::zip()`.
+  - Assigns initial status `pending_verification`.
+  - Emits `owner_property_created` in append-only application-level audit log.
+- Implemented `PropertyService::get_owner_properties()`:
+  - Scoped strictly to authenticated `owner_id = %d`.
+  - Supports filtering by active vs. archived properties.
+  - Computes attached document counts and latest document status via SQL `LEFT JOIN`.
+- Implemented `PropertyService::get_property()`:
+  - Single-property retrieval with strict server-side `owner_id` verification to prevent IDOR vulnerabilities.
+- Implemented `PropertyService::update_property()`:
+  - Updates non-critical metadata (title, units count, property type) safely.
+  - **Compliance Reverification Trigger**: Detects alterations to compliance-critical fields (street, city, state, zip). If a verified property has its address altered, its status automatically resets to `pending_verification`, requiring administrative re-inspection, and logs `owner_property_reverification_triggered`.
+  - Strictly protects `owner_id` from modification.
+  - Emits `owner_property_updated` audit log.
+- Implemented `PropertyService::archive_property()` & `unarchive_property()`:
+  - Non-destructive soft archival setting `status = 'archived'` and timestamping `archived_at`.
+  - Excludes archived units from default active owner views.
+  - Unarchival restores property to `pending_verification` verification queue.
+- Implemented `PropertyHandler.php`:
+  - Registers query vars (`ft_tab`, `ft_property_id`) and clean URL rewrites (`^owner-dashboard/properties/?$`, `^owner-dashboard/properties/([0-9]+)/?$`).
+  - Processes secure POST mutations with CSRF nonces for adding, editing, archiving, unarchiving properties, and uploading ownership documents.
+
+### Secure Ownership Document Upload & Protected Storage (`PropertyService.php`, `DocumentService.php`)
+- Implemented `PropertyService::upload_property_document()`:
+  - Strict file validation: max size 10MB (`10485760` bytes).
+  - Allowed MIME types: `application/pdf`, `image/jpeg`, `image/png`.
+  - Magic byte inspection and double-extension defense (`script.php.png` rejected).
+  - File stored in protected directory with randomized, unguessable filename (`doc_{hex}_{uuid}.{ext}`).
+  - Preserves original filename in database metadata.
+  - Replacement uploads preserve all prior document history records without destructive deletion.
+- Extended `DocumentService::stream_protected_document()`:
+  - Dual authorization: Permits users with administrative review capabilities (`REVIEW_USER_REGISTRATIONS` / `manage_options`) OR the verified document owner (`(int) $doc->user_id === $requesting_user_id`).
+  - Path canonicalization via `realpath()` with traversal guard (`strpos( $canonical_file, $canonical_base ) === 0`).
+  - Verifies presence of `.htaccess`, `index.php`, and `web.config` barrier files.
+  - Emits secure download headers: `nosniff`, `Cache-Control: private, no-store, no-cache, must-revalidate`, `Content-Disposition: attachment`.
+  - Logs `owner_document_viewed`, `admin_document_viewed`, and `document_access_denied`.
+
+### Dedicated Administrative Property Verification Portal (`AdminPortal.php`, `PropertyReviewController.php`, `AdminReviewService.php`)
+- Added submenu item **Properties** under the top-level **Fraud Tenant** admin menu (`fraud-tenant-properties`).
+- Implemented Property Verification Queue List:
+  - Status tabs with real database counts (`All`, `Pending Verification`, `Verified`, `Action Needed`, `Rejected`, `Archived`).
+  - Address keyword search and pagination.
+  - Table displaying property address, owner name/email, property type, attached document count, status badge, and direct inspection action.
+- Implemented Detailed Property Inspection Screen:
+  - Property information card: Title, address, type, units, submission timestamp.
+  - Owner details card: Full name, account email, phone, business profile, account approval status.
+  - Ownership documents table: Original filename, file size, upload timestamp, review status badge, and secure streaming button.
+  - Review Decision Action Form with CSRF protection:
+    - **Verify**: Sets property status to `verified` and attached document status to `approved`.
+    - **Reject**: Requires substantive explanation (>= 10 characters), sets property to `rejected` and document status to `rejected`.
+    - **Request Info**: Requires note (>= 10 characters), sets property to `info_requested`.
+  - Reviewer notes history and compliance audit trail log.
+- **Decoupled Verification**: Verified that verifying, rejecting, or requesting info on a property operates completely independently of the owner's account approval (`wp_ft_user_profiles.approval_status` remains unaltered).
+
+### Frontend Owner Dashboard Integration (`page-owner-dashboard.php`, `dashboard.css`)
+- Integrated tab routing: Overview tab vs. Properties tab (`?ft_tab=properties`).
+- Properties tab features:
+  - Active Properties vs. Archived Properties sub-tabs.
+  - Responsive table displaying property title, full address, units count, document status pill, and action buttons ("Edit & Documents", "Archive", "Restore").
+  - Property Detail / Edit view (`?ft_tab=properties&property_id=<id>`):
+    - Full address and configuration edit form with reverification warning notice.
+    - Attached documents table with secure download links.
+    - Drag-and-drop / file browser upload box for supplementary ownership proof.
+- Replaced informational modal with functional "+ Add Property" modal submitting directly to `PropertyHandler`.
+
+### Automated Testing & Visual Verification
+- Created comprehensive Phase 6 test suite (`scratch/test_phase6_property_management.php`): **45 / 45 assertions PASS (100%)**.
+- Executed Phases 4 & 5 regression suite (`scratch/test_phase4_and_5_regression.php`): **24 / 24 assertions PASS (100%)**.
+- Executed Phase 5.1.1 reconciliation suite (`scratch/test_phase5_1_1_reconciliation.php`): **44 / 44 assertions PASS (100%)**.
+- **Total verified assertions: 113 / 113 PASS (100%)**.
+- Captured 11 visual QA screenshots across Desktop (1440x900), Tablet Landscape (1024x768), Tablet Portrait (768x1024), Mobile (390x844), and Small Mobile (320x700).
+- Confirmed zero implementation of Phase 7 (SSN screening), Phase 8 (disputes), or Phase 9 (Stripe payments).
 
 ---
 
@@ -467,6 +1316,94 @@ All notable changes to the Fraud Tenant platform will be documented in this file
 - Verified REST endpoints via HTTP:
   - `GET /wp-json/fraud-tenant/v1/status` (200 OK, zero secrets exposed)
   - `GET /wp-json/fraud-tenant/v1/auth-check` (401 Unauthorized for anonymous callers)
+
+---
+
+## [Phase 6] — Property Management & Secure Document Uploads (2026-10-31)
+
+### Database Schema Version 1.3.0 (`Constants.php`, `Schema.php`, `MigrationManager.php`)
+- Upgraded `Constants::DB_VERSION` to `1.3.0`.
+- Added property verification status constants: `PROP_STATUS_PENDING`, `PROP_STATUS_VERIFIED`, `PROP_STATUS_REJECTED`, `PROP_STATUS_INFO_REQUESTED`, `PROP_STATUS_ARCHIVED`.
+- Added document review status constants: `DOC_STATUS_PENDING`, `DOC_STATUS_APPROVED`, `DOC_STATUS_REJECTED`.
+- Non-destructively added columns to `{$wpdb->prefix}ft_properties`: `admin_notes`, `rejection_reason`, `reviewed_by`, `reviewed_at`, `archived_at`.
+- Non-destructively added columns to `{$wpdb->prefix}ft_documents`: `review_status`, `admin_notes`.
+- Executed `MigrationManager::migrate(true)` idempotently; schema verified in `wp_options`.
+
+### Core Property Management Service Layer (`PropertyService.php`, `PropertyHandler.php`)
+- Implemented `PropertyService::create_property()`:
+  - Validates required street address, city, 2-letter state code, and postal code.
+  - Sanitizes all inputs via `Sanitizer::text()` and `Sanitizer::zip()`.
+  - Assigns initial status `pending_verification`.
+  - Emits `owner_property_created` in append-only application-level audit log.
+- Implemented `PropertyService::get_owner_properties()`:
+  - Scoped strictly to authenticated `owner_id = %d`.
+  - Supports filtering by active vs. archived properties.
+  - Computes attached document counts and latest document status via SQL `LEFT JOIN`.
+- Implemented `PropertyService::get_property()`:
+  - Single-property retrieval with strict server-side `owner_id` verification to prevent IDOR vulnerabilities.
+- Implemented `PropertyService::update_property()`:
+  - Updates non-critical metadata (title, units count, property type) safely.
+  - **Compliance Reverification Trigger**: Detects alterations to compliance-critical fields (street, city, state, zip). If a verified property has its address altered, its status automatically resets to `pending_verification`, requiring administrative re-inspection, and logs `owner_property_reverification_triggered`.
+  - Strictly protects `owner_id` from modification.
+  - Emits `owner_property_updated` audit log.
+- Implemented `PropertyService::archive_property()` & `unarchive_property()`:
+  - Non-destructive soft archival setting `status = 'archived'` and timestamping `archived_at`.
+  - Excludes archived units from default active owner views.
+  - Unarchival restores property to `pending_verification` verification queue.
+- Implemented `PropertyHandler.php`:
+  - Registers query vars (`ft_tab`, `ft_property_id`) and clean URL rewrites (`^owner-dashboard/properties/?$`, `^owner-dashboard/properties/([0-9]+)/?$`).
+  - Processes secure POST mutations with CSRF nonces for adding, editing, archiving, unarchiving properties, and uploading ownership documents.
+
+### Secure Ownership Document Upload & Protected Storage (`PropertyService.php`, `DocumentService.php`)
+- Implemented `PropertyService::upload_property_document()`:
+  - Strict file validation: max size 10MB (`10485760` bytes).
+  - Allowed MIME types: `application/pdf`, `image/jpeg`, `image/png`.
+  - Magic byte inspection and double-extension defense (`script.php.png` rejected).
+  - File stored in protected directory with randomized, unguessable filename (`doc_{hex}_{uuid}.{ext}`).
+  - Preserves original filename in database metadata.
+  - Replacement uploads preserve all prior document history records without destructive deletion.
+- Extended `DocumentService::stream_protected_document()`:
+  - Dual authorization: Permits users with administrative review capabilities (`REVIEW_USER_REGISTRATIONS` / `manage_options`) OR the verified document owner (`(int) $doc->user_id === $requesting_user_id`).
+  - Path canonicalization via `realpath()` with traversal guard (`strpos( $canonical_file, $canonical_base ) === 0`).
+  - Verifies presence of `.htaccess`, `index.php`, and `web.config` barrier files.
+  - Emits secure download headers: `nosniff`, `Cache-Control: private, no-store, no-cache, must-revalidate`, `Content-Disposition: attachment`.
+  - Logs `owner_document_viewed`, `admin_document_viewed`, and `document_access_denied`.
+
+### Dedicated Administrative Property Verification Portal (`AdminPortal.php`, `PropertyReviewController.php`, `AdminReviewService.php`)
+- Added submenu item **Properties** under the top-level **Fraud Tenant** admin menu (`fraud-tenant-properties`).
+- Implemented Property Verification Queue List:
+  - Status tabs with real database counts (`All`, `Pending Verification`, `Verified`, `Action Needed`, `Rejected`, `Archived`).
+  - Address keyword search and pagination.
+  - Table displaying property address, owner name/email, property type, attached document count, status badge, and direct inspection action.
+- Implemented Detailed Property Inspection Screen:
+  - Property information card: Title, address, type, units, submission timestamp.
+  - Owner details card: Full name, account email, phone, business profile, account approval status.
+  - Ownership documents table: Original filename, file size, upload timestamp, review status badge, and secure streaming button.
+  - Review Decision Action Form with CSRF protection:
+    - **Verify**: Sets property status to `verified` and attached document status to `approved`.
+    - **Reject**: Requires substantive explanation (>= 10 characters), sets property to `rejected` and document status to `rejected`.
+    - **Request Info**: Requires note (>= 10 characters), sets property to `info_requested`.
+  - Reviewer notes history and compliance audit trail log.
+- **Decoupled Verification**: Verified that verifying, rejecting, or requesting info on a property operates completely independently of the owner's account approval (`wp_ft_user_profiles.approval_status` remains unaltered).
+
+### Frontend Owner Dashboard Integration (`page-owner-dashboard.php`, `dashboard.css`)
+- Integrated tab routing: Overview tab vs. Properties tab (`?ft_tab=properties`).
+- Properties tab features:
+  - Active Properties vs. Archived Properties sub-tabs.
+  - Responsive table displaying property title, full address, units count, document status pill, and action buttons ("Edit & Documents", "Archive", "Restore").
+  - Property Detail / Edit view (`?ft_tab=properties&property_id=<id>`):
+    - Full address and configuration edit form with reverification warning notice.
+    - Attached documents table with secure download links.
+    - Drag-and-drop / file browser upload box for supplementary ownership proof.
+- Replaced informational modal with functional "+ Add Property" modal submitting directly to `PropertyHandler`.
+
+### Automated Testing & Visual Verification
+- Created comprehensive Phase 6 test suite (`scratch/test_phase6_property_management.php`): **45 / 45 assertions PASS (100%)**.
+- Executed Phases 4 & 5 regression suite (`scratch/test_phase4_and_5_regression.php`): **24 / 24 assertions PASS (100%)**.
+- Executed Phase 5.1.1 reconciliation suite (`scratch/test_phase5_1_1_reconciliation.php`): **44 / 44 assertions PASS (100%)**.
+- **Total verified assertions: 113 / 113 PASS (100%)**.
+- Captured 11 visual QA screenshots across Desktop (1440x900), Tablet Landscape (1024x768), Tablet Portrait (768x1024), Mobile (390x844), and Small Mobile (320x700).
+- Confirmed zero implementation of Phase 7 (SSN screening), Phase 8 (disputes), or Phase 9 (Stripe payments).
 
 ---
 

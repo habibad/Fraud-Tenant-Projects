@@ -76,4 +76,9 @@ This document tracks all external dependencies, missing credentials, infrastruct
            return 403;
        }
        ```
+- **Phase 6.1 Hardening & Reconciliation**:
+  1. Implemented ownership linkage cross-verification: `DocumentService::stream_protected_document()` cross-references property ownership with `wp_ft_properties.owner_id` to prevent cross-property document tampering.
+  2. Enforced directory boundary normalization (`$normalized_base = rtrim($canonical_base, '/\\') . DIRECTORY_SEPARATOR;`), preventing sibling-prefix directory escapes.
+  3. Scoped administrative property review to dedicated capabilities (`ft_review_properties`, `ft_verify_properties`).
+  4. Outbound live SMTP delivery remains classified as `NOT TESTED` (5 assertions across phases) pending production email relay credentials.
 - **Application-Level Security**: Zero public streaming routes or direct upload links exist. Authorized streaming controllers with capability and ownership verification are enforced for admin reviews (Phase 4) and property owner access (Phase 6).

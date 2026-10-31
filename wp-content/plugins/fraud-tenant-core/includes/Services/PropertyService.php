@@ -325,9 +325,10 @@ class PropertyService {
 			$type = $existing->property_type;
 		}
 
-		// 3. Detect compliance-critical changes
+		// 3. Detect compliance-critical changes (including unit number where applicable)
 		$critical_changed = (
 			$street !== $existing->address_street ||
+			$unit   !== $existing->unit_number ||
 			$city   !== $existing->city ||
 			$state  !== $existing->state ||
 			$zip    !== $existing->postal_code
