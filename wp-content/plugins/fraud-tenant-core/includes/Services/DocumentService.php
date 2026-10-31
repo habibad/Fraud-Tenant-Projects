@@ -445,6 +445,24 @@ class DocumentService {
 		);
 
 		// 6. Safe Streaming Output
+		// If HTTP headers have already been sent, file streaming cannot enforce mandatory security headers.
+		// Abort safely before readfile() to prevent exposing protected files without attachment and nosniff protection.
+		$headers_already_sent = headers_sent() && ( ! defined( 'FT_DOING_TESTS' ) || ! empty( $GLOBALS['ft_simulate_headers_sent'] ) );
+
+		if ( $headers_already_sent ) {
+			AuditLogger::log(
+				'document.streaming_aborted_headers_sent',
+				'document',
+				$document_id,
+				array(
+					'document_id' => $document_id,
+					'reason'      => 'headers_already_sent',
+				),
+				$requesting_user_id
+			);
+			wp_die( esc_html__( 'Unable to securely stream document. Security headers cannot be applied.', 'fraud-tenant-core' ), 500 );
+		}
+
 		if ( ! defined( 'FT_DOING_TESTS' ) ) {
 			while ( ob_get_level() ) {
 				ob_end_clean();

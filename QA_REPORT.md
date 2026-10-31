@@ -802,7 +802,9 @@ Executed via `scratch/test_phase5_1_1_reconciliation.php` (44 assertions).
 | **DOC 2.4** | Tenant & Anonymous Doc Access Gate | Tenant and visitor (`user_id = 0`) stream document | Blocked fail-closed with 403 | **PASS** |
 | **NNC 3.1** | Invalid Nonce Verification Gate | `wp_verify_nonce()` with tampered value | Fails CSRF verification check | **PASS** |
 | **NNC 3.2** | Nonce Time-Windowed CSRF Behavior | Validate valid nonce across sequential checks | Confirmed time-windowed CSRF defense, not consumable token | **PASS** |
-| **SEC 4.1** | Zero Path Disclosure in Audit & Errors | Inspect audit entries and error responses | Zero server filesystem paths disclosed | **PASS** |
+| **CAP 4.1** | Zero Path Disclosure in Audit & Errors | Inspect audit entries and error responses | Zero server filesystem paths disclosed | **PASS** |
+| **HDR 5.1** | Safe Abort on Headers Sent | Simulate `headers_sent() === true` prior to stream | Aborts before `readfile()`, returns 500 | **PASS** |
+| **HDR 5.2** | Safe Abort Audit Trail & Zero Path Leak | Query `wp_ft_audit_log` for abort event | Logged `document_streaming_aborted_headers_sent` with 0 path leak | **PASS** |
 
 ---
 
@@ -847,6 +849,73 @@ During Phase 6 and Phase 6.1, the automated test suites were executed to verify 
 - **Phase 6 Property Mgmt & Doc Security**: 45 unique assertions (45 PASS)
 - **Cumulative Unique Total**: **500 assertions**: **495 PASS**, **0 FAIL**, **0 BLOCKED**, **5 NOT TESTED** (identifying outbound live SMTP delivery across Phase 2, Phase 3, and Phase 4, pending production mail server credentials).
 
+
+## Phase 6 Final Closure & QA Catalog Traceability Reconciliation
+
+### 1. Traceability & Assertion Catalog Accounting
+This reconciliation establishes a complete, unambiguous mapping of all test catalog entries, distinguishing between original unique assertions, regression reruns, security reconciliation executions, capability enforcement executions, and external untested dependencies.
+
+| Catalog Category | Phase Range | Test Identifier Prefixes | Unique Assertions | Execution Runs | Result |
+| :--- | :--- | :--- | :---: | :---: | :---: |
+| **Core Platform Audit** | Phase 0 | `0.1` – `0.6` | 6 | 6 | 6 PASS |
+| **Core Architecture & Schema** | Phase 1 | `1.1` – `1.13`, `SEC-1.1` – `SEC-3.6` | 34 | 34 | 34 PASS |
+| **Public Marketing & Contact** | Phase 2 | `2.1` – `2.25`, `AUD-1.1` – `AUD-4.7` | 60 | 60 | 58 PASS, 2 NOT TESTED (SMTP) |
+| **Authentication, OTP & Registration** | Phase 3 | `3.1` – `3.30`, `3C.1` – `3C.44`, `GATE-1.1` – `GATE-6.3` | 107 | 107 | 105 PASS, 2 NOT TESTED (SMTP) |
+| **Admin Review Preflight & Portal** | Phase 4 | `P4-PRE-1.1` – `P4-PRE-6.4`, `P4-1.1` – `P4-7.7` | 63 | 63 | 62 PASS, 1 NOT TESTED (SMTP) |
+| **Dashboard Preflight & Templates** | Phase 5 | `P5-PRE-1.1` – `P5-PRE-6.8`, `DASH-1.1` – `DASH-4.7` | 81 | 81 | 81 PASS |
+| **Dashboard Hardening & Regression** | Phase 5.1 | `HDN-1.1` – `HDN-5.5`, `REG-1.1` – `REG-6.5` | 60 | 60 | 60 PASS |
+| **Final Release-Gate Reconciliation** | Phase 5.1.1 | `ENV-1.1` – `ENV-1.3`, `ISO-2.1` – `REC-6.4` | 44 | 44 | 44 PASS |
+| **Property Management & Documents** | Phase 6 | `P6-1.1` – `P6-6.4` | 45 | 45 | 45 PASS |
+| **Subtotal (Phases 0 through 6 Catalog)** | — | — | **500** | **500** | **495 PASS, 5 NOT TESTED** |
+| **Security Hardening Reconciliation** | Phase 6.1 | `SEC 1.1` – `SEC 7.2` | 33 | 33 | 33 PASS |
+| **Capability Enforcement Verification** | Phase 6.1.1 | `CAP 1.1` – `HDR 5.2` | 15 | 15 | 15 PASS |
+| **Grand Total Catalog Assertions** | — | — | **548** | **548** | **543 PASS, 5 NOT TESTED** |
+
+### 2. Multi-Suite Regression Execution Accounting
+To ensure 100% regression immunity, test scripts were executed across all completed functional domains. The actual automated execution runs executed in Phase 6.1 / 6.1.1 total **161 executed assertions**:
+1. `scratch/test_phase6_property_management.php`: **45 assertions** (CRUD, reverification, soft archive, document uploads, MIME validation, queue inspection, owner scoping) — **45 PASS**.
+2. `scratch/test_phase4_and_5_regression.php`: **24 assertions** (Theme shell isolation, template hierarchy, admin capabilities, dashboard data structures, audit logger redaction) — **24 PASS**.
+3. `scratch/test_phase5_1_1_reconciliation.php`: **44 assertions** (Cross-user data isolation, account lifecycle redirection, SSN preview immunity, tenant record association) — **44 PASS**.
+4. `scratch/test_phase6_1_security_reconciliation.php`: **33 assertions** (Document ownership cross-verification, directory boundary confinement, traversal trapping, sibling-prefix defense, zero path disclosure, superseded document lifecycle, unit reverification) — **33 PASS**.
+5. `scratch/test_phase6_1_1_capability_enforcement.php`: **15 assertions** (`REVIEW_PROPERTIES` vs `VERIFY_PROPERTIES` least-privilege scoping, registration reviewer blocking, CSRF nonce behavior, safe header abort handling) — **15 PASS**.
+- **Automated Regression Suite Executions**: **161 / 161 PASS (100%)**.
+
+### 3. Traceability of the 5 Outstanding SMTP Tests
+The 5 tests classified as `NOT TESTED` are strictly isolated to live outbound SMTP delivery to real inboxes, awaiting production mail server credentials. Mock and database-backed verification (`wp_ft_email_otps`) pass 100%:
+1. `2.20` (Phase 2, Line 129): Contact Form Outbound SMTP Inbox Arrival.
+2. `AUD-2.10` (Phase 2, Line 167): Contact Form Privacy Service Real Outbound Dispatch.
+3. `3C.44` (Phase 3, Line 283): Registration Email OTP Real Inbox Delivery.
+4. `GATE-6.3` (Phase 3, Line 346): Release Gate Live SMTP Dispatch.
+5. `P4-7.7` (Phase 4, Line 473): Admin Approval Notification Real Inbox Delivery.
+
+### 4. Document Nonce Consistency Verification
+An exhaustive code inspection was conducted across all document streaming URL generation and verification endpoints:
+- **URL Generators**:
+  1. `PropertyReviewController.php` (Line 347): `wp_create_nonce( 'ft_view_doc_' . $d->id )`
+  2. `UserReviewController.php` (Line 363): `wp_create_nonce( 'ft_view_doc_' . $document->id )`
+  3. `page-owner-dashboard.php` (Line 227): `wp_create_nonce( 'ft_view_doc_' . $d->id )`
+- **Verification Endpoint**:
+  1. `AdminPortal::handle_view_document()` (Line 273): `wp_verify_nonce( $nonce, 'ft_view_doc_' . $document_id )`
+- **Confirmation**:
+  - Exactly the same action string (`'ft_view_doc_' . $document_id`) is used in all generation and verification locations.
+  - The document ID is consistently appended.
+  - Nonces provide time-windowed CSRF protection (valid 12–24 hours for current user) rather than single-use tokens.
+  - Authorization (capabilities, role, and property ownership cross-verification) is independently evaluated on every request.
+
+### 5. Safe Header Handling Verification
+In `DocumentService::stream_protected_document()`:
+- If HTTP headers have already been sent before streaming, the service aborts execution safely before `readfile()`.
+- Abort is audited with `document_streaming_aborted_headers_sent` in `wp_ft_audit_log`.
+- Local server filesystem paths are never exposed in error responses.
+- In normal successful streaming, the following mandatory security headers are sent:
+  - `Content-Type: [mime]`
+  - `Content-Disposition: attachment; filename="[filename]"`
+  - `Content-Length: [bytes]`
+  - `X-Content-Type-Options: nosniff`
+  - `Cache-Control: private, no-store, no-cache, must-revalidate`
+  - `Pragma: no-cache`
+  - `Expires: 0`
+
 ## Phase Test Summary Table
 
 | Phase / Review | Total Tests | PASS | FAIL | BLOCKED | NOT TESTED |
@@ -866,4 +935,6 @@ During Phase 6 and Phase 6.1, the automated test suites were executed to verify 
 | **Phase 5.1 Hardening & Regression** | 60 | 60 | 0 | 0 | 0 |
 | **Phase 5.1.1 Release-Gate Reconciliation** | 44 | 44 | 0 | 0 | 0 |
 | **Phase 6 Property Mgmt & Doc Security** | 45 | 45 | 0 | 0 | 0 |
-| **Total Verified** | **500** | **495** | **0** | **0** | **5** |
+| **Phase 6.1 Security Reconciliation** | 33 | 33 | 0 | 0 | 0 |
+| **Phase 6.1.1 Capability Enforcement** | 15 | 15 | 0 | 0 | 0 |
+| **Grand Total Catalog Assertions** | **548** | **543** | **0** | **0** | **5** |

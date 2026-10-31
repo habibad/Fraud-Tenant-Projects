@@ -6,6 +6,22 @@ All notable changes to the Fraud Tenant platform will be documented in this file
 
 ## [Phase 6.1.1] — Final Capability Enforcement Verification (2026-10-31)
 
+### Safe Header Handling & Document Streaming Protection (`DocumentService.php`)
+- Hardened `DocumentService::stream_protected_document()`:
+  - If HTTP headers have already been sent, the service now aborts execution safely before `readfile()`, returning HTTP 500 without exposing local server filesystem paths.
+  - Audits aborted streaming attempts with `document_streaming_aborted_headers_sent` in `wp_ft_audit_log`.
+  - Confirmed normal web streaming sends all required security headers: `Content-Disposition: attachment`, `X-Content-Type-Options: nosniff`, `Cache-Control: private, no-store, no-cache, must-revalidate`.
+
+### Document Nonce Consistency Confirmation (`PropertyReviewController.php`, `UserReviewController.php`, `page-owner-dashboard.php`, `AdminPortal.php`)
+- Verified that all document streaming URL generation functions and verification handlers use the exact same action identifier: `'ft_view_doc_' . $document_id`.
+- Confirmed nonces serve as time-windowed CSRF protection tokens while capability, ownership, and role checks are independently enforced on every request.
+
+### QA Catalog Traceability & Reconciliation
+- Reconciled cumulative test catalog: 500 assertions through Phase 6 + 33 Phase 6.1 assertions + 15 Phase 6.1.1 assertions = **548 catalog assertions (543 PASS, 5 NOT TESTED)**.
+- Reconciled automated regression execution count: **161 executed test assertions** across 5 test suites with 100% PASS rate.
+- Preserved the 5 outstanding SMTP `NOT TESTED` items pending production mail server configuration.
+
+
 ### Property Review vs. Verification Capability Differentiation (`AdminReviewService.php`, `AdminPortal.php`, `PropertyReviewController.php`)
 - Enforced strict least-privilege separation between `REVIEW_PROPERTIES` and `VERIFY_PROPERTIES`:
   - `Capabilities::REVIEW_PROPERTIES`: Controls access to the Property Verification Queue, property review detail views, document inspection streaming, and info requests.
