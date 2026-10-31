@@ -115,6 +115,35 @@ class Sanitizer {
 	}
 
 	/**
+	 * Sanitize generic single-line text input.
+	 *
+	 * @param mixed $value Raw input.
+	 * @return string Sanitized and trimmed text.
+	 */
+	public static function text( mixed $value ): string {
+		if ( ! is_scalar( $value ) ) {
+			return '';
+		}
+		return sanitize_text_field( trim( (string) $value ) );
+	}
+
+	/**
+	 * Sanitize US ZIP / Postal code.
+	 *
+	 * Preserves standard 5-digit or ZIP+4 formats (e.g., 90210 or 90210-1234).
+	 *
+	 * @param mixed $value Raw postal code.
+	 * @return string Sanitized ZIP code.
+	 */
+	public static function zip( mixed $value ): string {
+		if ( ! is_scalar( $value ) ) {
+			return '';
+		}
+		$clean = preg_replace( '/[^0-9\-]/', '', trim( (string) $value ) );
+		return substr( (string) $clean, 0, 10 );
+	}
+
+	/**
 	 * Mask an SSN to display only the last 4 digits.
 	 *
 	 * @param string $ssn Raw or partial SSN.

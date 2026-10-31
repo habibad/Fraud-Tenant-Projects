@@ -692,6 +692,58 @@ Executed via `scratch/test_phase5_1_1_reconciliation.php` (44 assertions).
 
 ---
 
+## Phase 6 Test Execution & Verification (Property Management & Document Security)
+
+| Test ID | Test Name | Method | Expected | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **P6-1.1** | Owner Property Creation | `PropertyService::create_property()` | Valid address returns `success => true` and `property_id > 0` | **PASS** |
+| **P6-1.2** | Initial Property Status | Property record query | Newly created property has `status = 'pending_verification'` | **PASS** |
+| **P6-1.3** | Owner Property Inspection | `PropertyService::get_property($id, $owner_id)` | Matches address and details | **PASS** |
+| **P6-1.4** | Non-Critical Detail Update | Update title and units count | Updates without triggering reverification | **PASS** |
+| **P6-1.5** | Cross-Owner IDOR Trapping | Owner A modifies Owner B property | Strictly rejected (`not_found_or_forbidden`) | **PASS** |
+| **P6-1.6** | Owner ID Immutability | Update payload containing altered `owner_id` | Ignored, original `owner_id` preserved | **PASS** |
+| **P6-1.7** | Self-Verification Tampering Guard | Update payload containing `status => verified` | Ignored, owner cannot self-verify | **PASS** |
+| **P6-1.8a** | Administrative Property Verification | `AdminReviewService::verify_property()` | Status updated to `verified` | **PASS** |
+| **P6-1.8b** | Critical Address Reverification Trigger | Owner modifies street address on verified property | Status automatically resets to `pending_verification` | **PASS** |
+| **P6-1.9** | Soft Property Archival | `PropertyService::archive_property()` | Sets `status = 'archived'` with non-empty `archived_at` | **PASS** |
+| **P6-1.10** | Active List Filtering | `PropertyService::get_owner_properties(..., false)` | Archived property excluded from active list | **PASS** |
+| **P6-1.11** | Archived List Query | `PropertyService::get_owner_properties(..., true, ['status'=>'archived'])` | Archived property returned | **PASS** |
+| **P6-1.12** | Property Unarchival / Restoration | `PropertyService::unarchive_property()` | Restores to `pending_verification` | **PASS** |
+| **P6-2.1** | Valid PDF Document Upload | `upload_property_document()` with valid PDF | Accepted and document record created | **PASS** |
+| **P6-2.2** | Valid JPG Document Upload | `upload_property_document()` with valid JPG | Accepted and document record created | **PASS** |
+| **P6-2.3** | Valid PNG Document Upload | `upload_property_document()` with valid PNG | Accepted and document record created | **PASS** |
+| **P6-2.4** | Oversized Document Defense | Upload file exceeding 10MB | Strictly rejected (`file_too_large`) | **PASS** |
+| **P6-2.5** | Executable File Defense | Upload `.exe` binary | Strictly rejected (`disallowed_mime_type`) | **PASS** |
+| **P6-2.6** | PHP Script Upload Defense | Upload `.php` script | Strictly rejected (`disallowed_mime_type`) | **PASS** |
+| **P6-2.7** | MIME Spoofing Detection | PHP script disguised with `.pdf` extension | Magic byte check fails, rejected | **PASS** |
+| **P6-2.8** | Double-Extension Defense | Executable file `script.php.png` | Rejected (`disallowed_mime_type` or mismatch) | **PASS** |
+| **P6-2.9** | Unguessable Storage Naming | Inspect stored file path in `wp_ft_documents` | Randomized filename generated, original name preserved in metadata | **PASS** |
+| **P6-2.10** | Protected Storage Barrier Files | Inspect `fraud-tenant-protected/` root | `.htaccess`, `index.php`, `web.config` actively present | **PASS** |
+| **P6-2.11** | Replacement Document Non-Destructive History | Upload replacement document | Prior documents preserved in history | **PASS** |
+| **P6-3.1** | Owner Document Streaming | `stream_protected_document()` as document owner | PDF streamed with safe headers | **PASS** |
+| **P6-3.2** | IDOR Cross-Owner Streaming Trapped | Owner B requests Owner A document | Blocked with 403, `document_access_denied` logged | **PASS** |
+| **P6-3.3** | Role Gate: Tenant Streaming Blocked | Tenant user requests ownership document | Blocked with 403, `document_access_denied` logged | **PASS** |
+| **P6-3.4** | Admin Document Streaming | Administrator requests document | Authorized stream, `admin_document_viewed` logged | **PASS** |
+| **P6-4.1** | Admin Verification Queue Listing | `AdminReviewService::get_properties_queue()` | Returns active registered properties | **PASS** |
+| **P6-4.2** | Verification Queue Search | Search filter by street address keyword | Correct matching properties returned | **PASS** |
+| **P6-4.3** | Verification Status Counts | `count_properties_by_status()` | Real counts match DB rows across all statuses | **PASS** |
+| **P6-4.4** | Property Review Detail Inspection | `get_property_review_detail()` | Property, owner, and document records bundled | **PASS** |
+| **P6-4.5** | Admin Verification Decision | `AdminReviewService::verify_property()` | Property set to `verified`, document marked `approved` | **PASS** |
+| **P6-4.6** | Admin Info Requested Decision | `AdminReviewService::request_property_info()` | Property set to `info_requested`, note saved | **PASS** |
+| **P6-4.7** | Short Rejection Reason Rejection | Rejection reason < 10 characters | Rejected (`missing_or_short_reason`) | **PASS** |
+| **P6-4.8** | Admin Rejection Decision | `AdminReviewService::reject_property()` | Property set to `rejected`, document marked `rejected` | **PASS** |
+| **P6-4.9** | Property Verification Independence | Check `wp_ft_user_profiles.approval_status` after property rejection | Owner account approval remains `approved` | **PASS** |
+| **P6-4.10** | Document Re-Upload Reverification | Owner uploads new deed on rejected property | Property status automatically resets to `pending_verification` | **PASS** |
+| **P6-5.1** | Owner Dashboard Properties Integration | `DashboardService::get_owner_dashboard_data()` | Returns real properties and matching counts | **PASS** |
+| **P6-5.2** | Owner Dashboard Cross-User Scoping | Owner A dashboard data inspect | Owner B property strictly excluded | **PASS** |
+| **P6-5.3** | Append-Only Application-Level Audit Trail | Query `wp_ft_audit_log` for Phase 6 actions | All lifecycle & review actions recorded | **PASS** |
+| **P6-6.1** | Email OTP Table Integrity | Count `wp_ft_email_otps` rows | Operational and intact | **PASS** |
+| **P6-6.2** | Tenant Dashboard Operational Integrity | `get_tenant_dashboard_data()` | Retains full functionality | **PASS** |
+| **P6-6.3** | SSN Preview Route Immunity | Route scan `rest_get_server()->get_routes()` | Zero screening routes registered | **PASS** |
+| **P6-6.4** | Database Version Option Verification | `get_option('fraud_tenant_db_version')` | Confirmed at `1.3.0` | **PASS** |
+
+---
+
 ## Phase Test Summary Table
 
 | Phase / Review | Total Tests | PASS | FAIL | BLOCKED | NOT TESTED |
@@ -710,4 +762,5 @@ Executed via `scratch/test_phase5_1_1_reconciliation.php` (44 assertions).
 | **Phase 5 Owner & Tenant Dashboards** | 36 | 36 | 0 | 0 | 0 |
 | **Phase 5.1 Hardening & Regression** | 60 | 60 | 0 | 0 | 0 |
 | **Phase 5.1.1 Release-Gate Reconciliation** | 44 | 44 | 0 | 0 | 0 |
-| **Total Verified** | **455** | **450** | **0** | **0** | **5** |
+| **Phase 6 Property Mgmt & Doc Security** | 45 | 45 | 0 | 0 | 0 |
+| **Total Verified** | **500** | **495** | **0** | **0** | **5** |

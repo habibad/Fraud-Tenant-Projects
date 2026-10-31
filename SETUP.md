@@ -117,7 +117,7 @@ Expected output:
     "status": "operational",
     "plugin": "fraud-tenant-core",
     "api_version": "1.0.0",
-    "schema_version": "1.2.0",
+    "schema_version": "1.3.0",
     "ssn_matching_ready": false,
     "otp_hashing_ready": true,
     "timestamp": "..."
@@ -168,4 +168,32 @@ The platform features distinct authenticated application shells for approved use
 - Suspended or rejected accounts have sessions terminated and are redirected to `/login/?error=status`.
 - Cross-role isolation is strictly enforced (`ft_owner` cannot access tenant dashboard; `ft_tenant` cannot access owner dashboard).
 - Administrators possess inspection access for testing.
+
+---
+
+## 7. Phase 6 Property Management & Administrative Verification
+
+### Accessing Property Management (Owner Dashboard)
+- **URL**: `http://localhost/fraudtenant/owner-dashboard/?ft_tab=properties`
+- **Sub-Tabs**: Active Properties vs. Archived Properties.
+- **Property Details & Editing**: `http://localhost/fraudtenant/owner-dashboard/?ft_tab=properties&property_id=<id>`
+- **Features**: Multi-property registration, compliance reverification detection on address modifications, secure ownership deed/tax document upload (PDF, JPG, PNG <= 10MB), non-destructive soft archival/restoration.
+
+### Accessing the Administrative Property Verification Queue
+- **URL**: `http://localhost/fraudtenant/wp-admin/admin.php?page=fraud-tenant-properties`
+- **Required Capability**: `ft_review_user_registrations` or `manage_options`.
+- **Features**: Property list with status tabs (`All`, `Pending Verification`, `Verified`, `Action Needed`, `Rejected`, `Archived`), keyword search, pagination, detailed inspection screen, private document streaming, and review decision actions (`verify`, `reject`, `request_info`). Decoupled completely from user account approval.
+
+### Running Phase 6 Automated Test Suites
+```powershell
+# Phase 6 Comprehensive Test Suite (45 assertions)
+C:\xampp\php\php.exe scratch/test_phase6_property_management.php
+
+# Phases 4 & 5 Regression Suite (24 assertions)
+C:\xampp\php\php.exe scratch/test_phase4_and_5_regression.php
+
+# Phase 5.1.1 Reconciliation Suite (44 assertions)
+C:\xampp\php\php.exe scratch/test_phase5_1_1_reconciliation.php
+```
+
 

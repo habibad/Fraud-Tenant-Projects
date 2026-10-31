@@ -14,9 +14,9 @@ Fraud Tenant is a secure, modern, responsive WordPress-based rental incident rep
 | **Phase 2** | Custom Theme, Design System and Public Website | **COMPLETED** | Presentation & Content Layer |
 | **Phase 3** | Registration, Email OTP, Login and Password Recovery | **COMPLETED** | Authentication & Lifecycle |
 | **Phase 4** | Administrative User Review and Approval Portal | **COMPLETED** | Compliance & Approval Queue |
-| **Phase 5** | Owner and Tenant Dashboards | Planned | Pending User Authorization |
-| **Phase 6** | Property Management and Secure Document Uploads | Planned | Pending Phase 5 |
-| **Phase 7** | Authorized Tenant Search Using SSN | Planned | Pending Phase 6 |
+| **Phase 5** | Owner and Tenant Dashboards | **COMPLETED** | Role-Isolated Dashboards |
+| **Phase 6** | Property Management and Secure Document Uploads | **COMPLETED** | Property CRUD & Verification |
+| **Phase 7** | Authorized Tenant Search Using SSN | Planned | Pending Phase 6 Acceptance |
 | **Phase 8** | Incident Reporting, Evidence Review and Tenant Disputes | Planned | Pending Phase 7 |
 | **Phase 9** | Membership Plans and Stripe Subscriptions | Planned | Pending Phase 8 |
 | **Phase 10** | Notifications, Email Workflows and Audit Trail | Planned | Pending Phase 9 |
@@ -244,8 +244,46 @@ Fraud Tenant is a secure, modern, responsive WordPress-based rental incident rep
 ---
 
 ### PHASE 6 — Property Management and Secure Document Uploads
-- **Objective**: Allow owners to manage rental units and securely upload/view verification documents.
-- **Status**: Planned
+- **Objective**: Implement multi-property management for approved Property Owners, private ownership-document uploads, and a dedicated administrative property verification workflow completely decoupled from user account approval.
+- **Status**: **COMPLETED** (2026-10-31)
+- **Key Deliverables & Architecture**:
+  - **Database Schema Version 1.3.0 (`MigrationManager::migrate(true)`)**:
+    - Non-destructively augmented `{$wpdb->prefix}ft_properties` with: `admin_notes`, `rejection_reason`, `reviewed_by`, `reviewed_at`, `archived_at`.
+    - Non-destructively augmented `{$wpdb->prefix}ft_documents` with: `review_status`, `admin_notes`.
+    - Updated `Constants::DB_VERSION = '1.3.0'` and added status constants: `PROP_STATUS_PENDING`, `PROP_STATUS_VERIFIED`, `PROP_STATUS_REJECTED`, `PROP_STATUS_INFO_REQUESTED`, `PROP_STATUS_ARCHIVED`, `DOC_STATUS_PENDING`, `DOC_STATUS_APPROVED`, `DOC_STATUS_REJECTED`.
+  - **Core Service Layer (`PropertyService.php`)**:
+    - `create_property()`: Strict server-side validation, sets initial status to `pending_verification`, logs `owner_property_created`.
+    - `get_owner_properties()`: Scoped strictly to authenticated `owner_id`, supports active and archived subviews, aggregates document counts.
+    - `get_property()`: Single property retrieval with strict ownership verification.
+    - `update_property()`: Modifies non-critical attributes safely; automatically resets status from `verified` to `pending_verification` when compliance-critical address fields (street, city, state, zip) are altered. Protects `owner_id` from modification.
+    - `archive_property()` & `unarchive_property()`: Non-destructive soft archival using `archived_at` timestamp. Unarchiving restores property to `pending_verification`.
+    - `upload_property_document()`: Uploads ownership evidence (deed, title, tax receipt) with strict 10MB limit, allowed MIME types (`application/pdf`, `image/jpeg`, `image/png`), magic byte inspection, double-extension defense, and storage in protected directory.
+  - **Secure Document Streaming (`DocumentService::stream_protected_document()`)**:
+    - Dual authorization check: Allows reviewer capability OR document owner (`(int) $doc->user_id === $requesting_user_id`).
+    - Enforces path traversal confinement within canonical storage root (`strpos( $canonical_file, $canonical_base ) === 0`).
+    - Protected storage barrier files verified: `.htaccess`, `index.php`, `web.config`.
+    - Emits private, no-store cache headers and `nosniff` protection. Logs `document_access_denied`, `owner_document_viewed`, and `admin_document_viewed`.
+  - **Administrative Verification Portal (`PropertyReviewController.php` & `AdminReviewService.php`)**:
+    - Registered submenu under Fraud Tenant: **Properties** (`fraud-tenant-properties`).
+    - Verification Queue: Filter tabs (`All`, `Pending Verification`, `Verified`, `Action Needed`, `Rejected`, `Archived`), address search, pagination, and document status indicators.
+    - Detail Inspection Screen: Displays property details, owner information, uploaded ownership documents, secure streaming links, decision history notes, and audit trail.
+    - Review Actions:
+      - `verify_property()`: Sets property to `verified` and document to `approved`.
+      - `reject_property()`: Requires >= 10 character explanation, sets property to `rejected` and document to `rejected`.
+      - `request_property_info()`: Requires >= 10 character note, sets property to `info_requested`.
+    - **Decoupled Lifecycle**: Verified that rejecting, requesting info, or verifying a property operates independently of user account approval (`wp_ft_user_profiles.approval_status` remains unaffected).
+  - **Frontend Theme Integration (`page-owner-dashboard.php` & `dashboard.css`)**:
+    - Clean tab navigation: Overview vs Properties tab (`?ft_tab=properties`).
+    - Properties List subtabs: Active Properties vs Archived Properties.
+    - Property Detail & Edit view: Full address editing, property type, units count, document upload section with replacement preservation.
+    - Functional "+ Add Property" modal submitting directly to `PropertyHandler`.
+  - **Testing & Verification**:
+    - Executed 45 Phase 6 comprehensive assertions (**45/45 PASS**).
+    - Executed 24 Phase 4 & 5 regression assertions (**24/24 PASS**).
+    - Executed 44 Phase 5.1.1 reconciliation assertions (**44/44 PASS**).
+    - **Total verified assertions: 113 / 113 PASS (100%)**.
+    - Captured 11 Headless Chrome screenshots across Desktop (1440x900), Tablet Landscape (1024x768), Tablet Portrait (768x1024), Mobile (390x844), and Small Mobile (320x700).
+  - **Boundary Integrity**: Strictly zero Phase 7 (SSN screening), Phase 8 (disputes), or Phase 9 (Stripe payments) logic implemented.
 
 ---
 

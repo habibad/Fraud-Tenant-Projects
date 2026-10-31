@@ -12,6 +12,7 @@ use FraudTenant\API\RestServer;
 use FraudTenant\Auth\AuthHandler;
 use FraudTenant\Database\MigrationManager;
 use FraudTenant\Services\ContactEnquiryHandler;
+use FraudTenant\Services\PropertyHandler;
 use FraudTenant\Utils\Constants;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -58,6 +59,9 @@ class Plugin {
 
 		// Register authentication web request handlers
 		AuthHandler::register();
+
+		// Register property management web request handlers
+		PropertyHandler::register();
 
 		// Register administrative portal & review action handlers
 		AdminPortal::init();

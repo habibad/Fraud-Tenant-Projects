@@ -122,20 +122,16 @@ class DashboardService {
 		$plan_table = $wpdb->prefix . Constants::TABLE_MEMBERSHIP_PLANS;
 		$notif_tbl  = $wpdb->prefix . Constants::TABLE_NOTIFICATIONS;
 
-		// 1. Properties
-		$properties = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT * FROM {$prop_table} WHERE owner_id = %d ORDER BY id DESC",
-				$owner_id
-			)
-		) ?: array();
+		// 1. Properties (Active vs Archived)
+		$properties          = PropertyService::get_owner_properties( $owner_id, false );
+		$archived_properties = PropertyService::get_owner_properties( $owner_id, true, array( 'status' => 'archived' ) );
 
 		$properties_count = count( $properties );
 		$verified_count   = 0;
 		$pending_count    = 0;
 
 		foreach ( $properties as $p ) {
-			if ( 'verified' === $p->status ) {
+			if ( Constants::PROP_STATUS_VERIFIED === $p->status ) {
 				$verified_count++;
 			} else {
 				$pending_count++;
@@ -197,6 +193,8 @@ class DashboardService {
 			'profile'                    => $profile,
 			'properties'                 => $properties,
 			'properties_count'           => $properties_count,
+			'archived_properties'        => $archived_properties,
+			'archived_properties_count'  => count( $archived_properties ),
 			'verified_properties_count'  => $verified_count,
 			'pending_properties_count'   => $pending_count,
 			'searches_count'             => $searches_count,

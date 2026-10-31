@@ -293,7 +293,7 @@ body.page-template-page-tenant-dashboard {
 .dashboard-main-area {
   flex: 1;
   padding: 32px 36px;
-  max-width: 1300px;
+  width: 100%;
   box-sizing: border-box;
 }
 
@@ -936,6 +936,7 @@ body.page-template-page-tenant-dashboard {
   .metrics-4col {
     grid-template-columns: repeat(2, 1fr);
   }
+
   .dashboard-grid-2col {
     grid-template-columns: 1fr;
   }
@@ -945,6 +946,7 @@ body.page-template-page-tenant-dashboard {
   .dashboard-shell-layout {
     position: relative;
   }
+
   .dashboard-sidebar {
     position: fixed;
     top: 68px;
@@ -954,21 +956,27 @@ body.page-template-page-tenant-dashboard {
     transform: translateX(-100%);
     box-shadow: 4px 0 12px rgba(0, 0, 0, 0.15);
   }
+
   .dashboard-sidebar.is-open {
     transform: translateX(0);
   }
+
   .dashboard-mobile-toggle {
     display: block;
   }
+
   .dashboard-main-area {
     padding: 24px 18px;
   }
+
   .dashboard-topbar-inner {
     padding: 0 18px;
   }
+
   .dashboard-topbar-title {
     display: none;
   }
+
   .dashboard-topbar-divider {
     display: none;
   }
@@ -980,29 +988,159 @@ body.page-template-page-tenant-dashboard {
     align-items: flex-start;
     gap: 14px;
   }
-  .dashboard-welcome-banner > div:last-child {
+
+  .dashboard-welcome-banner>div:last-child {
     width: 100%;
   }
+
   .dashboard-btn-add {
     width: 100%;
     justify-content: center;
   }
+
   .metrics-4col,
   .metrics-3col {
     grid-template-columns: 1fr;
   }
+
   .search-ssn-input-group {
     flex-direction: column;
   }
+
   .search-ssn-btn {
     width: 100%;
   }
+
   .dashboard-user-name,
   .dashboard-user-role {
     display: none;
   }
+
   .dashboard-user-capsule {
     padding: 0;
     border: none;
   }
+}
+
+
+/* ==========================================================================
+   Phase 6 — Property Management & Document Upload Additions
+   ========================================================================== */
+
+/* Sub-Navigation Tabs */
+.dash-subtabs-nav {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--dash-border);
+  padding-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.dash-subtab-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--dash-muted);
+  background: transparent;
+  transition: all 0.2s ease;
+}
+
+.dash-subtab-link:hover {
+  color: var(--dash-navy);
+  background: rgba(20, 38, 62, 0.04);
+}
+
+.dash-subtab-link.is-active {
+  color: #FFFFFF;
+  background: var(--dash-teal);
+}
+
+/* Property Action Buttons & Grouping */
+.dash-action-btn-group {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.dash-btn-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  line-height: 1.2;
+}
+
+.dash-btn-sm-primary {
+  background: var(--dash-teal);
+  color: #FFFFFF;
+}
+
+.dash-btn-sm-primary:hover {
+  background: var(--dash-teal-hover);
+}
+
+.dash-btn-sm-outline {
+  background: #FFFFFF;
+  border-color: var(--dash-border);
+  color: var(--dash-navy);
+}
+
+.dash-btn-sm-outline:hover {
+  border-color: var(--dash-navy);
+}
+
+.dash-btn-sm-danger {
+  background: #FFF1F2;
+  border-color: #FECDD3;
+  color: #BE123C;
+}
+
+.dash-btn-sm-danger:hover {
+  background: #FFE4E6;
+}
+
+/* Document History & Upload Styles */
+.doc-history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.doc-history-table th {
+  text-align: left;
+  padding: 10px 12px;
+  background: #F8FAFC;
+  border-bottom: 1px solid var(--dash-border);
+  font-weight: 700;
+  color: var(--dash-muted);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.doc-history-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--dash-border);
+  vertical-align: middle;
+}
+
+.doc-upload-box {
+  background: #F8FAFC;
+  border: 1.5px dashed #CBD5E1;
+  border-radius: 8px;
+  padding: 18px;
+  margin-top: 16px;
 }

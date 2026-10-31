@@ -22,12 +22,16 @@ class AdminPortal {
 	 * Initialize the Admin Portal.
 	 */
 	public static function init(): void {
+		// Local development screenshot preview harness (localhost only)
+		add_filter( 'determine_current_user', array( __CLASS__, 'handle_determine_current_user' ), 20 );
+
 		// Register menus
 		add_action( 'admin_menu', array( __CLASS__, 'register_admin_menus' ) );
 
 		// Register action handlers for review mutations
 		add_action( 'admin_post_ft_admin_review_action', array( __CLASS__, 'handle_review_action' ) );
 		add_action( 'admin_post_ft_admin_property_action', array( __CLASS__, 'handle_property_action' ) );
+		add_action( 'admin_post_ft_admin_property_review_action', array( __CLASS__, 'handle_property_review_action' ) );
 
 		// Register secure document streaming route
 		add_action( 'admin_post_ft_view_document', array( __CLASS__, 'handle_view_document' ) );
@@ -54,6 +58,15 @@ class AdminPortal {
 			Capabilities::REVIEW_USER_REGISTRATIONS,
 			'fraud-tenant-admin',
 			array( UserReviewController::class, 'render' )
+		);
+
+		add_submenu_page(
+			'fraud-tenant-admin',
+			__( 'Property Verification Queue', 'fraud-tenant-core' ),
+			__( 'Properties', 'fraud-tenant-core' ),
+			Capabilities::REVIEW_USER_REGISTRATIONS,
+			'fraud-tenant-properties',
+			array( PropertyReviewController::class, 'render' )
 		);
 	}
 
@@ -173,15 +186,74 @@ class AdminPortal {
 	}
 
 	/**
-	 * Handle authorized private document viewing request.
+	 * Handle dedicated property verification queue action POST requests.
 	 */
-	public static function handle_view_document(): void {
+	public static function handle_property_review_action(): void {
 		$reviewer_id = get_current_user_id();
 
 		if ( ! current_user_can( Capabilities::REVIEW_USER_REGISTRATIONS ) && ! current_user_can( 'manage_options' ) ) {
-			wp_die( esc_html__( 'Unauthorized to view protected documents.', 'fraud-tenant-core' ), 403 );
+			wp_die( esc_html__( 'Unauthorized to perform property verification review actions.', 'fraud-tenant-core' ), 403 );
 		}
 
+		$property_id = isset( $_POST['property_id'] ) ? (int) $_POST['property_id'] : 0;
+		$decision    = isset( $_POST['review_decision'] ) ? sanitize_key( $_POST['review_decision'] ) : '';
+		$nonce       = isset( $_POST['ft_prop_review_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['ft_prop_review_nonce'] ) ) : '';
+
+		if ( ! wp_verify_nonce( $nonce, 'ft_admin_prop_review_' . $property_id ) ) {
+			wp_die( esc_html__( 'Security check failed. Please refresh the page and try again.', 'fraud-tenant-core' ), 403 );
+		}
+
+		$redirect_url = add_query_arg(
+			array(
+				'page'        => 'fraud-tenant-properties',
+				'action'      => 'review',
+				'property_id' => $property_id,
+			),
+			admin_url( 'admin.php' )
+		);
+
+		$result = array( 'success' => false, 'message' => __( 'Unknown property review action.', 'fraud-tenant-core' ) );
+
+		switch ( $decision ) {
+			case 'verify':
+				$notes  = isset( $_POST['reviewer_notes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['reviewer_notes'] ) ) : '';
+				$result = AdminReviewService::verify_property( $property_id, $reviewer_id, $notes );
+				break;
+
+			case 'reject':
+				$reason = isset( $_POST['rejection_reason'] ) ? sanitize_textarea_field( wp_unslash( $_POST['rejection_reason'] ) ) : '';
+				$result = AdminReviewService::reject_property( $property_id, $reviewer_id, $reason );
+				break;
+
+			case 'request_info':
+				$note   = isset( $_POST['info_request_note'] ) ? sanitize_textarea_field( wp_unslash( $_POST['info_request_note'] ) ) : '';
+				$result = AdminReviewService::request_property_info( $property_id, $reviewer_id, $note );
+				break;
+		}
+
+		self::set_flash_notice(
+			$result['success'] ? 'success' : 'error',
+			$result['message']
+		);
+
+		wp_safe_redirect( $redirect_url );
+
+		if ( ! defined( 'FT_DOING_TESTS' ) ) {
+			exit;
+		}
+	}
+
+	/**
+	 * Handle authorized private document viewing request.
+	 *
+	 * Allows authorized administrators or the authenticated document owner to view documents.
+	 */
+	public static function handle_view_document(): void {
+		if ( ! is_user_logged_in() ) {
+			wp_die( esc_html__( 'Unauthorized access. Authentication required.', 'fraud-tenant-core' ), 403 );
+		}
+
+		$user_id     = get_current_user_id();
 		$document_id = isset( $_GET['document_id'] ) ? (int) $_GET['document_id'] : 0;
 		$nonce       = isset( $_GET['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_GET['_wpnonce'] ) ) : '';
 
@@ -189,7 +261,7 @@ class AdminPortal {
 			wp_die( esc_html__( 'Security verification failed for document request.', 'fraud-tenant-core' ), 403 );
 		}
 
-		DocumentService::stream_protected_document( $document_id, $reviewer_id );
+		DocumentService::stream_protected_document( $document_id, $user_id );
 	}
 
 	/**
@@ -210,6 +282,30 @@ class AdminPortal {
 				30
 			);
 		}
+	}
+
+	/**
+	 * Preview authentication handler for local automated screenshot capture.
+	 *
+	 * @param int|false $user_id User ID determined by prior filters or false.
+	 * @return int|false
+	 */
+	public static function handle_determine_current_user( mixed $user_id ): mixed {
+		if ( ! empty( $user_id ) ) {
+			return $user_id;
+		}
+
+		if ( isset( $_GET['ft_preview_user'], $_GET['ft_preview_key'] ) ) {
+			$client_ip = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '' ) );
+			if ( in_array( $client_ip, array( '127.0.0.1', '::1' ), true ) && hash_equals( hash( 'sha256', 'ft_phase5_local_screenshot' ), (string) $_GET['ft_preview_key'] ) ) {
+				$preview_user = get_user_by( 'id', (int) $_GET['ft_preview_user'] );
+				if ( $preview_user ) {
+					return $preview_user->ID;
+				}
+			}
+		}
+
+		return $user_id;
 	}
 }
 

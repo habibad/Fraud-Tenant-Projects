@@ -95,12 +95,14 @@
 ---
 
 ## Phase 6: Property Management and Secure Document Uploads
-- [ ] **Task 6.1**: Implement property CRUD interface and database handling for owners.
-- [ ] **Task 6.2**: Build secure document upload pipeline with MIME, size, and extension validation.
-- [ ] **Task 6.3**: Implement protected document storage outside webroot / `.htaccess` denied path.
-- [ ] **Task 6.4**: Create authorized download controller with record-level permission checks.
-- [ ] **Task 6.5**: Implement IDOR prevention and document access audit logging.
-- [ ] **Task 6.6**: Test property management and document download protection.
+- [x] **Task 6.1**: Implement property CRUD interface and database handling for owners (`PropertyService.php`, `PropertyHandler.php`). *(Completed: create, list, edit, soft archival, restoration, reverification on critical address change)*
+- [x] **Task 6.2**: Build secure document upload pipeline with MIME, size, and extension validation (`PropertyService::upload_property_document()`). *(Completed: PDF, JPG, PNG <= 10MB, magic byte check, double extension defense, unguessable filenames)*
+- [x] **Task 6.3**: Implement protected document storage with active barrier files (`DocumentService.php`). *(Completed: .htaccess, index.php, web.config, private directory isolation)*
+- [x] **Task 6.4**: Create authorized download controller with record-level permission checks (`DocumentService::stream_protected_document()`). *(Completed: reviewer capability OR document owner validation, canonical path traversal defense, attachment disposition, no-store headers)*
+- [x] **Task 6.5**: Implement IDOR prevention and document access audit logging (`AuditLogger`). *(Completed: blocked cross-owner access, blocked tenant access, logged owner_property_*, admin_property_*, document_access_denied)*
+- [x] **Task 6.6**: Build dedicated administrative property verification queue and inspection screen (`PropertyReviewController.php`, `AdminReviewService.php`). *(Completed: status filter tabs, search, pagination, verify action, reject with >=10 char reason, request info, decoupled from user account approval)*
+- [x] **Task 6.7**: Integrate multi-property views into owner dashboard (`page-owner-dashboard.php`, `dashboard.css`). *(Completed: clean tab routing ?ft_tab=properties, active vs archived subtabs, property edit view, functional + Add Property modal)*
+- [x] **Task 6.8**: Execute Phase 6 test suite and regression tests. *(Completed: 45 Phase 6 assertions PASS, 24 Phase 4/5 regression assertions PASS, 44 Phase 5.1.1 reconciliation assertions PASS; total 113/113 PASS; 11 Headless Chrome visual screenshots across all required viewports captured)*
 
 ---
 

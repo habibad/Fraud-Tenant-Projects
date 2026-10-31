@@ -21,7 +21,7 @@ class Constants {
 	/**
 	 * Database schema version.
 	 */
-	public const DB_VERSION = '1.2.0';
+	public const DB_VERSION = '1.3.0';
 
 	/**
 	 * Option key storing database schema version.
@@ -48,6 +48,22 @@ class Constants {
 	public const STATUS_APPROVED         = 'approved';
 	public const STATUS_REJECTED         = 'rejected';
 	public const STATUS_SUSPENDED        = 'suspended';
+
+	/**
+	 * Property Verification Statuses.
+	 */
+	public const PROP_STATUS_PENDING        = 'pending_verification';
+	public const PROP_STATUS_VERIFIED       = 'verified';
+	public const PROP_STATUS_REJECTED       = 'rejected';
+	public const PROP_STATUS_INFO_REQUESTED = 'info_requested';
+	public const PROP_STATUS_ARCHIVED       = 'archived';
+
+	/**
+	 * Document Review Statuses.
+	 */
+	public const DOC_STATUS_PENDING  = 'pending';
+	public const DOC_STATUS_APPROVED = 'approved';
+	public const DOC_STATUS_REJECTED = 'rejected';
 
 	/**
 	 * Database Table Names (without prefix).

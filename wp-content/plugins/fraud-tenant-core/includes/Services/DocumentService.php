@@ -322,9 +322,9 @@ class DocumentService {
 	}
 
 	/**
-	 * Securely stream a private document to an authorized administrator.
+	 * Securely stream a private document to an authorized administrator or document owner.
 	 *
-	 * Enforces capability check, database lookup, path canonicalization,
+	 * Enforces capability or ownership check, database lookup, path canonicalization,
 	 * strict directory confinement, audit logging, and safe HTTP headers.
 	 *
 	 * @param int $document_id        Document ID in wp_ft_documents.
@@ -332,27 +332,15 @@ class DocumentService {
 	 * @return void
 	 */
 	public static function stream_protected_document( int $document_id, int $requesting_user_id ): void {
-		// 1. Capability Verification
-		$has_access = user_can( $requesting_user_id, Capabilities::REVIEW_USER_REGISTRATIONS ) ||
-					user_can( $requesting_user_id, Capabilities::APPROVE_USER_REGISTRATIONS ) ||
-					user_can( $requesting_user_id, 'manage_options' );
-
-		if ( ! $has_access ) {
-			AuditLogger::log(
-				'admin.document_access_denied',
-				'document',
-				$document_id,
-				array( 'reason' => 'insufficient_capabilities' ),
-				$requesting_user_id
-			);
-			wp_die( esc_html__( 'Unauthorized access. You do not have permission to view this document.', 'fraud-tenant-core' ), 403 );
+		if ( $requesting_user_id <= 0 ) {
+			wp_die( esc_html__( 'Unauthorized access. Authentication required.', 'fraud-tenant-core' ), 403 );
 		}
 
-		// 2. Resolve document record from database
+		// 1. Resolve document record from database
 		$doc = self::get_document( $document_id );
 		if ( ! $doc || 'private' !== $doc->access_permission ) {
 			AuditLogger::log(
-				'admin.document_access_denied',
+				'document.access_denied',
 				'document',
 				$document_id,
 				array( 'reason' => 'document_not_found_or_not_private' ),
@@ -361,11 +349,32 @@ class DocumentService {
 			wp_die( esc_html__( 'Document record not found or inaccessible.', 'fraud-tenant-core' ), 404 );
 		}
 
+		// 2. Authorization Check (Reviewer capability OR verified Document Owner)
+		$is_admin = user_can( $requesting_user_id, Capabilities::REVIEW_USER_REGISTRATIONS ) ||
+					user_can( $requesting_user_id, Capabilities::APPROVE_USER_REGISTRATIONS ) ||
+					user_can( $requesting_user_id, 'manage_options' );
+
+		$is_owner = ( (int) $doc->user_id === (int) $requesting_user_id );
+
+		if ( ! $is_admin && ! $is_owner ) {
+			AuditLogger::log(
+				'document.access_denied',
+				'document',
+				$document_id,
+				array(
+					'reason'   => 'unauthorized_actor',
+					'owner_id' => (int) $doc->user_id,
+				),
+				$requesting_user_id
+			);
+			wp_die( esc_html__( 'Unauthorized access. You do not have permission to view this document.', 'fraud-tenant-core' ), 403 );
+		}
+
 		// 3. Strict Allowed MIME Types
 		$allowed_mimes = array( 'application/pdf', 'image/jpeg', 'image/png' );
 		if ( ! in_array( $doc->mime_type, $allowed_mimes, true ) ) {
 			AuditLogger::log(
-				'admin.document_access_denied',
+				'document.access_denied',
 				'document',
 				$document_id,
 				array( 'reason' => 'disallowed_mime_type', 'mime' => $doc->mime_type ),
@@ -392,7 +401,7 @@ class DocumentService {
 			strpos( $canonical_file, $canonical_base . DIRECTORY_SEPARATOR ) !== 0
 		) {
 			AuditLogger::log(
-				'admin.document_access_denied',
+				'document.access_denied',
 				'document',
 				$document_id,
 				array( 'reason' => 'path_traversal_or_missing_file' ),
@@ -402,8 +411,9 @@ class DocumentService {
 		}
 
 		// 5. Audit Log Authorized Access
+		$event_name = $is_admin ? 'admin.document_viewed' : 'owner.document_viewed';
 		AuditLogger::log(
-			'admin.document_viewed',
+			$event_name,
 			'document',
 			$document_id,
 			array(
@@ -411,18 +421,21 @@ class DocumentService {
 				'target_user' => (int) $doc->user_id,
 				'object_type' => $doc->object_type,
 				'mime_type'   => $doc->mime_type,
+				'actor_role'  => $is_admin ? 'admin' : 'owner',
 			),
 			$requesting_user_id
 		);
 
 		// 6. Safe Streaming Output
-		while ( ob_get_level() ) {
-			ob_end_clean();
+		if ( ! defined( 'FT_DOING_TESTS' ) ) {
+			while ( ob_get_level() ) {
+				ob_end_clean();
+			}
 		}
 
 		$filename = sanitize_file_name( $doc->original_name ?: 'document' );
 		header( 'Content-Type: ' . $doc->mime_type );
-		header( 'Content-Disposition: inline; filename="' . $filename . '"' );
+		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
 		header( 'Content-Length: ' . (string) filesize( $canonical_file ) );
 		header( 'X-Content-Type-Options: nosniff' );
 		header( 'Cache-Control: private, no-store, no-cache, must-revalidate' );
