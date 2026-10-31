@@ -40,7 +40,7 @@ All notable changes to the Fraud Tenant platform will be documented in this file
 - Verified real membership plan data (`Free Plan`, `Standard Monthly`, `Standard Annual`) with zero fabricated active benefits.
 
 ### Admin Review Historical Continuity (`UserReviewController.php`, `AdminReviewService.php`)
-- Verified that repeated rejection or info-request actions preserve an immutable audit trail in `wp_ft_audit_log` without overwriting history.
+- Verified that repeated rejection or info-request actions preserve an append-only application-level audit history in `wp_ft_audit_log` without overwriting history.
 - Enhanced the admin review history timeline in `UserReviewController.php` to cleanly display and highlight past reviewer notes and reasons.
 
 ### Testing & Screenshots

@@ -8,7 +8,7 @@ This guide details the setup, configuration, and verification procedures for the
 
 - **XAMPP**: Running Apache 2.4.x and MySQL / MariaDB 10.4.x.
 - **PHP**: PHP 8.2+ with `curl`, `mbstring`, `openssl`, `mysqli`, `pdo_mysql` extensions enabled.
-- **WordPress**: 7.x installed in `c:\xampp\htdocs\fraudtenant`.
+- **WordPress**: 7.1.3 installed in `c:\xampp\htdocs\fraudtenant` (verified via `wp-includes/version.php` and `get_bloginfo('version')`).
 - **Git**: Git 2.x installed at `C:\Program Files\Git\cmd\git.exe`.
 - **Node.js**: Node.js 18+ (verified v24.22.0) for frontend build tools and test scripts.
 - **Browser Automation**: Google Chrome installed at `C:\Program Files\Google\Chrome\Application\chrome.exe`.

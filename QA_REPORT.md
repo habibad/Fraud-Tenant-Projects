@@ -571,10 +571,14 @@ Executed via automated test suite against active MariaDB database and WordPress 
 
 ## Phase 5.1 Hardening & Release Gate Test Execution
 
-Executed via `scratch/test_phase5_1_hardening.php` (34 assertions) and `scratch/test_phase4_and_5_regression.php` (24 assertions).
+Executed via `scratch/test_phase5_1_hardening.php` (36 assertions) and `scratch/test_phase4_and_5_regression.php` (24 assertions).
+*Reconciliation Note: In the initial test run, 2 assertions (P5.1-1.6 and P5.1-1.7) were skipped because the test tenant record in the local database lacked an identity record in `wp_ft_tenant_identities`. With test fixture identity seeding in place, all 36 assertions executed and passed.*
 
 | Test ID | Test Description | Command / Execution Method | Observed Output | Result |
 | :--- | :--- | :--- | :--- | :---: |
+| **P5.1-0.1** | Test Approved Owner Exists | `get_user_by('email', 'p5_approved_owner@example.com')` | Owner user ID 36 verified | **PASS** |
+| **P5.1-0.2** | Test Approved Tenant Exists | `get_user_by('email', 'p5_approved_tenant@example.com')` | Tenant user ID 37 verified | **PASS** |
+| **P5.1-0.3** | Administrator User Exists | `get_user_by('id', 1)` | Admin user ID 1 verified | **PASS** |
 | **P5.1-1.1** | Clean Record Tag Removed | Template inspection | 'Clear Record on File' completely removed | **PASS** |
 | **P5.1-1.2** | Clean Record Claim Removed | Template inspection | 'Your rental record with Fraud Tenant is currently clear' removed | **PASS** |
 | **P5.1-1.3** | Neutral Tag Added | Template inspection | 'No Disclosed Incidents' displayed in metric card | **PASS** |
@@ -605,13 +609,86 @@ Executed via `scratch/test_phase5_1_hardening.php` (34 assertions) and `scratch/
 | **P5.1-7.2** | Repeated Info Request Preserved | `AdminReviewService::request_additional_info()` | Succeeded without erasing Action 1 audit row | **PASS** |
 | **P5.1-7.3** | Subsequent Rejection Preserved | `AdminReviewService::reject_application()` | Succeeded without erasing Actions 1 & 2 audit rows | **PASS** |
 | **P5.1-7.4** | Audit History Completeness | `AdminReviewService::get_user_audit_history()` | Returns all 3 historical events in reverse chronological order | **PASS** |
-| **P5.1-7.5** | Historical Action 1 Details Preserved | Audit details inspection | Note 1 text preserved in audit log | **PASS** |
-| **P5.1-7.6** | Historical Action 2 Details Preserved | Audit details inspection | Note 2 text preserved in audit log | **PASS** |
-| **P5.1-7.7** | Historical Action 3 Details Preserved | Audit details inspection | Rejection reason text preserved in audit log | **PASS** |
-| **P5.1-8.1** | Regression: Templates and Assets | File system inspection | All dashboard PHP templates, CSS, and JS verified intact | **PASS** |
-| **P5.1-8.2** | Regression: Header/Footer Shell Isolation | Template inspection | Marketing header and footer suppressed on dashboard pages | **PASS** |
-| **P5.1-8.3** | Regression: Admin Review Queue | `AdminReviewService::get_applications()` | Returns valid pagination, items, and total count | **PASS** |
-| **P5.1-8.4** | Regression: Audit Redaction | `AuditLogger::log()` | Plain SSN, OTP, and passwords strictly redacted | **PASS** |
+| **P5.1-7.5** | Historical Action 1 Details Preserved | Audit details inspection | Note 1 text preserved in append-only audit log | **PASS** |
+| **P5.1-7.6** | Historical Action 2 Details Preserved | Audit details inspection | Note 2 text preserved in append-only audit log | **PASS** |
+| **P5.1-7.7** | Historical Action 3 Details Preserved | Audit details inspection | Rejection reason text preserved in append-only audit log | **PASS** |
+| **REG-1.1** | Regression: Owner Dashboard Template | File check | `page-owner-dashboard.php` exists | **PASS** |
+| **REG-1.2** | Regression: Tenant Dashboard Template | File check | `page-tenant-dashboard.php` exists | **PASS** |
+| **REG-1.3** | Regression: Dashboard CSS | File check | `dashboard.css` exists | **PASS** |
+| **REG-1.4** | Regression: Dashboard JS | File check | `dashboard.js` exists | **PASS** |
+| **REG-2.1** | Regression: Header Shell Isolation | Template inspection | Marketing header suppressed on dashboard pages | **PASS** |
+| **REG-2.2** | Regression: Footer Shell Isolation | Template inspection | Marketing footer suppressed on dashboard pages | **PASS** |
+| **REG-3.1** | Regression: Admin Capability Check | `AdminReviewService::can_review(1)` | Returns `true` | **PASS** |
+| **REG-3.2** | Regression: Non-Admin Review Denied | `AdminReviewService::can_review($owner_id)` | Returns `false` | **PASS** |
+| **REG-3.3** | Regression: Admin Review Queue Query | `AdminReviewService::get_applications()` | Returns valid pagination, items, and total count | **PASS** |
+| **REG-4.1** | Regression: Owner Properties Array | Dashboard data inspection | Properties array returned | **PASS** |
+| **REG-4.2** | Regression: Owner Searches Count | Dashboard data inspection | Integer returned | **PASS** |
+| **REG-4.3** | Regression: Owner Reports Count | Dashboard data inspection | Integer returned | **PASS** |
+| **REG-4.4** | Regression: Owner Membership Plan | Dashboard data inspection | Valid plan name returned | **PASS** |
+| **REG-4.5** | Regression: Owner Unread Notifs | Dashboard data inspection | Unread notifications count integer returned | **PASS** |
+| **REG-5.1** | Regression: Tenant Records Array | Dashboard data inspection | Records array returned | **PASS** |
+| **REG-5.2** | Regression: Tenant Records Count | Dashboard data inspection | Integer returned | **PASS** |
+| **REG-5.3** | Regression: Tenant Disputes Array | Dashboard data inspection | Disputes array returned | **PASS** |
+| **REG-5.4** | Regression: Tenant Disputes Count | Dashboard data inspection | Integer returned | **PASS** |
+| **REG-5.5** | Regression: Tenant Recent Activity | Dashboard data inspection | Array returned | **PASS** |
+| **REG-6.1** | Regression: AuditLogger Write | `AuditLogger::log()` | Succeeded | **PASS** |
+| **REG-6.2** | Regression: Plain SSN Redacted | Audit record inspection | `ssn` replaced with `[REDACTED]` | **PASS** |
+| **REG-6.3** | Regression: OTP Code Redacted | Audit record inspection | `otp_code` replaced with `[REDACTED]` | **PASS** |
+| **REG-6.4** | Regression: Password Redacted | Audit record inspection | `password` replaced with `[REDACTED]` | **PASS** |
+| **REG-6.5** | Regression: Safe Values Preserved | Audit record inspection | Contextual fields retained | **PASS** |
+
+---
+
+## Phase 5.1.1 Final Release-Gate Reconciliation Test Execution
+
+Executed via `scratch/test_phase5_1_1_reconciliation.php` (44 assertions).
+
+| Test ID | Test Description | Execution Method | Observed Output | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **ENV 1.1** | WordPress Core Version Verification | `wp-includes/version.php` & `get_bloginfo('version')` | Exactly `7.1.3` (reconciling previous '6.8-alpha' typo) | **PASS** |
+| **ENV 1.2** | PHP Runtime Version Verification | `PHP_VERSION` inspection | Verified `8.2.12` | **PASS** |
+| **ENV 1.3** | Database Engine Version Verification | `$wpdb->db_version()` inspection | Verified MariaDB `10.4.32` | **PASS** |
+| **ISO 2.1** | Owner A Property Count Isolation | `DashboardService::get_owner_dashboard_data($owner_a_id)` | Owner A sees exactly 1 property | **PASS** |
+| **ISO 2.2** | Owner A Property Address Fidelity | Property address inspection | Matches '101 Alpha Boulevard' | **PASS** |
+| **ISO 2.3** | Owner A Screening Search Count | Search records inspection | Owner A sees exactly 1 search | **PASS** |
+| **ISO 2.4** | Owner A Search Last-4 Fidelity | Search data inspection | Matches '1111' | **PASS** |
+| **ISO 2.5** | Owner A Incident Report Count | Report count inspection | Owner A sees exactly 1 report | **PASS** |
+| **ISO 2.6** | Owner A Property Isolation from Owner B | Iterate Owner A properties | Zero property records of Owner B accessible | **PASS** |
+| **ISO 2.7** | Owner A Search Isolation from Owner B | Iterate Owner A searches | Zero search records of Owner B accessible | **PASS** |
+| **ISO 2.8** | Owner B Property Isolation from Owner A | Iterate Owner B properties | Zero property records of Owner A accessible | **PASS** |
+| **ISO 3.1** | Tenant A Identity User ID Association | Identity table query | Correctly associated with Tenant A user ID | **PASS** |
+| **ISO 3.2** | Tenant A Disclosed Record Count | `DashboardService::get_tenant_dashboard_data($tenant_a_id)` | Tenant A sees exactly 1 disclosed record | **PASS** |
+| **ISO 3.3** | Tenant A Report ID Fidelity | Report list inspection | Matches Tenant A report ID | **PASS** |
+| **ISO 3.4** | Tenant A Dispute Count Isolation | Disputes count query | Tenant A sees exactly 1 dispute | **PASS** |
+| **ISO 3.5** | Tenant A Dispute ID Fidelity | Dispute list inspection | Matches Tenant A dispute ID | **PASS** |
+| **ISO 3.6** | Tenant A Incident Record Isolation | Iterate Tenant A records | Zero report records of Tenant B accessible | **PASS** |
+| **ISO 3.7** | Tenant A Dispute Isolation from Tenant B | Iterate Tenant A disputes | Zero dispute records of Tenant B accessible | **PASS** |
+| **ISO 3.8** | Tenant A Notification Isolation from Tenant B | Iterate Tenant A notifications | Zero notification records of Tenant B accessible | **PASS** |
+| **ISO 3.9** | Tenant A Activity Timeline Isolation | Iterate Tenant A activity log | Zero audit log events of Tenant B accessible | **PASS** |
+| **LC 4.1** | Anonymous Visitor on Owner Dashboard | `DashboardService::enforce_access(ROLE_OWNER)` | Redirects to `/login/` | **PASS** |
+| **LC 4.2** | Anonymous Visitor on Tenant Dashboard | `DashboardService::enforce_access(ROLE_TENANT)` | Redirects to `/login/` | **PASS** |
+| **LC 4.3** | Lifecycle: Email Unverified Redirect | Account status `email_unverified` | Redirects to `/verify-otp/` | **PASS** |
+| **LC 4.4** | Lifecycle: Pending Approval Redirect | Account status `pending_approval` | Redirects to `/account-status/` | **PASS** |
+| **LC 4.5** | Lifecycle: Info Requested Redirect | Account status `info_requested` | Redirects to `/account-status/` | **PASS** |
+| **LC 4.6** | Lifecycle: Approved Owner Access Allowed | Account status `approved`, role `ft_owner` | Access granted to `/owner-dashboard/` | **PASS** |
+| **LC 4.7** | Role Boundary: Owner to Tenant Dashboard | Approved owner accessing `ROLE_TENANT` | Redirects to `/owner-dashboard/` | **PASS** |
+| **LC 4.8** | Lifecycle: Approved Tenant Access Allowed | Account status `approved`, role `ft_tenant` | Access granted to `/tenant-dashboard/` | **PASS** |
+| **LC 4.9** | Role Boundary: Tenant to Owner Dashboard | Approved tenant accessing `ROLE_OWNER` | Redirects to `/tenant-dashboard/` | **PASS** |
+| **LC 4.10** | Lifecycle: Rejected Account Logout & Redirect | Account status `rejected` | Logs out and redirects to `/login/?error=rejected` | **PASS** |
+| **LC 4.11** | Lifecycle: Suspended Account Logout & Redirect | Account status `suspended` | Logs out and redirects to `/login/?error=suspended` | **PASS** |
+| **LC 4.12** | Administrator Inspection: Owner Dashboard | Role `administrator` on `ROLE_OWNER` | Access granted for inspection | **PASS** |
+| **LC 4.13** | Administrator Inspection: Tenant Dashboard | Role `administrator` on `ROLE_TENANT` | Access granted for inspection | **PASS** |
+| **LC 4.14** | Admin Owner Query Data Confinement | `get_owner_dashboard_data(1)` | Scoped strictly to admin ID; returns 0 (no leaks) | **PASS** |
+| **LC 4.15** | Admin Tenant Query Data Confinement | `get_tenant_dashboard_data(1)` | Scoped strictly to admin ID; returns 0 (no leaks) | **PASS** |
+| **SSN 5.1** | SSN Input Readonly & Disabled Markup | Template markup check | Has `disabled readonly aria-disabled="true"` | **PASS** |
+| **SSN 5.2** | Search Preview Direct Modal Opener | Template button markup check | Uses `data-ft-modal-target="ftScreeningModal"` | **PASS** |
+| **SSN 5.3** | Zero Client-Side SSN Listeners | `dashboard.js` inspection | Zero input listeners or submit event handlers | **PASS** |
+| **SSN 5.4** | Zero Backend Screening REST Endpoints | `$wp_rest_server->get_routes()` | Zero screening routes registered | **PASS** |
+| **SSN 5.5** | Crafted Request Screening Creation Immunity | Simulated screening request POST | Zero rows inserted into `wp_ft_screening_requests` | **PASS** |
+| **REC 6.1** | Double-Gate Disclosed Records Count | `get_tenant_dashboard_data()` | Excludes unapproved and non-disclosable reports | **PASS** |
+| **REC 6.2** | Unapproved Incident Report Excluded | Record list inspection | Status != 'approved' is omitted | **PASS** |
+| **REC 6.3** | Non-Disclosable Incident Report Excluded | Record list inspection | Disclosable != 1 is omitted | **PASS** |
+| **REC 6.4** | Parameter Tampering Immunity | Template source code check | Zero `$_GET` or `$_POST` parameter bindings for tenant_id | **PASS** |
 
 ---
 
@@ -631,5 +708,6 @@ Executed via `scratch/test_phase5_1_hardening.php` (34 assertions) and `scratch/
 | **Phase 4 Admin Review Portal** | 40 | 39 | 0 | 0 | 1 |
 | **Phase 5 Step 0 Security Preflight** | 45 | 45 | 0 | 0 | 0 |
 | **Phase 5 Owner & Tenant Dashboards** | 36 | 36 | 0 | 0 | 0 |
-| **Phase 5.1 Hardening & Release Gate** | 37 | 37 | 0 | 0 | 0 |
-| **Total Verified** | **388** | **383** | **0** | **0** | **5** |
+| **Phase 5.1 Hardening & Regression** | 60 | 60 | 0 | 0 | 0 |
+| **Phase 5.1.1 Release-Gate Reconciliation** | 44 | 44 | 0 | 0 | 0 |
+| **Total Verified** | **455** | **450** | **0** | **0** | **5** |

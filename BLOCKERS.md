@@ -63,7 +63,7 @@ This document tracks all external dependencies, missing credentials, infrastruct
 - **Impacted Phase**: Phase 3 (Ownership Document Upload), Phase 4 (Admin Review), Phase 6 (Property Documents)
 - **Status**: `IMPLEMENTED, HARDENED & VERIFIED IN PHASE 3 & PHASE 4`
 - **Details**: Implemented `DocumentService` in `wp-content/plugins/fraud-tenant-core/includes/Services/DocumentService.php`. Uses private directory `wp-content/uploads/fraud-tenant-protected/` secured by Apache `.htaccess` (`Deny from all`, `Require all denied`), `index.php` (403 Exit), and IIS `web.config` (`<deny users="*" />`).
-- **Phase 4 Operational Verification**: Authorized streaming endpoint `admin_post_ft_view_document` implemented in `DocumentService::stream_protected_document()`. Enforces reviewer capability check, one-time action nonces, strict database resolution, path canonicalization via `realpath()`, traversal trapping (`../`), MIME whitelisting, and tamper-evident audit logging.
+- **Phase 4 Operational Verification**: Authorized streaming endpoint `admin_post_ft_view_document` implemented in `DocumentService::stream_protected_document()`. Enforces reviewer capability check, one-time action nonces, strict database resolution, path canonicalization via `realpath()`, traversal trapping (`../`), MIME whitelisting, and append-only application-level audit logging.
 - **Web Server Protection Matrix**:
   1. **Apache**: Fully protected via generated `.htaccess` rules (`<IfModule mod_authz_core.c> Require all denied </IfModule>` and legacy `Order Deny,Allow` / `Deny from all`). Verified live via automated tests returning `HTTP/1.1 403 Forbidden`.
   2. **IIS**: Fully protected via auto-generated `web.config` with `<authorization><deny users="*" /></authorization>`.

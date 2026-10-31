@@ -65,7 +65,7 @@ All custom tables dynamically use `$wpdb->prefix` (14 tables created in Phase 1)
 - `{$wpdb->prefix}ft_subscriptions`: Owner subscription state, Stripe customer/subscription IDs
 - `{$wpdb->prefix}ft_payment_events`: Stripe webhook events log and idempotency tracking
 - `{$wpdb->prefix}ft_notifications`: In-app notification queue
-- `{$wpdb->prefix}ft_audit_log`: Tamper-evident audit trail for security and regulatory compliance
+- `{$wpdb->prefix}ft_audit_log`: Append-only application-level audit history for security and regulatory compliance
 
 ### User Roles & Custom Capabilities
 - `administrator`: Full administrative portal, approval queue, review controls, plan management

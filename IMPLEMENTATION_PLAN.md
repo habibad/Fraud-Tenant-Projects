@@ -44,7 +44,7 @@ Fraud Tenant is a secure, modern, responsive WordPress-based rental incident rep
   - Custom roles registered: `ft_owner` (Property Owner) and `ft_tenant` (Tenant) with granular capabilities.
   - Administrative capabilities mapped to core `administrator` role.
   - REST API foundation under namespace `fraud-tenant/v1` with safe diagnostic `/status` endpoint and authenticated test endpoint `/auth-check`.
-  - Foundational services: `AuditLogger` (tamper-evident audit trail with automated secret redaction) and `SecurityService` (keyed HMAC SSN tokenization and OTP hashing).
+  - Foundational services: `AuditLogger` (append-only application-level audit history with automated secret redaction) and `SecurityService` (keyed HMAC SSN tokenization and OTP hashing).
 - **Custom Database Tables Created (14)**:
   1. `{$wpdb->prefix}ft_user_profiles`
   2. `{$wpdb->prefix}ft_email_otps`
@@ -233,11 +233,12 @@ Fraud Tenant is a secure, modern, responsive WordPress-based rental incident rep
     - Verified recent searches display only masked `••••-XXXX` last 4 digits, never HMAC token.
     - Verified genuine plan data (`Free Plan`, `Standard Monthly`, `Standard Annual`) with zero fabricated active benefits.
   - **Admin Review Historical Continuity**:
-    - Verified that repeated rejection or info-request actions preserve an immutable audit trail in `wp_ft_audit_log` without overwriting history.
+    - Verified that repeated rejection or info-request actions preserve an append-only application-level audit history in `wp_ft_audit_log` without overwriting history.
     - Enhanced admin detail review history view in `UserReviewController.php` to cleanly display and highlight past reviewer notes and reasons.
   - **Testing & Verification**:
-    - Executed 34 Phase 5.1 hardening assertions (**34/34 PASS**).
+    - Executed 36 Phase 5.1 hardening assertions (**36/36 PASS**).
     - Executed 24 Phase 4 & 5 regression assertions (**24/24 PASS**).
+    - Executed 44 Phase 5.1.1 reconciliation assertions (**44/44 PASS**).
     - Recaptured Headless Chrome desktop (1440x1050) and mobile (390x844) screenshots reflecting hardened UI states.
 
 ---
@@ -267,7 +268,7 @@ Fraud Tenant is a secure, modern, responsive WordPress-based rental incident rep
 ---
 
 ### PHASE 10 — Notifications, Email Workflows and Audit Trail
-- **Objective**: Centralized notification delivery and tamper-evident audit logging.
+- **Objective**: Centralized notification delivery and append-only application-level audit logging.
 - **Status**: Planned
 
 ---

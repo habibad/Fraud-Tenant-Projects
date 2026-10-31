@@ -1,6 +1,6 @@
 <?php
 /**
- * Tamper-Evident Audit Logger Service.
+ * Append-Only Application-Level Audit Logger Service.
  *
  * @package FraudTenant\Services
  */
