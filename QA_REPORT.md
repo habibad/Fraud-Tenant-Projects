@@ -785,6 +785,27 @@ Executed via `scratch/test_phase5_1_1_reconciliation.php` (44 assertions).
 
 ---
 
+
+## Phase 6.1.1 Capability Enforcement Verification Execution
+
+| Test ID | Test Name | Method | Expected Output / Acceptance Criteria | Result |
+| :--- | :--- | :--- | :--- | :---: |
+| **CAP 1.1** | Property Review Queue & Detail Access | Reviewer with `ft_review_properties` accesses queue & detail | Queue data and review detail accessible | **PASS** |
+| **CAP 1.2** | Reviewer-Only Verification Denial | Reviewer without `ft_verify_properties` calls `verify_property()` | Strictly denied (`unauthorized`), status unchanged | **PASS** |
+| **CAP 1.3** | Unauthorized Verification Audit Log | Inspect `wp_ft_audit_log` for denied verification | Logged as `admin_property_verify_denied` with missing cap reason | **PASS** |
+| **CAP 1.4** | Property Status Invariance on Denial | Property status query following denied verify | Status remains `pending_verification` | **PASS** |
+| **CAP 1.5** | Authorized Verifier Decision | User with `ft_verify_properties` verifies property | Success returns true, status updated to `verified` | **PASS** |
+| **CAP 1.6** | Administrator Permissions Invariance | Administrator (`manage_options`) reviews and verifies | Full review and verification succeed seamlessly | **PASS** |
+| **DOC 2.1** | Registration Reviewer Property Doc Gate | Reviewer with only `ft_review_user_registrations` streams deed | Blocked with 403, logged `document_access_denied` | **PASS** |
+| **DOC 2.2** | Property Reviewer Document Stream | Reviewer with `ft_review_properties` streams ownership deed | Streams valid PDF stream with safe headers | **PASS** |
+| **DOC 2.3** | Bidirectional Cross-Owner Doc Denial | Owner B -> Doc A and Owner A -> Doc B streaming | Both directions strictly blocked with 403 | **PASS** |
+| **DOC 2.4** | Tenant & Anonymous Doc Access Gate | Tenant and visitor (`user_id = 0`) stream document | Blocked fail-closed with 403 | **PASS** |
+| **NNC 3.1** | Invalid Nonce Verification Gate | `wp_verify_nonce()` with tampered value | Fails CSRF verification check | **PASS** |
+| **NNC 3.2** | Nonce Time-Windowed CSRF Behavior | Validate valid nonce across sequential checks | Confirmed time-windowed CSRF defense, not consumable token | **PASS** |
+| **SEC 4.1** | Zero Path Disclosure in Audit & Errors | Inspect audit entries and error responses | Zero server filesystem paths disclosed | **PASS** |
+
+---
+
 ## Phase 6 & Phase 6.1 QA Execution Reconciliation
 
 ### Test Suite Execution Summary

@@ -24,7 +24,7 @@ class PropertyReviewController {
 	 * Main entry point for the Property Verification admin page.
 	 */
 	public static function render(): void {
-		if ( ! current_user_can( Capabilities::REVIEW_PROPERTIES ) && ! current_user_can( Capabilities::REVIEW_USER_REGISTRATIONS ) && ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( Capabilities::REVIEW_PROPERTIES ) && ! current_user_can( Capabilities::VERIFY_PROPERTIES ) && ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'Unauthorized access to Fraud Tenant property verification portal.', 'fraud-tenant-core' ), 403 );
 		}
 
@@ -474,6 +474,7 @@ class PropertyReviewController {
 						</h3>
 
 						<!-- Action 1: Verify Ownership -->
+						<?php if ( current_user_can( Capabilities::VERIFY_PROPERTIES ) || current_user_can( 'manage_options' ) ) : ?>
 						<div style="margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #E2E8F0;">
 							<h4 style="margin: 0 0 6px 0; font-size: 13px; color: #0E9488; font-weight: 700;">
 								&check; <?php esc_html_e( 'Verify Property Ownership', 'fraud-tenant-core' ); ?>
@@ -495,6 +496,14 @@ class PropertyReviewController {
 								</button>
 							</form>
 						</div>
+						<?php else : ?>
+						<div style="margin-bottom: 20px; padding: 12px; background: #F8FAFC; border-radius: 6px; border: 1px dashed #CBD5E1;">
+							<p style="font-size: 12px; color: #64748B; margin: 0; line-height: 1.4;">
+								<strong style="color: #14263E;"><?php esc_html_e( 'Review-Only Access', 'fraud-tenant-core' ); ?>:</strong>
+								<?php esc_html_e( 'Your account has property review permissions (read, inspect deeds & request info). Executing the final property verification decision requires the Verify Properties capability.', 'fraud-tenant-core' ); ?>
+							</p>
+						</div>
+						<?php endif; ?>
 
 						<!-- Action 2: Request Additional Info -->
 						<div style="margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #E2E8F0;">

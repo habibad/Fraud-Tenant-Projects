@@ -81,4 +81,8 @@ This document tracks all external dependencies, missing credentials, infrastruct
   2. Enforced directory boundary normalization (`$normalized_base = rtrim($canonical_base, '/\\') . DIRECTORY_SEPARATOR;`), preventing sibling-prefix directory escapes.
   3. Scoped administrative property review to dedicated capabilities (`ft_review_properties`, `ft_verify_properties`).
   4. Outbound live SMTP delivery remains classified as `NOT TESTED` (5 assertions across phases) pending production email relay credentials.
+- **Phase 6.1.1 Capability Enforcement Verification**:
+  1. Gated property verification decision (`verify_property`) strictly behind `Capabilities::VERIFY_PROPERTIES` (`ft_verify_properties`) or core `manage_options`. Reviewers with only `ft_review_properties` cannot verify properties; attempts are blocked and audited with `admin_property_verify_denied`.
+  2. Scoped property document streaming strictly to property review capabilities (`ft_review_properties`, `ft_verify_properties`, `manage_options`). Registration reviewers (`ft_review_user_registrations`) are blocked from property deeds.
+  3. Confirmed document-specific WordPress nonces serve as time-windowed CSRF protection, with server-side authorization and ownership independently enforced on every request.
 - **Application-Level Security**: Zero public streaming routes or direct upload links exist. Authorized streaming controllers with capability and ownership verification are enforced for admin reviews (Phase 4) and property owner access (Phase 6).

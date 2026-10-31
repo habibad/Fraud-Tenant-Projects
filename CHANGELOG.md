@@ -4,6 +4,34 @@ All notable changes to the Fraud Tenant platform will be documented in this file
 
 ---
 
+## [Phase 6.1.1] — Final Capability Enforcement Verification (2026-10-31)
+
+### Property Review vs. Verification Capability Differentiation (`AdminReviewService.php`, `AdminPortal.php`, `PropertyReviewController.php`)
+- Enforced strict least-privilege separation between `REVIEW_PROPERTIES` and `VERIFY_PROPERTIES`:
+  - `Capabilities::REVIEW_PROPERTIES`: Controls access to the Property Verification Queue, property review detail views, document inspection streaming, and info requests.
+  - `Capabilities::VERIFY_PROPERTIES`: Strictly enforced before the final property verification action (`verify_property`).
+  - Added helper `AdminReviewService::can_verify_property( int $user_id ): bool` requiring `VERIFY_PROPERTIES` or core `manage_options`.
+  - Hardened `AdminReviewService::verify_property()`: A reviewer with `REVIEW_PROPERTIES` but without `VERIFY_PROPERTIES` is strictly denied with an `unauthorized` error, and the attempt is audited with `admin_property_verify_denied` in `wp_ft_audit_log`.
+  - Hardened `AdminPortal::handle_property_review_action()`: Verification actions via POST require `VERIFY_PROPERTIES` (or `manage_options`), dying fail-closed with 403 and logging to audit if attempted without capability.
+  - Hardened `PropertyReviewController.php`: Rendered the "Verify Property Ownership" action form only to actors possessing `VERIFY_PROPERTIES` (or `manage_options`). Reviewers with review-only capabilities see a clear informational notice.
+  - Confirmed existing administrator role retains all permissions without regression.
+
+### Property Document Streaming Permissions Scoping (`DocumentService.php`)
+- Hardened `DocumentService::stream_protected_document()`:
+  - Scoped property ownership document (`object_type = 'property_ownership'`) streaming strictly to property-specific capabilities (`REVIEW_PROPERTIES`, `VERIFY_PROPERTIES`, or `manage_options`).
+  - Eliminated broad dependency on `REVIEW_USER_REGISTRATIONS`: user registration reviewers cannot stream property deeds.
+  - Wrapped header streaming with `if ( ! headers_sent() )` to ensure clean execution across CLI testing and production web servers.
+  - Maintained bidirectional cross-owner isolation, tenant blocking, and unauthenticated 403 access denial.
+
+### Nonce CSRF Protection Architecture
+- Documented and verified that WordPress nonces (`ft_view_doc_{id}`, `ft_admin_prop_review_{id}`) serve as session- and time-windowed CSRF defense mechanisms (valid 12–24 hours for the current user) rather than consumable single-use tokens.
+- Server-side authorization, user capability verification, and property-to-owner linkage are independently enforced on every request regardless of nonce validity.
+
+### Automated Verification
+- Created and executed Phase 6.1.1 Capability Enforcement Suite (`scratch/test_phase6_1_1_capability_enforcement.php`): **13 / 13 assertions PASS (100%)**.
+- Executed full test suite regression across all 5 suites: **159 / 159 assertions PASS (100%)**.
+
+---
 ## [Phase 6.1] — Final Security & QA Reconciliation (2026-10-31)
 
 ### Document Authorization & Ownership Linkage Cross-Verification (`DocumentService.php`)

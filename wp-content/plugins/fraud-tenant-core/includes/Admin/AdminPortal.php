@@ -191,7 +191,7 @@ class AdminPortal {
 	public static function handle_property_review_action(): void {
 		$reviewer_id = get_current_user_id();
 
-		if ( ! current_user_can( Capabilities::REVIEW_PROPERTIES ) && ! current_user_can( Capabilities::REVIEW_USER_REGISTRATIONS ) && ! current_user_can( 'manage_options' ) ) {
+		if ( ! current_user_can( Capabilities::REVIEW_PROPERTIES ) && ! current_user_can( Capabilities::VERIFY_PROPERTIES ) && ! current_user_can( 'manage_options' ) ) {
 			wp_die( esc_html__( 'Unauthorized to perform property verification review actions.', 'fraud-tenant-core' ), 403 );
 		}
 
@@ -216,6 +216,19 @@ class AdminPortal {
 
 		switch ( $decision ) {
 			case 'verify':
+				if ( ! current_user_can( Capabilities::VERIFY_PROPERTIES ) && ! current_user_can( 'manage_options' ) ) {
+					AuditLogger::log(
+						'admin.property_verify_denied',
+						'property',
+						$property_id,
+						array(
+							'reviewer_id' => $reviewer_id,
+							'reason'      => 'missing_verify_properties_capability',
+						),
+						$reviewer_id
+					);
+					wp_die( esc_html__( 'Unauthorized to verify properties. Missing ft_verify_properties capability.', 'fraud-tenant-core' ), 403 );
+				}
 				$notes  = isset( $_POST['reviewer_notes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['reviewer_notes'] ) ) : '';
 				$result = AdminReviewService::verify_property( $property_id, $reviewer_id, $notes );
 				break;

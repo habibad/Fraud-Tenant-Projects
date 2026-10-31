@@ -350,11 +350,18 @@ class DocumentService {
 		}
 
 		// 2. Authorization Check (Reviewer capability OR verified Document Owner)
-		$is_admin = user_can( $requesting_user_id, Capabilities::REVIEW_PROPERTIES ) ||
-					user_can( $requesting_user_id, Capabilities::VERIFY_PROPERTIES ) ||
-					user_can( $requesting_user_id, Capabilities::REVIEW_USER_REGISTRATIONS ) ||
-					user_can( $requesting_user_id, Capabilities::APPROVE_USER_REGISTRATIONS ) ||
-					user_can( $requesting_user_id, 'manage_options' );
+		$is_reviewer = false;
+		if ( 'property_ownership' === $doc->object_type ) {
+			// For property ownership documents, require dedicated property review/verification capabilities or super-admin
+			$is_reviewer = user_can( $requesting_user_id, Capabilities::REVIEW_PROPERTIES ) ||
+						   user_can( $requesting_user_id, Capabilities::VERIFY_PROPERTIES ) ||
+						   user_can( $requesting_user_id, 'manage_options' );
+		} else {
+			// For other documents (e.g. user registration evidence), require registration review capabilities or super-admin
+			$is_reviewer = user_can( $requesting_user_id, Capabilities::REVIEW_USER_REGISTRATIONS ) ||
+						   user_can( $requesting_user_id, Capabilities::APPROVE_USER_REGISTRATIONS ) ||
+						   user_can( $requesting_user_id, 'manage_options' );
+		}
 
 		$is_owner = ( (int) $doc->user_id === (int) $requesting_user_id );
 
@@ -366,7 +373,7 @@ class DocumentService {
 			}
 		}
 
-		if ( ! $is_admin && ! $is_owner ) {
+		if ( ! $is_reviewer && ! $is_owner ) {
 			AuditLogger::log(
 				'document.access_denied',
 				'document',
@@ -422,7 +429,7 @@ class DocumentService {
 		}
 
 		// 5. Audit Log Authorized Access
-		$event_name = $is_admin ? 'admin.document_viewed' : 'owner.document_viewed';
+		$event_name = $is_reviewer ? 'admin.document_viewed' : 'owner.document_viewed';
 		AuditLogger::log(
 			$event_name,
 			'document',
@@ -432,7 +439,7 @@ class DocumentService {
 				'target_user' => (int) $doc->user_id,
 				'object_type' => $doc->object_type,
 				'mime_type'   => $doc->mime_type,
-				'actor_role'  => $is_admin ? 'admin' : 'owner',
+				'actor_role'  => $is_reviewer ? 'reviewer' : 'owner',
 			),
 			$requesting_user_id
 		);
@@ -445,13 +452,15 @@ class DocumentService {
 		}
 
 		$filename = sanitize_file_name( $doc->original_name ?: 'document' );
-		header( 'Content-Type: ' . $doc->mime_type );
-		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
-		header( 'Content-Length: ' . (string) filesize( $canonical_file ) );
-		header( 'X-Content-Type-Options: nosniff' );
-		header( 'Cache-Control: private, no-store, no-cache, must-revalidate' );
-		header( 'Pragma: no-cache' );
-		header( 'Expires: 0' );
+		if ( ! headers_sent() ) {
+			header( 'Content-Type: ' . $doc->mime_type );
+			header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+			header( 'Content-Length: ' . (string) filesize( $canonical_file ) );
+			header( 'X-Content-Type-Options: nosniff' );
+			header( 'Cache-Control: private, no-store, no-cache, must-revalidate' );
+			header( 'Pragma: no-cache' );
+			header( 'Expires: 0' );
+		}
 
 		readfile( $canonical_file );
 

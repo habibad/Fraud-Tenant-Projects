@@ -834,7 +834,18 @@ class AdminReviewService {
 	 * @return array
 	 */
 	public static function verify_property( int $property_id, int $reviewer_id, string $notes = '' ): array {
-		if ( ! self::can_review_property( $reviewer_id ) ) {
+		if ( ! self::can_verify_property( $reviewer_id ) ) {
+			AuditLogger::log(
+				'admin.property_verify_denied',
+				'property',
+				$property_id,
+				array(
+					'reviewer_id' => $reviewer_id,
+					'reason'      => 'missing_verify_properties_capability',
+				),
+				$reviewer_id
+			);
+
 			return array(
 				'success' => false,
 				'error'   => 'unauthorized',
@@ -1158,10 +1169,9 @@ class AdminReviewService {
 	}
 
 	/**
-	 * Verify if an actor has permission to review properties.
+	 * Verify if an actor has permission to review properties (view queue and inspection details).
 	 *
-	 * Supports dedicated property review capabilities while preserving
-	 * backward compatibility for general registration reviewers and administrators.
+	 * Requires dedicated ft_review_properties, ft_verify_properties, or core manage_options.
 	 *
 	 * @param int $user_id Reviewer user ID.
 	 * @return bool
@@ -1169,7 +1179,20 @@ class AdminReviewService {
 	public static function can_review_property( int $user_id ): bool {
 		return user_can( $user_id, Capabilities::REVIEW_PROPERTIES ) ||
 			   user_can( $user_id, Capabilities::VERIFY_PROPERTIES ) ||
-			   user_can( $user_id, Capabilities::REVIEW_USER_REGISTRATIONS ) ||
+			   user_can( $user_id, 'manage_options' );
+	}
+
+	/**
+	 * Verify if an actor has permission to verify properties.
+	 *
+	 * Strictly requires dedicated ft_verify_properties or core administrator manage_options.
+	 * A user with only ft_review_properties cannot verify properties.
+	 *
+	 * @param int $user_id Reviewer user ID.
+	 * @return bool
+	 */
+	public static function can_verify_property( int $user_id ): bool {
+		return user_can( $user_id, Capabilities::VERIFY_PROPERTIES ) ||
 			   user_can( $user_id, 'manage_options' );
 	}
 }

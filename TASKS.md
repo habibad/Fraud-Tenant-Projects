@@ -170,3 +170,17 @@
 - [x] Reconcile 113 Phase 6 test execution runs and 33 Phase 6.1 assertions <!-- id: FT-P6-SEC-15 -->
 - [x] Maintain cumulative unique count: 500 total, 495 PASS, 5 NOT TESTED (SMTP) <!-- id: FT-P6-SEC-16 -->
 - [x] Update documentation: QA_REPORT.md, BLOCKERS.md, SETUP.md, CHANGELOG.md, TASKS.md <!-- id: FT-P6-SEC-17 -->
+
+## Phase 6.1.1: Final Capability Enforcement Verification
+- [x] REVIEW_PROPERTIES vs VERIFY_PROPERTIES least-privilege separation <!-- id: FT-P6-CAP-01 -->
+- [x] Reviewer with REVIEW_PROPERTIES cannot verify property <!-- id: FT-P6-CAP-02 -->
+- [x] Unauthorized verification attempts return denial and audit admin_property_verify_denied <!-- id: FT-P6-CAP-03 -->
+- [x] Authorized verifier with VERIFY_PROPERTIES can verify property <!-- id: FT-P6-CAP-04 -->
+- [x] Administrator (manage_options) retains full review and verification capabilities <!-- id: FT-P6-CAP-05 -->
+- [x] Property document streaming requires property-specific capabilities <!-- id: FT-P6-CAP-06 -->
+- [x] Registration reviewer (REVIEW_USER_REGISTRATIONS) cannot stream property documents <!-- id: FT-P6-CAP-07 -->
+- [x] Property reviewer (REVIEW_PROPERTIES) can stream property documents <!-- id: FT-P6-CAP-08 -->
+- [x] Nonce CSRF protection documented as time-windowed token, not consumable single-use <!-- id: FT-P6-CAP-09 -->
+- [x] Independent server-side authorization enforced on all document and property requests <!-- id: FT-P6-CAP-10 -->
+- [x] Execute Phase 6.1.1 test suite (13 assertions PASS) <!-- id: FT-P6-CAP-11 -->
+- [x] Update QA_REPORT.md, BLOCKERS.md, CHANGELOG.md, TASKS.md <!-- id: FT-P6-CAP-12 -->
