@@ -1,0 +1,44 @@
+[
+  {
+    "id": "IJ-01",
+    "name": "Owner A files an incident naming the tenant (name + SSN + identity attestation)",
+    "pass": true,
+    "detail": "confirmation shown"
+  },
+  {
+    "id": "IJ-02",
+    "name": "Admin sees the reported tenant (name + SSN last 4) on the review screen",
+    "pass": true,
+    "detail": "report #84"
+  },
+  {
+    "id": "IJ-03",
+    "name": "Admin approves the report, then releases it to owner screening",
+    "pass": true,
+    "detail": "released"
+  },
+  {
+    "id": "IJ-04",
+    "name": "Standard owner C screens the applicant and sees the full record",
+    "pass": true,
+    "detail": "record card shown; URL/page free of SSN"
+  },
+  {
+    "id": "IJ-05",
+    "name": "Free owner B sees \"record found\" without details, with upgrade prompt",
+    "pass": true,
+    "detail": "count only"
+  },
+  {
+    "id": "IJ-06",
+    "name": "Unknown applicant returns \"no records\"",
+    "pass": true,
+    "detail": true
+  },
+  {
+    "id": "IJ-07",
+    "name": "Admin Platform Settings shows the compliance gate status",
+    "pass": true,
+    "detail": true
+  }
+]

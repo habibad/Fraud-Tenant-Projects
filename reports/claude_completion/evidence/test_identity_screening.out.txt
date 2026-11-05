@@ -1,0 +1,50 @@
+[PASS] GATE-01: Identity capture ready on QA (key + encryption + data gate)
+[PASS] GATE-02: Owner search disabled until BLK-03 attestation is recorded
+[PASS] GATE-03: Search refused while the gate is closed
+[PASS] GATE-04: Non-administrator cannot record an attestation
+[PASS] GATE-05: Attestation statement must be substantive (>= 20 chars)
+[PASS] GATE-06: Administrator attestation enables owner search
+[PASS] GATE-07: Attestation is audited
+[PASS] INC-01: Incident without tenant identity is rejected (not legacy context)
+[PASS] INC-02: Implausible SSN (area 000) rejected
+[PASS] INC-03: Identity-source attestation required
+[PASS] INC-04: Incident with tenant identity accepted
+[PASS] INC-05: Stored: 64-hex HMAC token + last four only
+[PASS] INC-06: Tenant name stored encrypted (AES-256-GCM), not in plaintext
+[PASS] INC-07: Authorized decryption returns the exact name
+[PASS] INC-08: Full SSN appears nowhere in the database (incidents, audit, screening, notifications, options)
+[PASS] REL-01: Submitted (unreviewed) report is invisible to searching owners
+[PASS] REL-02: Cannot release a report before admin approval
+[PASS] REL-03: Administrator approves the incident
+[PASS] REL-04: Approved but NOT released report is still invisible (manual disclosure control)
+[PASS] REL-05: Owners cannot release reports
+[PASS] REL-06: The filing owner cannot release their own report
+[PASS] REL-07: Administrator releases the approved report to owner screening
+[PASS] SRC-01: Standard owner: name + SSN match returns 1 full record
+[PASS] SRC-02: Full record shows category, amount, city/state
+[PASS] SRC-03: Result exposes neither the filing owner nor the street address
+[PASS] SRC-04: Result header shows the searched applicant and SSN last four only
+[PASS] SRC-05: Last-name match tolerates case/punctuation/spaces
+[PASS] SRC-06: Right SSN + wrong last name -> no match (false-match safeguard)
+[PASS] SRC-07: Different SSN -> no match
+[PASS] SRC-08: Free owner: sees "1 record found" but no details
+[PASS] SRC-09: Owner B cannot open owner C's search result (IDOR)
+[PASS] SRC-10: Applicant consent certification required
+[PASS] SRC-11: Unverified property cannot be used for screening
+[PASS] SRC-12: Another owner's property cannot be used (IDOR)
+[PASS] SRC-13: Tenants cannot run screening
+[PASS] SRC-14: Administrators cannot run owner screening
+[PASS] SRC-15: Screening request recorded with token, last four, encrypted name, match flags
+[PASS] SRC-16: Search audit contains no applicant name or SSN digits
+[PASS] DSP-01: Open tenant dispute is shown to the searching owner
+[PASS] DSP-02: Administrator links the report to the tenant's account (manual association)
+[PASS] DSP-03: Associated tenant is notified when an owner's search includes their record
+[PASS] DSP-04: Withdrawn report disappears from new searches
+[PASS] DSP-05: Withdrawal also hides it from previously saved results (re-checked at view time)
+[PASS] DSP-06: A rejected report never appears, even if its release flag is set
+[PASS] HTTP-01: Form search redirects to the result; URL carries only a request id (no PII)
+[PASS] HTTP-02: Owner dashboard renders the record card; SSN never rendered
+[PASS] HTTP-03: Search with an invalid nonce is refused (403)
+[PASS] GATE-08: Revoking the BLK-03 attestation immediately disables owner search
+
+==== Identity Screening: 48 passed, 0 failed, 48 assertions ====

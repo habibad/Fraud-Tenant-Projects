@@ -66,3 +66,11 @@ desktop.ini
 node_modules/
 vendor/
 /scratch/
+
+# ------------------------------------------------------------------------------
+# 6. Backup plugin working directories (never commit backup archives or logs)
+# ------------------------------------------------------------------------------
+wp-content/wpvividbackups/
+wp-content/wpvivid_staging/
+wp-content/wpvivid_uploads/
+/.htaccess_old

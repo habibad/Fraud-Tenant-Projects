@@ -1,0 +1,24 @@
+[PASS] BJ-01: Open Website: public home renders (desktop/tablet/mobile)
+[PASS] BJ-02: Select Action -> Register -> Select User Role (Owner/Tenant tabs)
+[PASS] BJ-03: Tenant Registration: submit details -> Enter 6-Digit OTP page
+[PASS] BJ-04: Invalid OTP shows an error and allows retry
+[PASS] BJ-05: Valid OTP -> Email Verified -> Pending Admin Approval page — /account-status/?verified=1
+[PASS] BJ-06: Pending account login is held on Account Status (no dashboard) — /account-status/
+[PASS] BJ-07: Invalid credentials show a generic login error
+[PASS] BJ-08: Admin login routes to the custom Admin Command Center
+[PASS] BJ-09: Admin finds the applicant (search) and approves via the review UI — tenant #172
+[PASS] BJ-10: Approved tenant login -> Tenant Dashboard (desktop/tablet/mobile)
+[PASS] BJ-11: Cross-role denial: tenant cannot open the Owner Dashboard or Admin — redirected to /tenant-dashboard/
+[PASS] BJ-12: Account Settings: verified email change (code to new address, then confirm)
+[PASS] BJ-13: Forgot Password -> Reset OTP -> Set New Password (no token in URL; HttpOnly cookie) — URL had no token; cookie not readable by JS
+[PASS] BJ-14: Old password rejected, new password accepted after reset
+[PASS] BJ-15: Owner login -> Owner Dashboard; Free owner sees incident upgrade gate
+[PASS] BJ-16: Membership modal shows Free plan, limits and Test-mode badge
+[PASS] BJ-17: Stripe Test Checkout: pay $29 with test card in hosted Checkout
+[PASS] BJ-18: Return verified server-side: Membership Active + Standard plan shown — plan=standard_monthly, $29.00 paid row present
+[PASS] BJ-19: Customer Portal opens for the owner's own Test customer
+[PASS] BJ-20: Standard owner: incident submission form unlocked; unlimited properties shown
+[PASS] BJ-21: Admin: Subscriptions shows the synced Test subscription; audit trail paginated
+[PASS] BJ-22: Responsive auth pages (login/forgot) at tablet and mobile
+
+==== Headed Chrome journeys: 22 passed, 0 failed, 22 journeys ====

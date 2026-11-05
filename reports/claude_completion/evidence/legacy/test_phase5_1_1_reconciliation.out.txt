@@ -1,0 +1,76 @@
+============================================================
+FRAUD TENANT — PHASE 5.1.1 RECONCILIATION TEST SUITE
+============================================================
+
+--- SECTION 1: Runtime Environment Verification ---
+[FAIL] ENV 1.1: WordPress core version is verified as 7.1.3 (get_bloginfo: 7.1.4)
+[PASS] ENV 1.2: PHP version is 8.2+ (8.2.12)
+[PASS] ENV 1.3: Database version is verified (10.4.32)
+
+--- SECTION 2: Owner Cross-User Data Isolation ---
+[PASS] ISO 2.1: Owner A sees exactly 1 property (own property)
+[PASS] ISO 2.2: Owner A property address matches 101 Alpha Boulevard
+[PASS] ISO 2.3: Owner A sees exactly 1 search (own search)
+[PASS] ISO 2.4: Owner A recent search matches ssn 1111
+[PASS] ISO 2.5: Owner A sees exactly 1 report (own report)
+[PASS] ISO 2.6: Owner A cannot retrieve Owner B's property (ID: 11)
+[PASS] ISO 2.7: Owner A cannot retrieve Owner B's screening search (ID: 2)
+[PASS] ISO 2.8: Owner B cannot retrieve Owner A's property (ID: 10)
+
+--- SECTION 3: Tenant Cross-User Data Isolation ---
+[PASS] ISO 3.1: Tenant A identity is correctly associated with Tenant A user ID
+[FAIL] ISO 3.2: Tenant A sees exactly 1 disclosed record
+PHP Warning:  Undefined array key 0 in C:\Users\Md Anikur Rahaman\AppData\Local\Temp\claude\b7716ae2ca967421\d4325114-d6c7-40bc-a05f-67cc5ec57b03\scratchpad\legacy\test_phase5_1_1_reconciliation.php on line 414
+PHP Warning:  Attempt to read property "id" on null in C:\Users\Md Anikur Rahaman\AppData\Local\Temp\claude\b7716ae2ca967421\d4325114-d6c7-40bc-a05f-67cc5ec57b03\scratchpad\legacy\test_phase5_1_1_reconciliation.php on line 414
+[FAIL] ISO 3.3: Tenant A sees own report ID (5)
+[PASS] ISO 3.4: Tenant A sees exactly 1 dispute
+[PASS] ISO 3.5: Tenant A sees own dispute ID (1)
+[PASS] ISO 3.6: Tenant A cannot retrieve Tenant B's incident report (ID: 6)
+[PASS] ISO 3.7: Tenant A cannot retrieve Tenant B's dispute (ID: 2)
+[PASS] ISO 3.8: Tenant A cannot retrieve Tenant B's notification (ID: 20)
+[PASS] ISO 3.9: Tenant A activity timeline strictly excludes Tenant B audit events
+
+--- SECTION 4: Dashboard Lifecycle Enforcement ---
+[PASS] LC 4.1: Anonymous visitor to owner-dashboard redirects to /login/
+[PASS] LC 4.2: Anonymous visitor to tenant-dashboard redirects to /login/
+[PASS] LC 4.3: email_unverified user redirects to /verify-otp/
+[PASS] LC 4.4: pending_approval user redirects to /account-status/
+[PASS] LC 4.5: info_requested user redirects to /account-status/
+[PASS] LC 4.6: Approved owner is granted access to owner-dashboard
+[PASS] LC 4.7: Approved owner accessing tenant-dashboard redirects to /owner-dashboard/
+[PASS] LC 4.8: Approved tenant is granted access to tenant-dashboard
+[PASS] LC 4.9: Approved tenant accessing owner-dashboard redirects to /tenant-dashboard/
+[PASS] LC 4.10: Rejected user redirects to /login/?error=rejected
+[PASS] LC 4.11: Suspended user redirects to /login/?error=suspended
+[PASS] LC 4.12: Administrator is granted inspection access on owner-dashboard
+[PASS] LC 4.13: Administrator is granted inspection access on tenant-dashboard
+[PASS] LC 4.14: Admin inspection on owner-dashboard returns 0 properties (does not leak other owners)
+[PASS] LC 4.15: Admin inspection on tenant-dashboard returns 0 records (does not leak other tenants)
+
+--- SECTION 5: SSN Preview End-to-End Immunity ---
+[PASS] SSN 5.1: SSN input rendered disabled, readonly, and aria-disabled
+[PASS] SSN 5.2: Search Preview button triggers client-side modal directly
+[PASS] SSN 5.3: JavaScript does not attach SSN input formatter or form submit listeners
+[PASS] SSN 5.4: Zero REST endpoints registered for tenant screening
+[PASS] SSN 5.5: Direct crafted screening request produces 0 database records
+
+--- SECTION 6: Tenant Incident Record Association & Disclosure ---
+[FAIL] REC 6.1: Disclosed records count remains exactly 1 (excludes unapproved and non-disclosable)
+[PASS] REC 6.2: Unapproved incident report (status != 'approved') is excluded
+[PASS] REC 6.3: Non-disclosable incident report (disclosable != 1) is excluded
+[PASS] REC 6.4: Tenant dashboard template contains zero $_GET or $_POST parameter bindings for tenant_id
+
+--- Cleaning up temporary test fixtures ---
+
+============================================================
+RECONCILIATION TEST RESULTS SUMMARY
+============================================================
+Total Assertions: 44
+Passed:           40
+Failed:           4
+
+Failed Tests:
+ - ENV 1.1: WordPress core version is verified as 7.1.3 (get_bloginfo: 7.1.4)
+ - ISO 3.2: Tenant A sees exactly 1 disclosed record
+ - ISO 3.3: Tenant A sees own report ID (5)
+ - REC 6.1: Disclosed records count remains exactly 1 (excludes unapproved and non-disclosable)

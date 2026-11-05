@@ -9,7 +9,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'FRAUD_TENANT_THEME_VERSION', '1.0.7' );
+define( 'FRAUD_TENANT_THEME_VERSION', '1.0.8' );
 
 /**
  * Sets up theme defaults and registers support for various WordPress features.
@@ -263,3 +263,15 @@ function fraud_tenant_contact_form_shortcode(): string {
 	return ob_get_clean();
 }
 add_shortcode( 'ft_contact_form', 'fraud_tenant_contact_form_shortcode' );
+
+/**
+ * Keep the WordPress toolbar off the member (Owner/Tenant) application shell.
+ * Administrators keep the toolbar.
+ */
+function fraud_tenant_hide_toolbar_for_members( bool $show ): bool {
+	if ( is_user_logged_in() && ! current_user_can( 'manage_options' ) ) {
+		return false;
+	}
+	return $show;
+}
+add_filter( 'show_admin_bar', 'fraud_tenant_hide_toolbar_for_members' );

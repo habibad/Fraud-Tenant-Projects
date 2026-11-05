@@ -1,0 +1,134 @@
+[
+  {
+    "id": "BJ-01",
+    "name": "Open Website: public home renders (desktop/tablet/mobile)",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "id": "BJ-02",
+    "name": "Select Action -> Register -> Select User Role (Owner/Tenant tabs)",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "id": "BJ-03",
+    "name": "Tenant Registration: submit details -> Enter 6-Digit OTP page",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "id": "BJ-04",
+    "name": "Invalid OTP shows an error and allows retry",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "id": "BJ-05",
+    "name": "Valid OTP -> Email Verified -> Pending Admin Approval page",
+    "pass": true,
+    "detail": "/account-status/?verified=1"
+  },
+  {
+    "id": "BJ-06",
+    "name": "Pending account login is held on Account Status (no dashboard)",
+    "pass": true,
+    "detail": "/account-status/"
+  },
+  {
+    "id": "BJ-07",
+    "name": "Invalid credentials show a generic login error",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "id": "BJ-08",
+    "name": "Admin login routes to the custom Admin Command Center",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "id": "BJ-09",
+    "name": "Admin finds the applicant (search) and approves via the review UI",
+    "pass": true,
+    "detail": "tenant #172"
+  },
+  {
+    "id": "BJ-10",
+    "name": "Approved tenant login -> Tenant Dashboard (desktop/tablet/mobile)",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "id": "BJ-11",
+    "name": "Cross-role denial: tenant cannot open the Owner Dashboard or Admin",
+    "pass": true,
+    "detail": "redirected to /tenant-dashboard/"
+  },
+  {
+    "id": "BJ-12",
+    "name": "Account Settings: verified email change (code to new address, then confirm)",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "id": "BJ-13",
+    "name": "Forgot Password -> Reset OTP -> Set New Password (no token in URL; HttpOnly cookie)",
+    "pass": true,
+    "detail": "URL had no token; cookie not readable by JS"
+  },
+  {
+    "id": "BJ-14",
+    "name": "Old password rejected, new password accepted after reset",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "id": "BJ-15",
+    "name": "Owner login -> Owner Dashboard; Free owner sees incident upgrade gate",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "id": "BJ-16",
+    "name": "Membership modal shows Free plan, limits and Test-mode badge",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "id": "BJ-17",
+    "name": "Stripe Test Checkout: pay $29 with test card in hosted Checkout",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "id": "BJ-18",
+    "name": "Return verified server-side: Membership Active + Standard plan shown",
+    "pass": true,
+    "detail": "plan=standard_monthly, $29.00 paid row present"
+  },
+  {
+    "id": "BJ-19",
+    "name": "Customer Portal opens for the owner's own Test customer",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "id": "BJ-20",
+    "name": "Standard owner: incident submission form unlocked; unlimited properties shown",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "id": "BJ-21",
+    "name": "Admin: Subscriptions shows the synced Test subscription; audit trail paginated",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "id": "BJ-22",
+    "name": "Responsive auth pages (login/forgot) at tablet and mobile",
+    "pass": true,
+    "detail": ""
+  }
+]

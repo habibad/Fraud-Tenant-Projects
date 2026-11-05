@@ -16,6 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 use FraudTenant\Auth\AuthHandler;
 use FraudTenant\Auth\AuthService;
 use FraudTenant\Services\DashboardService;
+use FraudTenant\Services\IncidentService;
 use FraudTenant\Services\PropertyService;
 use FraudTenant\Utils\Constants;
 
@@ -27,6 +28,8 @@ $owner_id     = $current_user->ID;
 $current_tab  = sanitize_key( get_query_var( 'ft_tab', $_GET['tab'] ?? 'overview' ) );
 $property_id  = (int) get_query_var( 'ft_property_id', $_GET['property_id'] ?? 0 );
 $prop_subview = sanitize_key( $_GET['subview'] ?? 'active' );
+$checkout_status     = sanitize_key( $_GET['checkout_status'] ?? '' );
+$checkout_session_id = sanitize_text_field( $_GET['session_id'] ?? '' );
 
 // 3. Fetch genuine database records (Zero mock data)
 $data = DashboardService::get_owner_dashboard_data( $owner_id );
@@ -117,6 +120,37 @@ get_header();
 			?>
 			<div class="auth-alert <?php echo esc_attr( $alert_class ); ?>" role="alert" style="margin-bottom: 24px;">
 				<span><?php echo esc_html( $flash_notice['message'] ); ?></span>
+			</div>
+		<?php endif; ?>
+
+		<?php
+		// Server-side verification of the checkout return; the URL alone never activates anything.
+		$checkout_verified_active = false;
+		if ( 'success' === $checkout_status && preg_match( '/^cs_[A-Za-z0-9_]+$/', $checkout_session_id ) ) {
+			$ft_ret                   = \FraudTenant\Services\CheckoutService::verify_checkout_return( $owner_id, $checkout_session_id );
+			$checkout_verified_active = ! empty( $ft_ret['success'] ) && 'active' === ( $ft_ret['status'] ?? '' );
+		}
+		?>
+		<?php if ( 'success' === $checkout_status && $checkout_verified_active ) : ?>
+			<div class="auth-alert auth-alert-success ft-checkout-banner-success" role="alert" style="margin-bottom: 24px;">
+				<strong style="display:block; font-size:14px; margin-bottom:2px;"><?php esc_html_e( 'Membership Active', 'fraud-tenant-theme' ); ?></strong>
+				<span style="font-size:13px;"><?php esc_html_e( 'Your payment and subscription were verified with Stripe. Standard features are now available.', 'fraud-tenant-theme' ); ?></span>
+			</div>
+		<?php elseif ( 'success' === $checkout_status ) : ?>
+			<div class="auth-alert auth-alert-success ft-checkout-banner-success" role="alert" style="margin-bottom: 24px; display:flex; align-items:flex-start; gap:12px;">
+				<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0; margin-top:2px;"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+				<div>
+					<strong style="display:block; font-size:14px; margin-bottom:2px;"><?php esc_html_e( 'Payment Submitted — Pending Verification', 'fraud-tenant-theme' ); ?></strong>
+					<span style="font-size:13px;"><?php esc_html_e( 'Payment submitted. Membership activation is pending server-side payment and subscription verification.', 'fraud-tenant-theme' ); ?></span>
+				</div>
+			</div>
+		<?php elseif ( 'cancelled' === $checkout_status ) : ?>
+			<div class="auth-alert ft-checkout-banner-cancelled" role="alert" style="margin-bottom: 24px; background:#FFFBEB; border:1px solid #F59E0B; color:#B45309; display:flex; align-items:flex-start; gap:12px;">
+				<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0; margin-top:2px;"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+				<div>
+					<strong style="display:block; font-size:14px; margin-bottom:2px;"><?php esc_html_e( 'Checkout Cancelled', 'fraud-tenant-theme' ); ?></strong>
+					<span style="font-size:13px;"><?php esc_html_e( 'Checkout was cancelled. Your current membership plan remains unchanged.', 'fraud-tenant-theme' ); ?></span>
+				</div>
 			</div>
 		<?php endif; ?>
 
@@ -689,7 +723,7 @@ get_header();
 					<div class="metric-data-side">
 						<span class="metric-label"><?php esc_html_e( 'Membership', 'fraud-tenant-theme' ); ?></span>
 						<span class="metric-value" style="font-size: 1.45rem; padding-top: 4px;"><?php echo esc_html( $data['membership_plan_name'] ); ?></span>
-						<a href="#membership" class="metric-upgrade-pill" data-ft-modal-target="ftMembershipModal"><?php esc_html_e( 'Upgrade', 'fraud-tenant-theme' ); ?></a>
+						<a href="#membership" class="metric-upgrade-pill" data-ft-modal-target="ftMembershipModal"><?php echo \FraudTenant\Services\MembershipService::has_active_subscription( $owner_id ) ? esc_html__( 'Manage', 'fraud-tenant-theme' ) : esc_html__( 'Upgrade', 'fraud-tenant-theme' ); ?></a>
 					</div>
 					<div class="metric-icon-circle metric-icon-gold">
 						<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14"></path></svg>
@@ -697,30 +731,8 @@ get_header();
 				</div>
 			</div>
 
-			<!-- Search Tenant Rental History Box (Showcase Match) -->
-			<div class="search-tenants-card" id="search-tenants">
-				<div class="search-tenants-header">
-					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#14263E" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-					<h3><?php esc_html_e( 'Search Tenant Rental History', 'fraud-tenant-theme' ); ?></h3>
-				</div>
-				<p class="search-tenants-subtext"><?php esc_html_e( "Enter the applicant's Social Security Number (SSN) to find matching rental history (limited view for free users).", 'fraud-tenant-theme' ); ?></p>
-				
-				<div class="search-ssn-form" id="ftSsnSearchContainer">
-					<div class="search-ssn-input-group">
-						<div class="search-ssn-field-wrapper">
-							<input type="text" class="search-ssn-input" id="ftSsnSearchInput" placeholder="XXX-XX-XXXX (Preview — Screening Engine in Phase 7)" disabled readonly aria-disabled="true" />
-							<span class="search-ssn-lock">
-								<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-							</span>
-						</div>
-						<button type="button" class="search-ssn-btn" data-ft-modal-target="ftScreeningModal"><?php esc_html_e( 'Search Preview', 'fraud-tenant-theme' ); ?></button>
-					</div>
-					<p class="search-compliance-note">
-						<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-						<?php esc_html_e( 'Informational preview only. Authorized tenant screening will be available in Phase 7 with verified FCRA permissible purpose.', 'fraud-tenant-theme' ); ?>
-					</p>
-				</div>
-			</div>
+			<!-- Identity-matched tenant screening -->
+			<?php get_template_part( 'template-parts/tenant-screening-card', null, array( 'owner_id' => $owner_id ) ); ?>
 
 			<!-- Two Column Content Grid -->
 			<div class="dashboard-grid-2col">
@@ -833,6 +845,7 @@ get_header();
 								<table class="dash-table">
 									<thead>
 										<tr>
+											<th><?php esc_html_e( 'Applicant', 'fraud-tenant-theme' ); ?></th>
 											<th><?php esc_html_e( 'SSN (Last 4)', 'fraud-tenant-theme' ); ?></th>
 											<th><?php esc_html_e( 'Search Date', 'fraud-tenant-theme' ); ?></th>
 											<th><?php esc_html_e( 'Status', 'fraud-tenant-theme' ); ?></th>
@@ -842,8 +855,10 @@ get_header();
 									<tbody>
 										<?php foreach ( $data['recent_searches'] as $search ) : ?>
 											<tr>
-												<td>&bull;&bull;&bull;&bull;-<?php echo esc_html( $search->ssn_last_four ); ?></td>
-												<td><?php echo esc_html( gmdate( 'M j, Y', strtotime( $search->search_date ) ) ); ?></td>
+												<?php $ft_sn = \FraudTenant\Services\SensitiveDataService::decrypt_array( $search->applicant_name_enc ?? null ); ?>
+												<td><?php echo esc_html( trim( ( $ft_sn['first'] ?? '' ) . ' ' . ( $ft_sn['last'] ?? '' ) ) ?: '—' ); ?></td>
+												<td><?php echo '' !== (string) $search->ssn_last_four ? '&bull;&bull;&bull;&bull;-' . esc_html( $search->ssn_last_four ) : '—'; ?></td>
+												<td><?php echo esc_html( mysql2date( 'M j, Y', get_date_from_gmt( $search->search_date ) ) ); ?></td>
 												<td>
 													<?php if ( $search->match_found ) : ?>
 														<span style="color:#0E9488; font-weight:600;"><?php esc_html_e( 'Match Found', 'fraud-tenant-theme' ); ?></span>
@@ -852,7 +867,11 @@ get_header();
 													<?php endif; ?>
 												</td>
 												<td>
-													<span style="color:var(--dash-muted); font-size:12px;"><?php esc_html_e( 'View (Locked)', 'fraud-tenant-theme' ); ?></span>
+													<?php if ( ! empty( $search->applicant_token_hash ) ) : ?>
+														<a href="<?php echo esc_url( add_query_arg( array( 'ft_tab' => 'screening', 'screening_request' => (int) $search->id ), home_url( '/owner-dashboard/' ) ) ); ?>" class="dash-panel-link"><?php esc_html_e( 'View result', 'fraud-tenant-theme' ); ?></a>
+													<?php else : ?>
+														<span style="color:var(--dash-muted); font-size:12px;"><?php esc_html_e( 'Request logged', 'fraud-tenant-theme' ); ?></span>
+													<?php endif; ?>
 												</td>
 											</tr>
 										<?php endforeach; ?>
@@ -862,6 +881,116 @@ get_header();
 						<?php endif; ?>
 					</div>
 
+				
+					<!-- Incident Reports Panel (Phase 8.1 Showcase) -->
+					<div class="dash-panel" id="my-reports" style="margin-top:24px;">
+						<div class="dash-panel-header">
+							<div>
+								<h2 class="dash-panel-title"><?php esc_html_e( 'Incident Reports', 'fraud-tenant-theme' ); ?></h2>
+								<div style="font-size:12px; color:var(--dash-muted); margin-top:2px;">
+									<?php esc_html_e( 'Submit and track factual incident records regarding unpaid rent, property damage, or lease violations.', 'fraud-tenant-theme' ); ?>
+								</div>
+							</div>
+							<?php if ( \FraudTenant\Services\ComplianceService::is_data_gate_open() ) : ?>
+								<button type="button" class="dashboard-btn-add" data-ft-modal-target="ftIncidentModal" style="padding:4px 10px; font-size:12px;">
+									<?php esc_html_e( '+ Submit Incident Report', 'fraud-tenant-theme' ); ?>
+								</button>
+							<?php else : ?>
+								<button type="button" class="dashboard-btn-add" disabled style="padding:4px 10px; font-size:12px; opacity:0.6; cursor:not-allowed;" title="<?php esc_attr_e( 'Submission locked pending completion of sensitive PII encryption infrastructure (BLK-08).', 'fraud-tenant-theme' ); ?>">
+									<?php esc_html_e( '+ Submit Incident Report (Locked)', 'fraud-tenant-theme' ); ?>
+								</button>
+							<?php endif; ?>
+						</div>
+
+						<?php if ( ! \FraudTenant\Services\ComplianceService::is_data_gate_open() ) : ?>
+							<div style="margin-bottom:16px; padding:12px 14px; background:#FFFBEB; border:1px solid #FCD34D; border-radius:8px; font-size:12px; color:#92400E; line-height:1.4;">
+								<strong style="color:#78350F;"><?php esc_html_e( 'Sensitive PII Encryption Gate Active (BLK-08):', 'fraud-tenant-theme' ); ?></strong>
+								<?php esc_html_e( 'Real-data incident submission is currently locked in production pending finalization of application-level sensitive PII encryption infrastructure. Synthetic submissions are enabled in test mode.', 'fraud-tenant-theme' ); ?>
+							</div>
+						<?php else : ?>
+							<div style="margin-bottom:14px; display:inline-flex; align-items:center; gap:6px; background:#ECFDF5; border:1px solid #A7F3D0; border-radius:6px; padding:4px 10px; font-size:12px; color:#065F46;">
+								<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:#10B981;"></span>
+								<strong><?php esc_html_e( 'Test Mode Active:', 'fraud-tenant-theme' ); ?></strong>
+								<span><?php esc_html_e( 'Synthetic incident reporting enabled for pre-production evaluation.', 'fraud-tenant-theme' ); ?></span>
+							</div>
+						<?php endif; ?>
+
+						<?php if ( empty( $data['incident_reports'] ) ) : ?>
+							<div class="dash-empty-state">
+								<div class="dash-empty-icon">
+									<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+								</div>
+								<h4><?php esc_html_e( 'No incident reports submitted yet', 'fraud-tenant-theme' ); ?></h4>
+								<p><?php esc_html_e( 'Factual documentation submitted for lease violations, unpaid rent, or property damage will be displayed here following administrative review.', 'fraud-tenant-theme' ); ?></p>
+							</div>
+						<?php else : ?>
+							<div class="dash-table-wrapper">
+								<table class="dash-table">
+									<thead>
+										<tr>
+											<th><?php esc_html_e( 'Reference', 'fraud-tenant-theme' ); ?></th>
+											<th><?php esc_html_e( 'Property', 'fraud-tenant-theme' ); ?></th>
+											<th><?php esc_html_e( 'Category', 'fraud-tenant-theme' ); ?></th>
+											<th><?php esc_html_e( 'Incident Date', 'fraud-tenant-theme' ); ?></th>
+											<th><?php esc_html_e( 'Amount', 'fraud-tenant-theme' ); ?></th>
+											<th><?php esc_html_e( 'Status', 'fraud-tenant-theme' ); ?></th>
+											<th style="text-align:right;"><?php esc_html_e( 'Disclosable', 'fraud-tenant-theme' ); ?></th>
+										</tr>
+									</thead>
+									<tbody>
+										<?php foreach ( $data['incident_reports'] as $report ) : ?>
+											<tr>
+												<td>
+													<strong style="color:var(--dash-navy); font-family:monospace; font-size:13px;">
+														<?php echo esc_html( $report->reference ); ?>
+													</strong>
+												</td>
+												<td>
+													<div style="font-weight:600; color:var(--dash-navy);">
+														<?php echo esc_html( $report->property_title ?: $report->property_street ); ?>
+													</div>
+													<div style="font-size:11px; color:var(--dash-muted);">
+														<?php echo esc_html( $report->property_city . ', ' . $report->property_state ); ?>
+													</div>
+												</td>
+												<td>
+													<span style="font-size:12px; font-weight:500;">
+														<?php echo esc_html( $report->category_label ); ?>
+													</span>
+												</td>
+												<td>
+													<span style="font-size:12px; color:var(--dash-navy);">
+														<?php echo esc_html( gmdate( 'M j, Y', strtotime( $report->incident_date ) ) ); ?>
+													</span>
+												</td>
+												<td>
+													<span style="font-size:12px; font-weight:600; color:var(--dash-navy);">
+														<?php echo esc_html( $report->amount_formatted ); ?>
+													</span>
+												</td>
+												<td>
+													<?php if ( 'approved' === $report->status ) : ?>
+														<span class="badge-dash badge-dash-verified"><?php esc_html_e( 'Approved', 'fraud-tenant-theme' ); ?></span>
+													<?php elseif ( 'rejected' === $report->status ) : ?>
+														<span class="badge-dash badge-dash-rejected"><?php esc_html_e( 'Rejected', 'fraud-tenant-theme' ); ?></span>
+													<?php else : ?>
+														<span class="badge-dash badge-dash-pending"><?php esc_html_e( 'Submitted (Pending Review)', 'fraud-tenant-theme' ); ?></span>
+													<?php endif; ?>
+												</td>
+												<td style="text-align:right;">
+													<?php if ( ! empty( $report->disclosable ) ) : ?>
+														<span style="color:#0E9488; font-weight:600; font-size:12px;"><?php esc_html_e( 'Disclosed', 'fraud-tenant-theme' ); ?></span>
+													<?php else : ?>
+														<span style="color:var(--dash-muted); font-size:12px;"><?php esc_html_e( 'Non-Disclosable', 'fraud-tenant-theme' ); ?></span>
+													<?php endif; ?>
+												</td>
+											</tr>
+										<?php endforeach; ?>
+									</tbody>
+								</table>
+							</div>
+						<?php endif; ?>
+					</div>
 				</div>
 
 				<!-- Right Column (Promo & Profile) -->
@@ -1043,84 +1172,532 @@ get_header();
 </div>
 
 <!-- Modal 2: Tenant Screening Compliance (Phase 7 Workflow) -->
-<div class="ft-modal-overlay" id="ftScreeningModal" role="dialog" aria-modal="true" aria-labelledby="ftScreeningTitle">
-	<div class="ft-modal-box">
-		<button type="button" class="ft-modal-close" aria-label="<?php esc_attr_e( 'Close', 'fraud-tenant-theme' ); ?>">&times;</button>
-		<h3 class="ft-modal-title" id="ftScreeningTitle"><?php esc_html_e( 'Tenant Screening Notice', 'fraud-tenant-theme' ); ?></h3>
-		<p class="ft-modal-desc">
-			<?php esc_html_e( 'Tenant screening queries are governed by the Fair Credit Reporting Act (FCRA). The interactive screening engine with permissible purpose certification will be activated in Phase 7.', 'fraud-tenant-theme' ); ?>
-		</p>
-		<div style="background:#FFFBEB; border:1px solid #FCD34D; padding:14px; border-radius:8px; font-size:13px; color:#92400E; margin-bottom:18px;">
-			<strong style="display:block; margin-bottom:4px;"><?php esc_html_e( 'Permissible Purpose Requirement:', 'fraud-tenant-theme' ); ?></strong>
-			<?php esc_html_e( 'Screening may only be conducted with written rental application consent from the prospective applicant for legitimate tenant evaluation.', 'fraud-tenant-theme' ); ?>
-		</div>
-		<button type="button" class="dashboard-btn-add" data-ft-modal-close style="width:100%; justify-content:center;">
-			<?php esc_html_e( 'Close Notice', 'fraud-tenant-theme' ); ?>
-		</button>
-	</div>
-</div>
-
-<!-- Modal 3: Membership Plans (Phase 9 Stripe Pricing) -->
-<div class="ft-modal-overlay" id="ftMembershipModal" role="dialog" aria-modal="true" aria-labelledby="ftMemTitle">
+<!-- Modal 3: Membership Plans (Phase 9 Stripe Checkout) -->
+<?php
+$has_stripe_cust = ! empty( \FraudTenant\Services\StripeService::get_customer_id( $owner_id ) );
+$has_active_sub  = \FraudTenant\Services\MembershipService::has_active_subscription( $owner_id );
+$ft_membership   = \FraudTenant\Services\MembershipService::get_effective_membership_status( $owner_id );
+$ft_stripe_mode  = \FraudTenant\Services\StripeCredentialService::get_active_mode();
+$ft_sub_history  = \FraudTenant\Services\MembershipService::get_subscription_history( $owner_id, 5 );
+$ft_billing      = \FraudTenant\Services\MembershipService::get_billing_history( $owner_id, 10 );
+$ft_live_flag    = 'live' === $ft_stripe_mode ? 1 : 0;
+$ft_latest_sub   = null;
+foreach ( $ft_sub_history as $ft_h ) {
+	if ( (int) $ft_h->livemode === $ft_live_flag ) {
+		$ft_latest_sub = $ft_h;
+		break;
+	}
+}
+?>
+<div class="ft-modal-overlay" id="ftMembershipModal" role="dialog" aria-modal="true" aria-labelledby="ftMemTitle"
+	data-rest-url="<?php echo esc_url( rest_url( 'fraud-tenant/v1' ) ); ?>"
+	data-rest-nonce="<?php echo esc_attr( wp_create_nonce( 'wp_rest' ) ); ?>">
 	<div class="ft-modal-box" style="max-width: 620px;">
 		<button type="button" class="ft-modal-close" aria-label="<?php esc_attr_e( 'Close', 'fraud-tenant-theme' ); ?>">&times;</button>
 		<h3 class="ft-modal-title" id="ftMemTitle"><?php esc_html_e( 'Membership Plans & Pricing', 'fraud-tenant-theme' ); ?></h3>
 		<p class="ft-modal-desc">
-			<?php esc_html_e( 'Select the membership plan that best suits your rental portfolio. Direct Stripe payment checkout will be activated in Phase 9.', 'fraud-tenant-theme' ); ?>
+			<?php esc_html_e( 'Select the membership plan that best suits your rental portfolio to access full reports and incident reporting.', 'fraud-tenant-theme' ); ?>
 		</p>
-		<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:20px;">
-			<div style="border:1.5px solid #E2E8F0; border-radius:10px; padding:18px; text-align:center;">
-				<h4 style="margin:0 0 6px 0; color:var(--dash-navy); font-size:16px;"><?php esc_html_e( 'Standard Monthly', 'fraud-tenant-theme' ); ?></h4>
-				<div style="font-size:26px; font-weight:800; color:var(--dash-navy);">$29 <span style="font-size:13px; font-weight:500; color:var(--dash-muted);">/ month</span></div>
-				<ul style="text-align:left; font-size:12px; color:var(--dash-muted); margin:12px 0 0 0; padding-left:18px; line-height:1.6;">
-					<li><?php esc_html_e( 'Full screening reports', 'fraud-tenant-theme' ); ?></li>
-					<li><?php esc_html_e( 'Incident reporting access', 'fraud-tenant-theme' ); ?></li>
-					<li><?php esc_html_e( 'Cancel anytime', 'fraud-tenant-theme' ); ?></li>
-				</ul>
+
+		<div id="ftCheckoutNotice" style="display:none; margin-bottom:16px;"></div>
+
+		<div class="ft-membership-status" style="border:1px solid #E2E8F0; border-radius:10px; padding:14px 16px; margin-bottom:16px; font-size:13px; color:var(--dash-navy);">
+			<div style="display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;">
+				<div>
+					<span style="color:var(--dash-muted);"><?php esc_html_e( 'Current plan:', 'fraud-tenant-theme' ); ?></span>
+					<strong data-ft-current-plan="<?php echo esc_attr( $ft_membership['plan_code'] ); ?>"><?php echo esc_html( $ft_membership['plan_name'] ); ?></strong>
+				</div>
+				<?php if ( 'test' === $ft_stripe_mode ) : ?>
+					<span style="background:#FEF3C7; color:#92400E; font-size:11px; font-weight:700; padding:2px 8px; border-radius:10px;"><?php esc_html_e( 'BILLING TEST MODE', 'fraud-tenant-theme' ); ?></span>
+				<?php endif; ?>
 			</div>
-			<div style="border:2px solid var(--dash-teal); border-radius:10px; padding:18px; text-align:center; background:#F0FDFA; position:relative;">
+			<div style="margin-top:6px; color:var(--dash-muted);">
+				<?php
+				$ft_limit = (int) $ft_membership['property_limit'];
+				echo esc_html(
+					sprintf(
+						/* translators: %s: property limit */
+						__( 'Active property limit: %s', 'fraud-tenant-theme' ),
+						-1 === $ft_limit ? __( 'Unlimited', 'fraud-tenant-theme' ) : (string) $ft_limit
+					)
+				);
+				?>
+				&middot;
+				<?php echo ! empty( $ft_membership['features']['incident_reporting'] ) ? esc_html__( 'Incident reporting included', 'fraud-tenant-theme' ) : esc_html__( 'Incident reporting requires Standard', 'fraud-tenant-theme' ); ?>
+			</div>
+			<?php if ( $has_active_sub && ! empty( $ft_membership['current_period_end'] ) ) : ?>
+				<div style="margin-top:6px;">
+					<?php if ( ! empty( $ft_membership['cancel_at_period_end'] ) ) : ?>
+						<?php /* translators: %s: date */ ?>
+						<span style="color:#B45309; font-weight:600;"><?php echo esc_html( sprintf( __( 'Cancels on %s — access continues until then.', 'fraud-tenant-theme' ), mysql2date( 'M j, Y', $ft_membership['current_period_end'] ) ) ); ?></span>
+					<?php else : ?>
+						<?php /* translators: %s: date */ ?>
+						<?php echo esc_html( sprintf( __( 'Renews on %s', 'fraud-tenant-theme' ), mysql2date( 'M j, Y', $ft_membership['current_period_end'] ) ) ); ?>
+					<?php endif; ?>
+				</div>
+			<?php elseif ( $ft_latest_sub && in_array( $ft_latest_sub->status, array( 'past_due', 'unpaid', 'incomplete' ), true ) ) : ?>
+				<div style="margin-top:6px; color:#B91C1C; font-weight:600;">
+					<?php esc_html_e( 'Your last membership payment did not complete. Standard features are paused — update your payment method in the billing portal.', 'fraud-tenant-theme' ); ?>
+				</div>
+			<?php endif; ?>
+		</div>
+
+		<?php if ( $has_active_sub ) : ?>
+			<div style="background:#F0FDFA; border:1.5px solid #0E9488; border-radius:8px; padding:14px; margin-bottom:18px; color:#14263E; font-size:13px;">
+				<strong>&check; <?php esc_html_e( 'You have an active Standard subscription.', 'fraud-tenant-theme' ); ?></strong>
+				<p style="margin:4px 0 0 0; color:var(--dash-muted);"><?php esc_html_e( 'Your account already has full feature entitlements. Use the billing portal below to update payment methods or view invoices.', 'fraud-tenant-theme' ); ?></p>
+			</div>
+		<?php endif; ?>
+
+		<div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px; margin-bottom:20px;">
+			<div style="border:1.5px solid #E2E8F0; border-radius:10px; padding:18px; text-align:center; display:flex; flex-direction:column; justify-content:space-between;">
+				<div>
+					<h4 style="margin:0 0 6px 0; color:var(--dash-navy); font-size:16px;"><?php esc_html_e( 'Standard Monthly', 'fraud-tenant-theme' ); ?></h4>
+					<div style="font-size:26px; font-weight:800; color:var(--dash-navy);">$29 <span style="font-size:13px; font-weight:500; color:var(--dash-muted);">/ month</span></div>
+					<ul style="text-align:left; font-size:12px; color:var(--dash-muted); margin:12px 0 0 0; padding-left:18px; line-height:1.6;">
+						<li><?php esc_html_e( 'Full screening reports', 'fraud-tenant-theme' ); ?></li>
+						<li><?php esc_html_e( 'Incident reporting access', 'fraud-tenant-theme' ); ?></li>
+						<li><?php esc_html_e( 'Unlimited properties', 'fraud-tenant-theme' ); ?></li>
+						<li><?php esc_html_e( 'Cancel anytime', 'fraud-tenant-theme' ); ?></li>
+					</ul>
+				</div>
+				<?php if ( ! $has_active_sub ) : ?>
+					<button type="button" class="dashboard-btn-add ft-checkout-btn" data-plan-code="standard_monthly" data-plan-id="2" style="width:100%; justify-content:center; margin-top:14px; font-size:13px;">
+						<?php esc_html_e( 'Select Monthly Plan', 'fraud-tenant-theme' ); ?>
+					</button>
+				<?php endif; ?>
+			</div>
+			<div style="border:2px solid var(--dash-teal); border-radius:10px; padding:18px; text-align:center; background:#F0FDFA; position:relative; display:flex; flex-direction:column; justify-content:space-between;">
 				<div style="position:absolute; top:-10px; right:14px; background:var(--dash-teal); color:#FFFFFF; font-size:10px; font-weight:700; padding:2px 8px; border-radius:10px;">
 					<?php esc_html_e( 'BEST VALUE', 'fraud-tenant-theme' ); ?>
 				</div>
-				<h4 style="margin:0 0 6px 0; color:var(--dash-navy); font-size:16px;"><?php esc_html_e( 'Standard Annual', 'fraud-tenant-theme' ); ?></h4>
-				<div style="font-size:26px; font-weight:800; color:var(--dash-navy);">$290 <span style="font-size:13px; font-weight:500; color:var(--dash-muted);">/ year</span></div>
-				<ul style="text-align:left; font-size:12px; color:var(--dash-muted); margin:12px 0 0 0; padding-left:18px; line-height:1.6;">
-					<li><?php esc_html_e( '2 Months Free Included', 'fraud-tenant-theme' ); ?></li>
-					<li><?php esc_html_e( 'Full screening reports', 'fraud-tenant-theme' ); ?></li>
-					<li><?php esc_html_e( 'Priority compliance review', 'fraud-tenant-theme' ); ?></li>
-				</ul>
+				<div>
+					<h4 style="margin:0 0 6px 0; color:var(--dash-navy); font-size:16px;"><?php esc_html_e( 'Standard Annual', 'fraud-tenant-theme' ); ?></h4>
+					<div style="font-size:26px; font-weight:800; color:var(--dash-navy);">$290 <span style="font-size:13px; font-weight:500; color:var(--dash-muted);">/ year</span></div>
+					<ul style="text-align:left; font-size:12px; color:var(--dash-muted); margin:12px 0 0 0; padding-left:18px; line-height:1.6;">
+						<li><?php esc_html_e( '2 Months Free Included', 'fraud-tenant-theme' ); ?></li>
+						<li><?php esc_html_e( 'Full screening reports', 'fraud-tenant-theme' ); ?></li>
+						<li><?php esc_html_e( 'Incident reporting access', 'fraud-tenant-theme' ); ?></li>
+						<li><?php esc_html_e( 'Priority compliance review', 'fraud-tenant-theme' ); ?></li>
+					</ul>
+				</div>
+				<?php if ( ! $has_active_sub ) : ?>
+					<button type="button" class="dashboard-btn-add ft-checkout-btn" data-plan-code="standard_yearly" data-plan-id="3" style="width:100%; justify-content:center; margin-top:14px; font-size:13px; background:var(--dash-teal);">
+						<?php esc_html_e( 'Select Annual Plan', 'fraud-tenant-theme' ); ?>
+					</button>
+				<?php endif; ?>
 			</div>
 		</div>
-		<button type="button" class="dashboard-btn-add" data-ft-modal-close style="width:100%; justify-content:center;">
-			<?php esc_html_e( 'Close Preview', 'fraud-tenant-theme' ); ?>
-		</button>
+
+		<?php if ( $has_stripe_cust || $has_active_sub ) : ?>
+			<div style="border-top:1px solid #E2E8F0; padding-top:14px; margin-top:14px; text-align:center;">
+				<p style="font-size:12px; color:var(--dash-muted); margin:0 0 10px 0;">
+					<?php esc_html_e( 'Manage payment methods, view past billing history, or update subscription settings.', 'fraud-tenant-theme' ); ?>
+				</p>
+				<button type="button" class="dashboard-btn-secondary ft-portal-btn" style="width:100%; justify-content:center; font-size:13px;">
+					<?php esc_html_e( 'Open Stripe Billing Portal', 'fraud-tenant-theme' ); ?> &rarr;
+				</button>
+			</div>
+		<?php endif; ?>
+
+		<?php if ( ! empty( $ft_billing ) ) : ?>
+			<div style="margin-top:16px;">
+				<h4 style="margin:0 0 8px 0; font-size:13px; color:var(--dash-navy);"><?php esc_html_e( 'Payment History', 'fraud-tenant-theme' ); ?></h4>
+				<table class="ft-billing-table" style="width:100%; font-size:12px; border-collapse:collapse;">
+					<thead><tr style="text-align:left; color:var(--dash-muted);"><th style="padding:4px 0;"><?php esc_html_e( 'Date', 'fraud-tenant-theme' ); ?></th><th><?php esc_html_e( 'Amount', 'fraud-tenant-theme' ); ?></th><th><?php esc_html_e( 'Result', 'fraud-tenant-theme' ); ?></th></tr></thead>
+					<tbody>
+					<?php foreach ( $ft_billing as $ft_b ) : ?>
+						<tr style="border-top:1px solid #F1F5F9;">
+							<td style="padding:6px 0;"><?php echo esc_html( mysql2date( 'M j, Y', $ft_b['date'] ) ); ?><?php if ( ! $ft_b['livemode'] ) : ?> <span style="color:#92400E;">(<?php esc_html_e( 'test', 'fraud-tenant-theme' ); ?>)</span><?php endif; ?></td>
+							<td><?php echo esc_html( number_format( $ft_b['amount'] / 100, 2 ) . ' ' . $ft_b['currency'] ); ?></td>
+							<td style="font-weight:600; color:<?php echo 'paid' === $ft_b['result'] ? '#047857' : '#B91C1C'; ?>;"><?php echo 'paid' === $ft_b['result'] ? esc_html__( 'Paid', 'fraud-tenant-theme' ) : esc_html__( 'Failed', 'fraud-tenant-theme' ); ?></td>
+						</tr>
+					<?php endforeach; ?>
+					</tbody>
+				</table>
+			</div>
+		<?php endif; ?>
+
+		<div style="margin-top:14px;">
+			<button type="button" class="dashboard-btn-secondary" data-ft-modal-close style="width:100%; justify-content:center;">
+				<?php esc_html_e( 'Close', 'fraud-tenant-theme' ); ?>
+			</button>
+		</div>
+	</div>
+</div>
+<?php if ( 'screening' === $current_tab ) : ?>
+<script>window.addEventListener('load',function(){var e=document.getElementById('ftScreeningResult')||document.getElementById('search-tenants');if(e){e.scrollIntoView({block:'start'});}});</script>
+<?php endif; ?>
+<?php if ( 'membership' === $current_tab || '' !== $checkout_status ) : ?>
+<script>
+window.addEventListener('load', function () { // after dashboard.js has bound modal handlers
+	var trigger = document.querySelector('[data-ft-modal-target="ftMembershipModal"]');
+	if (trigger) { trigger.click(); }
+});
+</script>
+<?php endif; ?>
+<!-- Modal 4: Account & Profile Settings -->
+<div class="ft-modal-overlay" id="ftProfileModal" role="dialog" aria-modal="true" aria-labelledby="ftProfTitle">
+	<div class="ft-modal-box" style="max-width: 680px; width: 100%;">
+		<button type="button" class="ft-modal-close" aria-label="<?php esc_attr_e( 'Close', 'fraud-tenant-theme' ); ?>">&times;</button>
+		<h3 class="ft-modal-title" id="ftProfTitle"><?php esc_html_e( 'Account & Profile Settings', 'fraud-tenant-theme' ); ?></h3>
+		<p class="ft-modal-desc">
+			<?php esc_html_e( 'Manage your contact details, personal information, password, and membership.', 'fraud-tenant-theme' ); ?>
+		</p>
+
+		<!-- Sub-Navigation Tabs -->
+		<div class="ft-settings-nav" style="display:flex; gap:8px; border-bottom:1px solid #E2E8F0; margin-bottom:20px; padding-bottom:10px; overflow-x:auto;">
+			<button type="button" class="ft-settings-tab is-active" data-tab-target="ftTabProfile" style="background:none; border:none; padding:8px 14px; font-weight:700; font-size:13px; color:var(--dash-teal); border-bottom:2px solid var(--dash-teal); cursor:pointer;">
+				<?php esc_html_e( 'Profile Details', 'fraud-tenant-theme' ); ?>
+			</button>
+			<button type="button" class="ft-settings-tab" data-tab-target="ftTabPassword" style="background:none; border:none; padding:8px 14px; font-weight:600; font-size:13px; color:#64748B; cursor:pointer;">
+				<?php esc_html_e( 'Security & Password', 'fraud-tenant-theme' ); ?>
+			</button>
+			<button type="button" class="ft-settings-tab" data-tab-target="ftTabEmail" style="background:none; border:none; padding:8px 14px; font-weight:600; font-size:13px; color:#64748B; cursor:pointer;">
+				<?php esc_html_e( 'Email Address', 'fraud-tenant-theme' ); ?>
+			</button>
+			<button type="button" class="ft-settings-tab" data-tab-target="ftTabPlan" style="background:none; border:none; padding:8px 14px; font-weight:600; font-size:13px; color:#64748B; cursor:pointer;">
+				<?php esc_html_e( 'Membership Plan', 'fraud-tenant-theme' ); ?>
+			</button>
+		</div>
+
+		<!-- Panel 1: Profile Details -->
+		<div class="ft-settings-panel" id="ftTabProfile">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="ft_update_profile" />
+				<input type="hidden" name="account_section" value="profile" />
+				<input type="hidden" name="redirect_to" value="<?php echo esc_url( home_url( '/owner-dashboard/' ) ); ?>" />
+				<?php wp_nonce_field( 'ft_update_profile_' . $owner_id, 'ft_profile_nonce' ); ?>
+
+				<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
+					<div>
+						<label for="owner_first_name" style="display:block; font-size:12px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+							<?php esc_html_e( 'First Name', 'fraud-tenant-theme' ); ?>
+						</label>
+						<input type="text" id="owner_first_name" name="first_name" value="<?php echo esc_attr( $current_user->first_name ); ?>" class="search-ssn-input" style="height:40px; background:#FFFFFF;" required />
+					</div>
+					<div>
+						<label for="owner_last_name" style="display:block; font-size:12px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+							<?php esc_html_e( 'Last Name', 'fraud-tenant-theme' ); ?>
+						</label>
+						<input type="text" id="owner_last_name" name="last_name" value="<?php echo esc_attr( $current_user->last_name ); ?>" class="search-ssn-input" style="height:40px; background:#FFFFFF;" required />
+					</div>
+				</div>
+
+				<div style="margin-bottom:14px;">
+					<label for="owner_phone_edit" style="display:block; font-size:12px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+						<?php esc_html_e( 'Phone Number', 'fraud-tenant-theme' ); ?>
+					</label>
+					<input type="tel" id="owner_phone_edit" name="phone" value="<?php echo esc_attr( $user_profile?->phone ?? '' ); ?>" class="search-ssn-input" style="height:40px; background:#FFFFFF;" placeholder="(555) 000-0000" required />
+				</div>
+
+				<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px;">
+					<div>
+						<label for="owner_biz_name" style="display:block; font-size:12px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+							<?php esc_html_e( 'Business / Entity Name', 'fraud-tenant-theme' ); ?>
+						</label>
+						<input type="text" id="owner_biz_name" name="business_name" value="<?php echo esc_attr( $user_profile?->business_name ?? '' ); ?>" class="search-ssn-input" style="height:40px; background:#FFFFFF;" />
+					</div>
+					<div>
+						<label for="owner_biz_reg" style="display:block; font-size:12px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+							<?php esc_html_e( 'Business Reg. Number', 'fraud-tenant-theme' ); ?>
+						</label>
+						<input type="text" id="owner_biz_reg" name="business_reg_number" value="<?php echo esc_attr( $user_profile?->business_reg_number ?? '' ); ?>" class="search-ssn-input" style="height:40px; background:#FFFFFF;" />
+					</div>
+				</div>
+
+				<div style="margin-bottom:14px;">
+					<label for="owner_addr1" style="display:block; font-size:12px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+						<?php esc_html_e( 'Street Address', 'fraud-tenant-theme' ); ?>
+					</label>
+					<input type="text" id="owner_addr1" name="address_line1" value="<?php echo esc_attr( $user_profile?->address_line1 ?? '' ); ?>" class="search-ssn-input" style="height:40px; background:#FFFFFF;" placeholder="123 Main St" />
+				</div>
+
+				<div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:14px; margin-bottom:20px;">
+					<div>
+						<label for="owner_city" style="display:block; font-size:12px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+							<?php esc_html_e( 'City', 'fraud-tenant-theme' ); ?>
+						</label>
+						<input type="text" id="owner_city" name="city" value="<?php echo esc_attr( $user_profile?->city ?? '' ); ?>" class="search-ssn-input" style="height:40px; background:#FFFFFF;" />
+					</div>
+					<div>
+						<label for="owner_state" style="display:block; font-size:12px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+							<?php esc_html_e( 'State', 'fraud-tenant-theme' ); ?>
+						</label>
+						<input type="text" id="owner_state" name="state" value="<?php echo esc_attr( $user_profile?->state ?? '' ); ?>" class="search-ssn-input" style="height:40px; background:#FFFFFF;" placeholder="TX" />
+					</div>
+					<div>
+						<label for="owner_zip" style="display:block; font-size:12px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+							<?php esc_html_e( 'Postal Code', 'fraud-tenant-theme' ); ?>
+						</label>
+						<input type="text" id="owner_zip" name="postal_code" value="<?php echo esc_attr( $user_profile?->postal_code ?? '' ); ?>" class="search-ssn-input" style="height:40px; background:#FFFFFF;" placeholder="75001" />
+					</div>
+				</div>
+
+				<button type="submit" class="dashboard-btn-add" style="width:100%; justify-content:center;">
+					<?php esc_html_e( 'Save Profile Information', 'fraud-tenant-theme' ); ?>
+				</button>
+			</form>
+		</div>
+
+		<!-- Panel 2: Security & Password -->
+		<div class="ft-settings-panel" id="ftTabPassword" style="display:none;">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="ft_update_profile" />
+				<input type="hidden" name="account_section" value="password" />
+				<input type="hidden" name="redirect_to" value="<?php echo esc_url( home_url( '/owner-dashboard/' ) ); ?>" />
+				<?php wp_nonce_field( 'ft_update_profile_' . $owner_id, 'ft_profile_nonce' ); ?>
+
+				<div style="margin-bottom:14px;">
+					<label for="owner_curr_pw" style="display:block; font-size:12px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+						<?php esc_html_e( 'Current Password', 'fraud-tenant-theme' ); ?> <span style="color:#EF4444;">*</span>
+					</label>
+					<input type="password" id="owner_curr_pw" name="current_password" class="search-ssn-input" style="height:40px; background:#FFFFFF;" required />
+				</div>
+
+				<div style="margin-bottom:14px;">
+					<label for="owner_new_pw" style="display:block; font-size:12px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+						<?php esc_html_e( 'New Password (minimum 8 characters)', 'fraud-tenant-theme' ); ?> <span style="color:#EF4444;">*</span>
+					</label>
+					<input type="password" id="owner_new_pw" name="new_password" minlength="8" class="search-ssn-input" style="height:40px; background:#FFFFFF;" required />
+				</div>
+
+				<div style="margin-bottom:20px;">
+					<label for="owner_conf_pw" style="display:block; font-size:12px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+						<?php esc_html_e( 'Confirm New Password', 'fraud-tenant-theme' ); ?> <span style="color:#EF4444;">*</span>
+					</label>
+					<input type="password" id="owner_conf_pw" name="confirm_password" minlength="8" class="search-ssn-input" style="height:40px; background:#FFFFFF;" required />
+				</div>
+
+				<button type="submit" class="dashboard-btn-add" style="width:100%; justify-content:center;">
+					<?php esc_html_e( 'Update Password', 'fraud-tenant-theme' ); ?>
+				</button>
+			</form>
+		</div>
+
+		<!-- Panel 3: Email Address -->
+		<div class="ft-settings-panel" id="ftTabEmail" style="display:none;">
+			<?php get_template_part( 'template-parts/email-change-confirm', null, array( 'user_id' => $owner_id, 'redirect' => home_url( '/owner-dashboard/' ) ) ); ?>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="ft_update_profile" />
+				<input type="hidden" name="account_section" value="email" />
+				<input type="hidden" name="redirect_to" value="<?php echo esc_url( home_url( '/owner-dashboard/' ) ); ?>" />
+				<?php wp_nonce_field( 'ft_update_profile_' . $owner_id, 'ft_profile_nonce' ); ?>
+
+				<div style="margin-bottom:14px;">
+					<label style="display:block; font-size:12px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+						<?php esc_html_e( 'Current Email Address', 'fraud-tenant-theme' ); ?>
+					</label>
+					<input type="email" value="<?php echo esc_attr( $current_user->user_email ); ?>" class="search-ssn-input" style="height:40px; background:#F8FAFC; color:#64748B;" disabled readonly />
+				</div>
+
+				<div style="margin-bottom:14px;">
+					<label for="owner_new_email" style="display:block; font-size:12px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+						<?php esc_html_e( 'New Email Address', 'fraud-tenant-theme' ); ?> <span style="color:#EF4444;">*</span>
+					</label>
+					<input type="email" id="owner_new_email" name="new_email" class="search-ssn-input" style="height:40px; background:#FFFFFF;" required />
+				</div>
+
+				<div style="margin-bottom:20px;">
+					<label for="owner_email_curr_pw" style="display:block; font-size:12px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+						<?php esc_html_e( 'Current Password (to authorize change)', 'fraud-tenant-theme' ); ?> <span style="color:#EF4444;">*</span>
+					</label>
+					<input type="password" id="owner_email_curr_pw" name="current_password" class="search-ssn-input" style="height:40px; background:#FFFFFF;" required />
+				</div>
+
+				<button type="submit" class="dashboard-btn-add" style="width:100%; justify-content:center;">
+					<?php esc_html_e( 'Send Confirmation Code', 'fraud-tenant-theme' ); ?>
+				</button>
+			</form>
+		</div>
+
+		<!-- Panel 4: Membership Plan -->
+		<div class="ft-settings-panel" id="ftTabPlan" style="display:none;">
+			<div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:18px; margin-bottom:20px;">
+				<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+					<div>
+						<div style="font-size:11px; text-transform:uppercase; font-weight:700; color:#64748B; letter-spacing:0.5px;"><?php esc_html_e( 'Current Tier', 'fraud-tenant-theme' ); ?></div>
+						<div style="font-size:18px; font-weight:800; color:var(--dash-navy);"><?php echo esc_html( $data['membership_plan_name'] ); ?></div>
+					</div>
+					<span class="badge badge-success" style="padding:6px 12px; font-size:12px; font-weight:700;">
+						<?php esc_html_e( 'Active', 'fraud-tenant-theme' ); ?>
+					</span>
+				</div>
+				<div style="font-size:13px; color:#475569; line-height:1.6; border-top:1px solid #E2E8F0; padding-top:12px;">
+					<?php if ( 'free' === $data['membership_plan_code'] ) : ?>
+						<p style="margin:0 0 6px 0;"><strong><?php esc_html_e( 'Active Quotas:', 'fraud-tenant-theme' ); ?></strong> <?php esc_html_e( '1 Property Listing, Standard Screening.', 'fraud-tenant-theme' ); ?></p>
+						<p style="margin:0; color:#DC2626;"><strong><?php esc_html_e( 'Locked Features:', 'fraud-tenant-theme' ); ?></strong> <?php esc_html_e( 'Incident Reporting & Multiple Properties require Standard Plan.', 'fraud-tenant-theme' ); ?></p>
+					<?php else : ?>
+						<p style="margin:0 0 6px 0;"><strong><?php esc_html_e( 'Features Active:', 'fraud-tenant-theme' ); ?></strong> <?php esc_html_e( 'Unlimited Property Listings, Incident Reporting & Dispute Management.', 'fraud-tenant-theme' ); ?></p>
+						<p style="margin:0; color:var(--dash-teal);"><strong><?php esc_html_e( 'Status:', 'fraud-tenant-theme' ); ?></strong> <?php esc_html_e( 'Full PropTech Privileges Enabled.', 'fraud-tenant-theme' ); ?></p>
+					<?php endif; ?>
+				</div>
+			</div>
+
+			<button type="button" class="dashboard-btn-add" data-ft-modal-target="ftMembershipModal" data-ft-modal-close style="width:100%; justify-content:center;">
+				<?php echo 'free' === $data['membership_plan_code'] ? esc_html__( 'Upgrade to Standard Membership', 'fraud-tenant-theme' ) : esc_html__( 'Manage Membership Plan', 'fraud-tenant-theme' ); ?>
+			</button>
+		</div>
+
+		<script>
+		(function(){
+			var modal = document.getElementById('ftProfileModal');
+			if (!modal) return;
+			var tabs = modal.querySelectorAll('.ft-settings-tab');
+			var panels = modal.querySelectorAll('.ft-settings-panel');
+			tabs.forEach(function(tab){
+				tab.addEventListener('click', function(e){
+					e.preventDefault();
+					var targetId = tab.getAttribute('data-tab-target');
+					tabs.forEach(function(t){
+						t.classList.remove('is-active');
+						t.style.color = '#64748B';
+						t.style.borderBottom = 'none';
+						t.style.fontWeight = '600';
+					});
+					panels.forEach(function(p){ p.style.display = 'none'; });
+					tab.classList.add('is-active');
+					tab.style.color = 'var(--dash-teal)';
+					tab.style.borderBottom = '2px solid var(--dash-teal)';
+					tab.style.fontWeight = '700';
+					var target = document.getElementById(targetId);
+					if (target) target.style.display = 'block';
+				});
+			});
+		})();
+		</script>
 	</div>
 </div>
 
-<!-- Modal 4: Edit Profile Settings (Safe Phone Update) -->
-<div class="ft-modal-overlay" id="ftProfileModal" role="dialog" aria-modal="true" aria-labelledby="ftProfTitle">
-	<div class="ft-modal-box">
+<!-- Modal 4.5: Submit Incident Report Modal (Phase 8.1 Workflow) -->
+<div class="ft-modal-overlay" id="ftIncidentModal" role="dialog" aria-modal="true" aria-labelledby="ftIncidentTitle">
+	<div class="ft-modal-box" style="max-width: 620px;">
 		<button type="button" class="ft-modal-close" aria-label="<?php esc_attr_e( 'Close', 'fraud-tenant-theme' ); ?>">&times;</button>
-		<h3 class="ft-modal-title" id="ftProfTitle"><?php esc_html_e( 'Update Profile Contact', 'fraud-tenant-theme' ); ?></h3>
+		<h3 class="ft-modal-title" id="ftIncidentTitle"><?php esc_html_e( 'Submit Incident Report', 'fraud-tenant-theme' ); ?></h3>
 		<p class="ft-modal-desc">
-			<?php esc_html_e( 'Update your verified phone number. Email address changes require identity compliance verification.', 'fraud-tenant-theme' ); ?>
+			<?php esc_html_e( 'Submit a factual incident report regarding unpaid rent, property damage, or lease violations for administrative review.', 'fraud-tenant-theme' ); ?>
 		</p>
-		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-			<input type="hidden" name="action" value="ft_update_profile" />
-			<input type="hidden" name="redirect_to" value="<?php echo esc_url( home_url( '/owner-dashboard/' ) ); ?>" />
-			<?php wp_nonce_field( 'ft_update_profile_' . $owner_id, 'ft_profile_nonce' ); ?>
 
-			<div style="margin-bottom:16px;">
-				<label for="owner_phone_edit" style="display:block; font-size:12px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
-					<?php esc_html_e( 'Phone Number', 'fraud-tenant-theme' ); ?>
-				</label>
-				<input type="tel" id="owner_phone_edit" name="phone" value="<?php echo esc_attr( $user_profile?->phone ?? '' ); ?>" class="search-ssn-input" style="height:42px; background:#FFFFFF;" placeholder="(555) 000-0000" required />
+		<?php if ( ! \FraudTenant\Services\ComplianceService::is_data_gate_open() ) : ?>
+			<div style="background:#FFFBEB; border:1px solid #FCD34D; border-radius:8px; padding:16px; margin-bottom:18px; color:#92400E; font-size:13px; line-height:1.5;">
+				<strong style="display:block; margin-bottom:4px;"><?php esc_html_e( 'Sensitive PII Encryption Gate Active (BLK-08):', 'fraud-tenant-theme' ); ?></strong>
+				<p style="margin:0;"><?php esc_html_e( 'Incident report submissions are temporarily locked in production pending finalization of application-level sensitive PII encryption infrastructure (BLK-08). Non-production test mode is required for synthetic testing.', 'fraud-tenant-theme' ); ?></p>
 			</div>
-
-			<button type="submit" class="dashboard-btn-add" style="width:100%; justify-content:center;">
-				<?php esc_html_e( 'Save Phone Number', 'fraud-tenant-theme' ); ?>
+			<button type="button" class="dashboard-btn-add" data-ft-modal-close style="width:100%; justify-content:center;">
+				<?php esc_html_e( 'Close Notice', 'fraud-tenant-theme' ); ?>
 			</button>
-		</form>
+		<?php elseif ( ! IncidentService::can_submit_incident( $owner_id ) ) : ?>
+			<div class="ft-incident-upgrade-gate" style="background:#F0FDFA; border:1px solid #0E9488; border-radius:8px; padding:16px; margin-bottom:18px; color:#14263E; font-size:13px; line-height:1.5;">
+				<strong style="display:block; margin-bottom:4px;"><?php esc_html_e( 'Standard Membership Required', 'fraud-tenant-theme' ); ?></strong>
+				<p style="margin:0;"><?php esc_html_e( 'Incident reporting is included with the Standard Monthly and Standard Annual plans. Your existing reports remain visible on your dashboard.', 'fraud-tenant-theme' ); ?></p>
+			</div>
+			<button type="button" class="dashboard-btn-add" data-ft-modal-target="ftMembershipModal" data-ft-modal-close style="width:100%; justify-content:center;">
+				<?php esc_html_e( 'View Membership Plans', 'fraud-tenant-theme' ); ?>
+			</button>
+		<?php elseif ( empty( $data['eligible_properties'] ) ) : ?>
+			<div style="background:#FFFBEB; border:1px solid #FCD34D; border-radius:8px; padding:16px; margin-bottom:18px; color:#92400E; font-size:13px; line-height:1.5;">
+				<strong style="display:block; margin-bottom:4px;"><?php esc_html_e( 'Verified Property Required:', 'fraud-tenant-theme' ); ?></strong>
+				<p style="margin:0;"><?php esc_html_e( 'Incident reports may only be submitted for active, verified rental properties. Please add a rental property and upload ownership documents for verification first.', 'fraud-tenant-theme' ); ?></p>
+			</div>
+			<div style="display:flex; gap:12px;">
+				<a href="<?php echo esc_url( home_url( '/owner-dashboard/properties/' ) ); ?>" class="dashboard-btn-add" style="flex:1; justify-content:center; text-decoration:none;">
+					<?php esc_html_e( 'Manage Properties', 'fraud-tenant-theme' ); ?>
+				</a>
+				<button type="button" class="dashboard-btn-add" data-ft-modal-close style="flex:1; justify-content:center; background:#F1F5F9; color:var(--dash-navy); border:1px solid #CBD5E1;">
+					<?php esc_html_e( 'Close Notice', 'fraud-tenant-theme' ); ?>
+				</button>
+			</div>
+		<?php else : ?>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data" class="ft-incident-report-form">
+				<?php wp_nonce_field( 'ft_submit_incident_action', 'ft_incident_nonce' ); ?>
+				<input type="hidden" name="action" value="ft_submit_incident" />
+				<input type="hidden" name="redirect_to" value="<?php echo esc_attr( home_url( '/owner-dashboard/#my-reports' ) ); ?>" />
+
+				<div class="dash-field-group" style="margin-bottom:14px;">
+					<label for="ftIncidentPropSelect" style="display:block; font-size:13px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+						<?php esc_html_e( 'Associated Verified Property', 'fraud-tenant-theme' ); ?> *
+					</label>
+					<select name="property_id" id="ftIncidentPropSelect" required style="width:100%; padding:10px 12px; border:1px solid #CBD5E1; border-radius:6px; font-size:13px; color:var(--dash-navy); background:#FFFFFF;">
+						<option value=""><?php esc_html_e( '-- Select Verified Property --', 'fraud-tenant-theme' ); ?></option>
+						<?php foreach ( $data['eligible_properties'] as $ep ) : ?>
+							<option value="<?php echo esc_attr( $ep->id ); ?>">
+								<?php echo esc_html( ( $ep->title ? $ep->title . ' — ' : '' ) . $ep->address_street . ', ' . $ep->city . ' ' . $ep->state . ' ' . $ep->postal_code ); ?>
+							</option>
+						<?php endforeach; ?>
+					</select>
+				</div>
+
+				<?php get_template_part( 'template-parts/incident-tenant-identity' ); ?>
+
+				<div style="display:grid; grid-template-columns: 1fr 1fr; gap:14px; margin-bottom:14px;">
+					<div class="dash-field-group">
+						<label for="ftIncidentCategory" style="display:block; font-size:13px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+							<?php esc_html_e( 'Incident Category', 'fraud-tenant-theme' ); ?> *
+						</label>
+						<select name="category" id="ftIncidentCategory" required style="width:100%; padding:10px 12px; border:1px solid #CBD5E1; border-radius:6px; font-size:13px; color:var(--dash-navy); background:#FFFFFF;">
+							<option value="unpaid_rent"><?php esc_html_e( 'Unpaid Rent / Default', 'fraud-tenant-theme' ); ?></option>
+							<option value="property_damage"><?php esc_html_e( 'Property Damage', 'fraud-tenant-theme' ); ?></option>
+							<option value="late_rent"><?php esc_html_e( 'Repeated Late Rent', 'fraud-tenant-theme' ); ?></option>
+							<option value="lease_violation"><?php esc_html_e( 'Lease Violation', 'fraud-tenant-theme' ); ?></option>
+							<option value="unauthorized_pet"><?php esc_html_e( 'Unauthorized Pet', 'fraud-tenant-theme' ); ?></option>
+							<option value="noise_complaint"><?php esc_html_e( 'Noise / Nuisance Complaint', 'fraud-tenant-theme' ); ?></option>
+							<option value="other_violation"><?php esc_html_e( 'Other Lease Violation', 'fraud-tenant-theme' ); ?></option>
+						</select>
+					</div>
+					<div class="dash-field-group">
+						<label for="ftIncidentDate" style="display:block; font-size:13px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+							<?php esc_html_e( 'Incident Date', 'fraud-tenant-theme' ); ?> *
+						</label>
+						<input type="date" name="incident_date" id="ftIncidentDate" max="<?php echo esc_attr( current_time( 'Y-m-d' ) ); ?>" value="<?php echo esc_attr( current_time( 'Y-m-d' ) ); ?>" required style="width:100%; padding:9px 12px; border:1px solid #CBD5E1; border-radius:6px; font-size:13px; color:var(--dash-navy); background:#FFFFFF;" />
+					</div>
+				</div>
+
+				<div class="dash-field-group" style="margin-bottom:14px;">
+					<label for="ftIncidentAmount" style="display:block; font-size:13px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+						<?php esc_html_e( 'Amount Involved ($ USD)', 'fraud-tenant-theme' ); ?>
+					</label>
+					<input type="number" name="amount_involved" id="ftIncidentAmount" step="0.01" min="0" value="0.00" style="width:100%; padding:9px 12px; border:1px solid #CBD5E1; border-radius:6px; font-size:13px; color:var(--dash-navy); background:#FFFFFF;" />
+					<small style="color:var(--dash-muted); font-size:11px;"><?php esc_html_e( 'Enter 0.00 if non-monetary violation.', 'fraud-tenant-theme' ); ?></small>
+				</div>
+
+				<div class="dash-field-group" style="margin-bottom:14px;">
+					<label for="ftIncidentDescription" style="display:block; font-size:13px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+						<?php esc_html_e( 'Factual Description', 'fraud-tenant-theme' ); ?> *
+					</label>
+					<textarea name="factual_description" id="ftIncidentDescription" rows="4" required minlength="10" placeholder="<?php esc_attr_e( 'Provide an objective, factual chronological description of the incident without subjective or defamatory statements...', 'fraud-tenant-theme' ); ?>" style="width:100%; padding:10px 12px; border:1px solid #CBD5E1; border-radius:6px; font-size:13px; color:var(--dash-navy); background:#FFFFFF; line-height:1.5;"></textarea>
+				</div>
+
+				<div class="dash-field-group" style="margin-bottom:16px;">
+					<label for="ftIncidentEvidence" style="display:block; font-size:13px; font-weight:600; color:var(--dash-navy); margin-bottom:6px;">
+						<?php esc_html_e( 'Supporting Evidence Document (Optional)', 'fraud-tenant-theme' ); ?>
+					</label>
+					<input type="file" name="incident_evidence" id="ftIncidentEvidence" accept=".pdf,.png,.jpg,.jpeg" style="width:100%; font-size:12px; color:var(--dash-muted);" />
+					<small style="display:block; color:var(--dash-muted); font-size:11px; margin-top:4px;">
+						<?php esc_html_e( 'Accepted formats: PDF, PNG, JPG/JPEG (Max 10 MB). Stored securely in protected storage.', 'fraud-tenant-theme' ); ?>
+					</small>
+				</div>
+
+				<div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:14px; margin-bottom:18px;">
+					<label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; font-size:12px; color:var(--dash-navy); line-height:1.5;">
+						<input type="checkbox" name="owner_attestation" value="1" required style="margin-top:3px;" />
+						<span>
+							<strong><?php esc_html_e( 'Owner Factual Attestation:', 'fraud-tenant-theme' ); ?></strong>
+							<?php esc_html_e( 'I attest under penalty of platform suspension that the information provided is strictly factual, accurate to the best of my knowledge, and supported by documentation/records. I acknowledge that allegations undergo administrative review before any disclosure.', 'fraud-tenant-theme' ); ?>
+							<br><small style="color:var(--dash-muted);"><?php esc_html_e( '(Attestation Version 1.0 — Recorded as an owner-provided statement)', 'fraud-tenant-theme' ); ?></small>
+						</span>
+					</label>
+				</div>
+
+				<div style="display:flex; gap:12px;">
+					<button type="button" class="dashboard-btn-add" data-ft-modal-close style="flex:1; justify-content:center; background:#F1F5F9; color:var(--dash-navy); border:1px solid #CBD5E1;">
+						<?php esc_html_e( 'Cancel', 'fraud-tenant-theme' ); ?>
+					</button>
+					<button type="submit" class="dashboard-btn-add" style="flex:2; justify-content:center;">
+						<?php esc_html_e( 'Submit Incident Report', 'fraud-tenant-theme' ); ?>
+					</button>
+				</div>
+			</form>
+		<?php endif; ?>
 	</div>
 </div>
 

@@ -1,0 +1,97 @@
+============================================================
+FRAUD TENANT — PHASE 8.2 TEST SUITE: INCIDENT REVIEW WORKFLOW
+============================================================
+
+--- SECTION 0: Fixtures Setup ---
+Fixtures setup complete.
+Admin ID: 255, Reviewer ID: 256, Owner ID: 259, Prop ID: 102
+Reports: Approve=74, Reject=75, Clarify=76, Self=77, Doc=79 (DocID: 37)
+
+--- SECTION 1: Authorization & Capability Enforcement ---
+[PASS] P82-1.1: Admin user can access administrative review queue
+[PASS] P82-1.2: Staff Reviewer with REVIEW_INCIDENTS can access review queue
+[PASS] P82-1.3: Tenant user is denied review queue access (unauthorized)
+[PASS] P82-1.4: Property Owner without review capabilities is denied review queue access
+[PASS] P82-1.5: Reviewer with only REVIEW_PROPERTIES is denied incident review queue
+[PASS] P82-1.6a: Read-Only Reviewer can view review queue
+[PASS] P82-1.6b: Read-Only Reviewer lacking DECIDE_INCIDENTS is denied decision submission
+[PASS] P82-1.7: Self-review strictly blocked: owner cannot decide own report (self_review_forbidden)
+[PASS] P82-1.8: Self-review blocking action is audited with incident_self_review_blocked
+[PASS] P82-1.9: REST review queue GET without authentication returns 401
+[PASS] P82-1.10: REST review queue GET as Tenant returns 403
+[PASS] P82-1.11: REST decision POST as Read-Only Reviewer returns 403
+[PASS] P82-1.12: REST decision POST on own report returns 403 self_review_forbidden
+
+--- SECTION 2: Queue Queries, Filtering, Search & Pagination ---
+[PASS] P82-2.1: Review queue successfully retrieves items for status=all
+[PASS] P82-2.2: Queue calculates status counts correctly across all status tabs
+[PASS] P82-2.3: Filtering by status=submitted returns only submitted reports
+[PASS] P82-2.4: Queue pagination correctly limits results per page and calculates total pages
+[PASS] P82-2.5: Queue search accurately filters reports by property title/street keyword
+[PASS] P82-2.6: Queue handles non-matching search queries gracefully with 0 items
+
+--- SECTION 3: Incident Report Detail Inspection ---
+[PASS] P82-3.1: Authorized reviewer retrieves full incident report detail
+[PASS] P82-3.2: Nonexistent incident report ID returns report_not_found
+[PASS] P82-3.3: Detail response contains formatted reference, category label, and formatted currency
+[PASS] P82-3.4: Detail response properly joins and exposes property address and owner display name
+[PASS] P82-3.5: Detail response lists attached evidence documents with secure streaming URLs and nonces
+[PASS] P82-3.6: Detail response correctly calculates is_self_report flag based on reviewer identity
+
+--- SECTION 4: Decision Transitions & Atomic Locking ---
+[PASS] P82-4.1: Administrative approval of submitted report succeeds
+[PASS] P82-4.2: Database reflects status = approved for approved report
+[PASS] P82-4.3: Administrative rejection with valid reason code succeeds
+[PASS] P82-4.4: Database reflects status = rejected for rejected report
+[PASS] P82-4.5: Request clarification decision with valid reason code succeeds
+[PASS] P82-4.6: Database reflects status = needs_clarification for clarified report
+[PASS] P82-4.7: Disallowed rejection reason code is rejected with invalid_reason_code
+[PASS] P82-4.8: Empty rejection reason code is rejected with invalid_reason_code
+[PASS] P82-4.9: Attempting to decide an already approved report is rejected (invalid_status_transition)
+[PASS] P82-4.10: Concurrent decision race condition is guarded against by optimistic check
+[PASS] P82-4.11: REST decision endpoint returns 200 on successful review decision
+
+--- SECTION 5: Evidence Inspection & Streaming Authorization ---
+[PASS] P82-5.1: Reviewer can access evidence documentation list for incident
+[PASS] P82-5.2: Authorized Reviewer is permitted to stream incident evidence document
+[PASS] P82-5.3: Tenant user is denied streaming access to incident evidence (HTTP 403)
+[PASS] P82-5.4: Unrelated property owner is denied streaming access to incident evidence (HTTP 403)
+[PASS] P82-5.5: Evidence streaming request with invalid nonce is rejected (HTTP 403)
+[PASS] P82-5.6: Evidence API and detail responses strictly hide server filesystem storage paths
+
+--- SECTION 6: Durable Review History & Audit Trail ---
+[PASS] P82-6.1: Durable history row recorded in TABLE_REPORT_REVIEWS for approval
+[PASS] P82-6.2: Approval history row accurately records reviewer_id, previous_status, new_status, and reason_code
+[PASS] P82-6.3: Rejection history row accurately records previous_status, new_status, and reason_code
+[PASS] P82-6.4: Clarification history row accurately records previous_status, new_status, and reason_code
+[PASS] P82-6.5: IncidentReviewService::get_incident_review_history retrieves chronological decision history
+[PASS] P82-6.6: AuditLogger records incident_report_approve and incident_report_reject actions
+[PASS] P82-6.7: Decision audit logs strictly exclude unencrypted free-text narrative and tenant PII
+
+--- SECTION 7: FCRA/Privacy Guarantees & Zero-Disclosure Integrity ---
+[PASS] P82-7.1: Approved incident report strictly maintains disclosable = 0
+[PASS] P82-7.2: Rejected incident report strictly maintains disclosable = 0
+[PASS] P82-7.3: Needs clarification incident report strictly maintains disclosable = 0
+[PASS] P82-7.4: tenant_identity_id remains NULL across all incident report records
+[PASS] P82-7.5: Verified all test executions used synthetic fixture data only
+
+--- SECTION 8: BLK-08 Production Mode Privacy Lock ---
+[PASS] P82-8.1: In production mode (WP_ENVIRONMENT_TYPE=production), get_review_queue fails closed with incident_review_locked_blk08
+[PASS] P82-8.2: In production mode, get_incident_for_review fails closed with incident_review_locked_blk08
+[PASS] P82-8.3: In production mode, decide_incident_report fails closed with incident_review_locked_blk08
+[PASS] P82-8.4: DocumentService gate check is closed in production mode (streaming returns HTTP 423)
+[PASS] P82-8.5: Super-Admin capabilities cannot bypass BLK-08 production privacy gate
+[PASS] P82-8.6: FT_INCIDENT_TEST_MODE=false in local environment fails closed (incident_review_locked_blk08)
+[PASS] P82-8.7: Direct PHP constant check is immune to third-party WordPress filter spoofing
+
+--- Cleaning up temporary test fixtures ---
+Cleanup complete.
+
+============================================================
+PHASE 8.2 TEST RESULTS SUMMARY
+============================================================
+Total Assertions: 61
+Passed:           61
+Failed:           0
+
+ALL PHASE 8.2 TESTS PASSED SUCCESSFULLY!

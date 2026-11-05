@@ -21,6 +21,8 @@ class Capabilities {
 	public const EDIT_PROPERTIES          = 'ft_edit_properties';
 	public const DELETE_PROPERTIES        = 'ft_delete_properties';
 	public const UPLOAD_PROPERTY_DOCS     = 'ft_upload_property_docs';
+	public const INITIATE_SCREENING       = 'ft_initiate_screening';
+	public const VIEW_SCREENING_REPORTS   = 'ft_view_screening_reports';
 	public const REQUEST_TENANT_SCREENING = 'ft_request_tenant_screening';
 	public const VIEW_OWN_SCREENINGS      = 'ft_view_own_screenings';
 	public const SUBMIT_INCIDENT_REPORT   = 'ft_submit_incident_report';
@@ -47,8 +49,12 @@ class Capabilities {
 	public const REVIEW_INCIDENT_REPORTS    = 'ft_review_incident_reports';
 	public const APPROVE_INCIDENT_REPORTS   = 'ft_approve_incident_reports';
 	public const REJECT_INCIDENT_REPORTS    = 'ft_reject_incident_reports';
+	public const REVIEW_INCIDENTS           = 'ft_review_incidents';
+	public const DECIDE_INCIDENTS           = 'ft_decide_incidents';
 	public const REVIEW_TENANT_DISPUTES     = 'ft_review_tenant_disputes';
 	public const RESOLVE_TENANT_DISPUTES    = 'ft_resolve_tenant_disputes';
+	public const MANAGE_REPORT_VISIBILITY   = 'ft_manage_report_visibility';
+	public const ASSOCIATE_TENANT_REPORTS   = 'ft_associate_tenant_reports';
 	public const MANAGE_MEMBERSHIP_PLANS    = 'ft_manage_membership_plans';
 	public const VIEW_ALL_SCREENING_LOGS    = 'ft_view_all_screening_logs';
 	public const VIEW_AUDIT_LOGS            = 'ft_view_audit_logs';
@@ -69,6 +75,8 @@ class Capabilities {
 			self::EDIT_PROPERTIES          => true,
 			self::DELETE_PROPERTIES        => true,
 			self::UPLOAD_PROPERTY_DOCS     => true,
+			self::INITIATE_SCREENING       => true,
+			self::VIEW_SCREENING_REPORTS   => true,
 			self::REQUEST_TENANT_SCREENING => true,
 			self::VIEW_OWN_SCREENINGS      => true,
 			self::SUBMIT_INCIDENT_REPORT   => true,
@@ -113,16 +121,25 @@ class Capabilities {
 			self::REVIEW_INCIDENT_REPORTS,
 			self::APPROVE_INCIDENT_REPORTS,
 			self::REJECT_INCIDENT_REPORTS,
+			self::REVIEW_INCIDENTS,
+			self::DECIDE_INCIDENTS,
 			self::REVIEW_TENANT_DISPUTES,
 			self::RESOLVE_TENANT_DISPUTES,
+			self::MANAGE_REPORT_VISIBILITY,
+			self::ASSOCIATE_TENANT_REPORTS,
 			self::MANAGE_MEMBERSHIP_PLANS,
 			self::VIEW_ALL_SCREENING_LOGS,
 			self::VIEW_AUDIT_LOGS,
 			self::MANAGE_PLATFORM_SETTINGS,
 			self::VIEW_PROPERTIES,
+			self::SUBMIT_INCIDENT_REPORT,
 			self::VIEW_OWN_REPORTS,
 			self::VIEW_OWN_DISPUTES,
 			self::VIEW_NOTIFICATIONS,
+			self::INITIATE_SCREENING,
+			self::VIEW_SCREENING_REPORTS,
+			self::REQUEST_TENANT_SCREENING,
+			self::VIEW_OWN_SCREENINGS,
 		);
 	}
 }

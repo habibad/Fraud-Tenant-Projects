@@ -51,7 +51,7 @@
 - Server-side permission callbacks (`permission_callback`) mandatory on every endpoint.
 
 ### Custom Database Architecture
-All custom tables dynamically use `$wpdb->prefix` (14 tables created in Phase 1):
+All custom tables dynamically use `$wpdb->prefix` (Schema Version `1.7.0`):
 - `{$wpdb->prefix}ft_user_profiles`: Extended profile, approval status, business details
 - `{$wpdb->prefix}ft_email_otps`: Hashed OTPs, purpose, expiration, attempt count
 - `{$wpdb->prefix}ft_properties`: Property listings owned by property owners
@@ -61,11 +61,14 @@ All custom tables dynamically use `$wpdb->prefix` (14 tables created in Phase 1)
 - `{$wpdb->prefix}ft_incident_reports`: Factual incident records submitted by owners
 - `{$wpdb->prefix}ft_report_reviews`: Admin review decisions and notes
 - `{$wpdb->prefix}ft_tenant_disputes`: Tenant dispute submissions, statements, evidence
-- `{$wpdb->prefix}ft_membership_plans`: Available membership tiers and pricing
-- `{$wpdb->prefix}ft_subscriptions`: Owner subscription state, Stripe customer/subscription IDs
-- `{$wpdb->prefix}ft_payment_events`: Stripe webhook events log and idempotency tracking
+- `{$wpdb->prefix}ft_membership_plans`: Available membership tiers, pricing, and dual test/live Stripe IDs
+- `{$wpdb->prefix}ft_subscriptions`: Owner subscription state, Stripe customer/subscription IDs, livemode flag
+- `{$wpdb->prefix}ft_payment_events`: Stripe webhook events log, livemode flag, and idempotency tracking
 - `{$wpdb->prefix}ft_notifications`: In-app notification queue
 - `{$wpdb->prefix}ft_audit_log`: Append-only application-level audit history for security and regulatory compliance
+- `{$wpdb->prefix}ft_report_associations`: Administrative report association and disclosable status
+- `{$wpdb->prefix}ft_report_disclosure_history`: Immutable disclosure decision history
+- `{$wpdb->prefix}ft_checkout_locks`: Atomic database locks for owner Stripe checkout sessions (120s TTL)
 
 ### User Roles & Custom Capabilities
 - `administrator`: Full administrative portal, approval queue, review controls, plan management
@@ -77,3 +80,6 @@ All custom tables dynamically use `$wpdb->prefix` (14 tables created in Phase 1)
 2. **Document Protection**: Supporting documents must not be served directly through public URLs. They must be stored in a protected folder and served via an authorized streaming controller that validates current user permissions.
 3. **No Automatic Defamation / Fraud Labels**: Incident reports are treated as factual dispute/incident allegations pending review. Allegations must never be presented as proven guilt without human administrative review.
 4. **FCRA & Legal Readiness**: Screening access requires permissible purpose attestation and server-side verification.
+5. **Audit Log Data Minimization & Accountability**: Application-level append-only audit logging. Existing audit records were preserved during browser QA fixture cleanup. This does not prevent privileged database administrators from directly modifying database records. Actor user IDs are retained in audit records for provenance, forensics, and regulatory accountability; free-text incident narratives, SSNs, and applicant personal data are strictly excluded from audit payloads.
+6. **Dual-Mode Stripe Credential Isolation & Masking**: Stripe credentials for Test and Live modes must be stored independently using AES-256-GCM authenticated encryption with keys derived from WordPress secret salts via HKDF-SHA256. Plaintext secret keys must never be logged, echoed to HTML inputs (`value=""`), or returned to clients. Live Mode charges are strictly prohibited in non-production environments (`is_qa_mode_restricted()`). Live mode strictly enforces HTTPS.
+7. **Atomic Concurrency Protection**: High-value financial mutations (such as initiating checkout sessions) must be protected by database-backed atomic locking (`wp_ft_checkout_locks`) to eliminate race conditions and duplicate billing.

@@ -168,4 +168,26 @@ class Sanitizer {
 		$digits = preg_replace( '/\D/', '', $ssn );
 		return substr( $digits, -4 );
 	}
+
+	/**
+	 * Mask an email address for privacy-safe logs and audit trails.
+	 *
+	 * e.g., "john.doe@example.com" -> "j•••e@example.com"
+	 *
+	 * @param string $email Raw email address.
+	 * @return string Masked email address.
+	 */
+	public static function mask_email( string $email ): string {
+		if ( ! is_email( $email ) ) {
+			return '•••@•••';
+		}
+		list( $user, $domain ) = explode( '@', $email, 2 );
+		$len = strlen( $user );
+		if ( $len <= 2 ) {
+			$masked_user = substr( $user, 0, 1 ) . '•';
+		} else {
+			$masked_user = substr( $user, 0, 1 ) . str_repeat( '•', min( 4, $len - 2 ) ) . substr( $user, -1 );
+		}
+		return $masked_user . '@' . $domain;
+	}
 }

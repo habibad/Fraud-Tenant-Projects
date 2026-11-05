@@ -1,0 +1,100 @@
+============================================================
+FRAUD TENANT — PHASE 7.1 TEST SUITE: SCREENING FOUNDATION
+============================================================
+
+--- SECTION 0: Fixtures Setup ---
+Fixtures setup complete. Owner A ID: 238, Prop A1: 92, Prop B1: 95
+
+--- SECTION 1: Authorized Screening Request Creation (Test 1) ---
+[PASS] P71-1.1: Approved verified owner successfully initiates screening request
+[PASS] P71-1.2: Request record ID is generated
+[PASS] P71-1.3: Request starts with controlled initial status: pending
+[PASS] P71-1.4: Request record persisted in wp_ft_screening_requests
+[PASS] P71-1.5: Request accurately records requesting owner ID
+[PASS] P71-1.6: Request accurately records associated verified property ID
+[PASS] P71-1.7: ssn_last_four is strictly not written by Phase 7.1
+[PASS] P71-1.8: tenant_identity_id remains unset/null
+[PASS] P71-1.9: match_found remains 0 (fail-closed)
+[PASS] P71-1.10: records_count remains 0
+[PASS] P71-1.11: Request records permissible purpose attestation flag
+[PASS] P71-1.12: Request records stated screening purpose
+[PASS] P71-1.13: Disclosure level is initialized to locked
+[PASS] P71-1.14: Request creation timestamp is accurately stored
+[PASS] P71-1.15: Safe request reference generated
+[PASS] P71-1.16: API response strictly contains zero SSN fields
+
+--- SECTION 2: Unapproved Owner Rejection (Test 2) ---
+[PASS] P71-2.1: Unapproved owner is rejected from creating screening request
+[PASS] P71-2.2: Error code is unauthorized
+
+--- SECTION 3: Unverified / Archived Property Rejection (Test 3) ---
+[PASS] P71-3.1: Unverified property (pending verification) is rejected
+[PASS] P71-3.2: Error code is property_not_verified
+[PASS] P71-3.3: Archived property is rejected
+[PASS] P71-3.4: Error code is property_archived
+
+--- SECTION 4: Cross-Owner Property IDOR Prevention (Test 4) ---
+[PASS] P71-4.1: Owner cannot select another owner property (IDOR blocked)
+[PASS] P71-4.2: Error code is property_not_found_or_forbidden
+
+--- SECTION 5: Cross-Owner Request Isolation (Test 5) ---
+[PASS] P71-5.1: Owner B cannot access Owner A screening request (returns null)
+[PASS] P71-5.2: Owner A screening request does not appear in Owner B list
+[PASS] P71-5.3: Owner A successfully views own request details
+
+--- SECTION 6: Capability Model Enforcement (Test 6) ---
+[PASS] P71-6.1: Owner without ft_initiate_screening capability is denied
+[PASS] P71-6.2: Error code is unauthorized on missing cap
+[PASS] P71-6.3: Tenant role user is denied from initiating screening
+
+--- SECTION 7: Purpose & Attestation Validation (Test 7) ---
+[PASS] P71-7.1: Missing or false attestation is rejected
+[PASS] P71-7.2: Error code is missing_attestation
+[PASS] P71-7.3: Invalid/unallowed purpose is rejected
+[PASS] P71-7.4: Error code is invalid_purpose
+[FAIL] P71-7.5: Matching engine remains fail-closed while BLK-04 is unconfigured
+[FAIL] P71-7.6: Match secret key remains unconfigured in environment
+
+--- SECTION 8: Nonce CSRF Protection (Test 8) ---
+[PASS] P71-8.1: AJAX screening request with invalid nonce is rejected
+
+--- SECTION 9: Direct REST Access Permissions (Test 9) ---
+[PASS] P71-9.1: Direct unauthenticated REST POST is denied with 401
+[PASS] P71-9.2: Direct Tenant user REST POST is denied with 403
+[PASS] P71-9.3: Direct Unapproved owner REST POST is denied with 403
+[PASS] P71-9.4: Authorized owner REST POST succeeds with 201 Created
+[PASS] P71-9.5: Verified properties REST GET returns 200
+[PASS] P71-9.6: Verified properties endpoint returns eligible property list
+
+--- SECTION 10: Rate Limiting Enforcement (Test 10) ---
+[PASS] P71-10.1: Request is blocked when submission threshold is exceeded
+[PASS] P71-10.2: Error code is rate_limited
+
+--- SECTION 11: Audit Logging Verification (Test 11) ---
+[PASS] P71-11.1: Audit log record created with action screening.request_initiated
+[PASS] P71-11.2: Audit object_type is screening_request
+[PASS] P71-11.3: Audit user_id accurately identifies requesting owner
+[PASS] P71-11.4: Audit details payload is valid JSON
+[PASS] P71-11.5: Audit details strictly contain zero SSN values or fragments
+[PASS] P71-11.6: Audit details strictly contain zero applicant names
+[PASS] P71-11.7: Audit details record attestation version 1.0
+[PASS] P71-11.8: Audit details record initial status pending
+
+--- SECTION 12: API Response Privacy Verification (Test 12) ---
+[PASS] P71-12.1: REST response strictly excludes any SSN key or fragment
+[PASS] P71-12.2: REST response strictly excludes applicant name
+[PASS] P71-12.3: REST response contains zero masked SSN field
+[PASS] P71-12.4: REST response does not leak internal token hashes
+[PASS] P71-12.5: REST response does not leak secret keys
+
+--- Cleaning up temporary test fixtures ---
+Cleanup complete.
+
+============================================================
+PHASE 7.1 TEST RESULTS SUMMARY
+============================================================
+Total Assertions: 58
+Passed:           56
+Failed:           2
+
+SOME PHASE 7.1 TESTS FAILED.

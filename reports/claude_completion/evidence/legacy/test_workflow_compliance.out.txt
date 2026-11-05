@@ -1,0 +1,75 @@
+====================================================================
+   FRAUD TENANT — MANDATORY WORKFLOW COMPLIANCE VERIFICATION
+====================================================================
+
+Operational DB : fraudtenant_qa
+Disposable QA DB: ft_qa_wf_35b11975
+
+[PASS] J01-1: Property Owner registration succeeds
+[PASS] J01-2: Property Owner account created with role ft_owner
+[PASS] J01-3: Owner account initialized in email_unverified state
+[PASS] J02-1: Tenant registration succeeds
+[PASS] J02-2: Tenant account created with role ft_tenant
+[PASS] J02-3: Tenant account initialized in email_unverified state
+[PASS] J04-1: Invalid OTP candidate is rejected
+[PASS] J04-2: Invalid OTP increments attempt counter and reports remaining attempts
+[PASS] J04-3: Account remains email_unverified after invalid OTP
+[PASS] J05-1: Expired OTP candidate is strictly rejected
+[PASS] J06-1: OTP generation/resend generates a fresh active code
+[PASS] J06-2: Immediate resend triggers cooldown rejection
+[PASS] J06-3: Cooldown reports seconds remaining
+[PASS] J03-1: Valid OTP candidate is verified successfully
+[PASS] J03-2: Replay of consumed OTP is strictly rejected
+[PASS] J07-1: Account transitions to pending_approval after OTP verification
+[PASS] J07-2: Tenant account transitions to pending_approval
+PHP Warning:  Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\fraudtenant-qa\legacy-tests\test_workflow_compliance.php:42) in C:\xampp\htdocs\fraudtenant-qa\wp-includes\pluggable.php on line 1193
+PHP Warning:  Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\fraudtenant-qa\legacy-tests\test_workflow_compliance.php:42) in C:\xampp\htdocs\fraudtenant-qa\wp-includes\pluggable.php on line 1194
+PHP Warning:  Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\fraudtenant-qa\legacy-tests\test_workflow_compliance.php:42) in C:\xampp\htdocs\fraudtenant-qa\wp-includes\pluggable.php on line 1195
+[PASS] J10-1: Pending approval account routes to /account-status/
+[PASS] J08-1: Admin approves owner account application
+[PASS] J08-2: Account status updated to approved
+[PASS] J08-3: Approval email dispatch executed
+[PASS] J08-4: Tenant account status updated to approved
+[PASS] J09-1: Admin rejects application with explicit recorded reason
+[PASS] J09-2: Account status updated to rejected
+[PASS] J09-3: Rejection notification dispatch executed
+[PASS] J09-4: Rejected account login is strictly denied with account_rejected
+PHP Warning:  Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\fraudtenant-qa\legacy-tests\test_workflow_compliance.php:42) in C:\xampp\htdocs\fraudtenant-qa\wp-includes\pluggable.php on line 1193
+PHP Warning:  Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\fraudtenant-qa\legacy-tests\test_workflow_compliance.php:42) in C:\xampp\htdocs\fraudtenant-qa\wp-includes\pluggable.php on line 1194
+PHP Warning:  Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\fraudtenant-qa\legacy-tests\test_workflow_compliance.php:42) in C:\xampp\htdocs\fraudtenant-qa\wp-includes\pluggable.php on line 1195
+[PASS] J11-1: Approved Property Owner login succeeds
+[PASS] J11-2: Approved Property Owner routed server-side to /owner-dashboard/
+PHP Warning:  Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\fraudtenant-qa\legacy-tests\test_workflow_compliance.php:42) in C:\xampp\htdocs\fraudtenant-qa\wp-includes\pluggable.php on line 1193
+PHP Warning:  Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\fraudtenant-qa\legacy-tests\test_workflow_compliance.php:42) in C:\xampp\htdocs\fraudtenant-qa\wp-includes\pluggable.php on line 1194
+PHP Warning:  Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\fraudtenant-qa\legacy-tests\test_workflow_compliance.php:42) in C:\xampp\htdocs\fraudtenant-qa\wp-includes\pluggable.php on line 1195
+[PASS] J12-1: Approved Tenant login succeeds
+[PASS] J12-2: Approved Tenant routed server-side to /tenant-dashboard/
+[PASS] J13-1: Administrator role recognized server-side
+[PASS] J14-1: Invalid login password strictly rejected with invalid_credentials
+[PASS] J15-1: Forgot Password OTP request succeeds
+[PASS] J15-2: User redirected to reset-password with step=otp
+[PASS] J15-3: Unregistered email returns generic anti-enumeration success and identical redirect
+[PASS] J16-1: Invalid reset OTP rejected with invalid_otp
+[PASS] J16-2: Expired reset OTP rejected with expired_otp
+[PASS] J17-1: Successful reset OTP verification succeeds
+[PASS] J17-2: Issues single-use reset token
+[PASS] J17-3: Password shorter than 8 chars rejected
+[PASS] J17-4: Mismatched password confirmation rejected
+[PASS] J17-5: Valid password update succeeds
+[PASS] J17-6: Redirects to /login/?pw_reset=success
+[PASS] J17-7: Replay of used reset token strictly fails closed
+[PASS] J18-1: Old password can no longer authenticate
+PHP Warning:  Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\fraudtenant-qa\legacy-tests\test_workflow_compliance.php:42) in C:\xampp\htdocs\fraudtenant-qa\wp-includes\pluggable.php on line 1193
+PHP Warning:  Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\fraudtenant-qa\legacy-tests\test_workflow_compliance.php:42) in C:\xampp\htdocs\fraudtenant-qa\wp-includes\pluggable.php on line 1194
+PHP Warning:  Cannot modify header information - headers already sent by (output started at C:\xampp\htdocs\fraudtenant-qa\legacy-tests\test_workflow_compliance.php:42) in C:\xampp\htdocs\fraudtenant-qa\wp-includes\pluggable.php on line 1195
+[PASS] J18-2: New password authenticates successfully and routes to /owner-dashboard/
+[PASS] J19-1: Owner account possesses only ft_owner, not ft_tenant
+[PASS] J19-2: Tenant account possesses only ft_tenant, not ft_owner
+[PASS] J20-1: All 8 core workflow templates present in fraud-tenant-theme
+
+Disposable QA DB ft_qa_wf_35b11975 cleanly dropped.
+Operational DB fraudtenant_qa verified untouched.
+
+====================================================================
+   WORKFLOW COMPLIANCE RESULTS: Passed: 49, Failed: 0
+====================================================================

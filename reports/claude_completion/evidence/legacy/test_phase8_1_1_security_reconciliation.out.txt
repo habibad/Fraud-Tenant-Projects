@@ -1,0 +1,73 @@
+============================================================
+FRAUD TENANT — PHASE 8.1.1 SECURITY RECONCILIATION SUITE
+============================================================
+
+--- SECTION 0: Fixtures Setup ---
+Fixtures created: Owner ID 242, Property ID 96
+
+--- SECTION 1: Required Security Gate Tests (Direct Constant Policy) ---
+[PASS] P811-1.1: Undefined WP_ENVIRONMENT_TYPE fails closed directly and shared fallback resolves to production fail-closed
+[PASS] P811-1.2: Undefined FT_INCIDENT_TEST_MODE fails closed
+[PASS] P811-1.3: Explicit production environment fails closed
+[PASS] P811-1.4: Unknown environment (unknown_env) fails closed
+[PASS] P811-1.5a: Local environment with FT_INCIDENT_TEST_MODE=true successfully opens gate
+[PASS] P811-1.5b: Development environment with FT_INCIDENT_TEST_MODE=true successfully opens gate
+[PASS] P811-1.5c: Staging environment with FT_INCIDENT_TEST_MODE=true successfully opens gate
+[PASS] P811-1.6a: FT_INCIDENT_TEST_MODE=false in local environment fails closed
+[PASS] P811-1.6b: FT_INCIDENT_TEST_MODE=false in staging environment fails closed
+[PASS] P811-1.7: Registering a wp_get_environment_type filter returning local cannot enable test mode in production
+[PASS] P811-1.8: Request parameters, POST fields, and cookies cannot enable test mode
+[PASS] P811-1.9: Administrator privileges (manage_options) cannot override the privacy gate in production
+
+--- SECTION 2: Production Lockdown & Endpoint Fail-Closed Restrictions ---
+[PASS] P811-2.1: Production lockdown test suite executed successfully
+[PASS] P811-2.2: IncidentService::record_incident_report() rejects with submission_locked_blk08
+[PASS] P811-2.3: DocumentService::store_incident_document() rejects with submission_locked_blk08
+[PASS] P811-2.4: REST API POST is locked with HTTP status 423
+[PASS] P811-2.5: REST API response error code is submission_locked_blk08
+[PASS] P811-2.6: AJAX handler rejects locked request with submission_locked_blk08
+[PASS] P811-2.7: Direct web POST fails closed with HTTP 423 wp_die before reading files/form
+[PASS] P811-2.8: Zero incident records created in database during locked state
+PHP Warning:  Undefined array key "SERVER_NAME" in C:\xampp\htdocs\fraudtenant-qa\wp-includes\general-template.php on line 4122
+[PASS] P811-2.9: Production UI renders BLK-08 notice, disables submit button, and strictly omits submission form and narrative inputs from DOM
+
+--- SECTION 3: Tenant Identity Semantics (NULL, not 0) ---
+[PASS] P811-3.1: tenant_identity_id column exists on wp_ft_incident_reports
+[PASS] P811-3.2: tenant_identity_id column is nullable (Null = YES)
+[PASS] P811-3.3: tenant_identity_id default value is NULL
+[PASS] P811-3.4: Permitted test mode submission succeeds
+[PASS] P811-3.5: Persisted report row retrieved from database
+[PASS] P811-3.6: Unlinked tenant_identity_id is strictly NULL in database (not 0)
+[PASS] P811-3.7: Report initial status is strictly submitted
+[PASS] P811-3.8: Report disclosable flag is strictly 0
+
+--- SECTION 4: Evidence Upload & Document Authorization ---
+[PASS] P811-4.1: Incident report with evidence document uploaded successfully in test mode
+[PASS] P811-4.2: Evidence document record persisted in wp_ft_documents
+[PASS] P811-4.3: Tenant actor is strictly denied from streaming owner evidence document (HTTP 403)
+[PASS] P811-4.4: Disallowed file extension (.exe) is rejected fail-closed
+[PASS] P811-4.5: Error code is invalid_file_extension
+
+--- SECTION 5: Rate Limiting & Sliding Inactivity TTL ---
+[PASS] P811-5.1: Rate limit enforced after 10 submissions within window
+[PASS] P811-5.2: Error code is rate_limited
+
+--- SECTION 6: Audit Logging & Zero-PII Guarantee ---
+[PASS] P811-6.1: Audit log entry recorded for incident report submission
+[PASS] P811-6.2: Audit details payload is valid JSON
+[PASS] P811-6.3: Audit details strictly omit unencrypted narrative description
+[PASS] P811-6.4: Audit details strictly omit SSN or applicant PII
+[PASS] P811-6.5: Audit details record initial status submitted
+[PASS] P811-6.6: Audit details record disclosable as 0
+
+--- Cleaning up temporary test fixtures ---
+Cleanup complete.
+
+============================================================
+PHASE 8.1.1 SECURITY RECONCILIATION SUMMARY
+============================================================
+Total Assertions: 42
+Passed:           42
+Failed:           0
+
+ALL PHASE 8.1.1 SECURITY RECONCILIATION TESTS PASSED!

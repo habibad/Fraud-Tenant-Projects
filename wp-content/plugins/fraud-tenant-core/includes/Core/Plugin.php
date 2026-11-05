@@ -12,7 +12,10 @@ use FraudTenant\API\RestServer;
 use FraudTenant\Auth\AuthHandler;
 use FraudTenant\Database\MigrationManager;
 use FraudTenant\Services\ContactEnquiryHandler;
+use FraudTenant\Services\DisputeHandler;
+use FraudTenant\Services\IncidentHandler;
 use FraudTenant\Services\PropertyHandler;
+use FraudTenant\Services\ScreeningHandler;
 use FraudTenant\Utils\Constants;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -62,6 +65,18 @@ class Plugin {
 
 		// Register property management web request handlers
 		PropertyHandler::register();
+
+		// Register screening request handlers
+		ScreeningHandler::register();
+
+		// Register incident reporting handlers
+		IncidentHandler::register();
+
+		// Register tenant dispute request handlers
+		DisputeHandler::register();
+
+		// Identity-matched tenant screening, admin screening disclosure, compliance gates
+		\FraudTenant\Services\TenantScreeningService::register();
 
 		// Register administrative portal & review action handlers
 		AdminPortal::init();

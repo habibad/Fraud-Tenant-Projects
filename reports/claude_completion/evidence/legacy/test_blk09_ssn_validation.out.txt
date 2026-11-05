@@ -1,0 +1,47 @@
+============================================================
+BLK-09: SSN INPUT PRE-VALIDATION REGEX HARDENING TEST SUITE
+============================================================
+
+--- SECTION 1: Format Validation (validate_ssn_format) ---
+[PASS] BLK09-1.1: Valid standard formatted SSN (123-45-6789) is accepted
+[PASS] BLK09-1.2: Valid raw 9-digit SSN (123456789) is accepted
+[PASS] BLK09-1.3: Valid formatted SSN with surrounding whitespace is accepted after trimming
+[PASS] BLK09-1.4: Malformed string with trailing letters (123-45-6789abc) is strictly rejected
+[PASS] BLK09-1.5: Malformed string with leading letters (abc123456789) is strictly rejected
+[PASS] BLK09-1.6: Malformed string with trailing noise (123456789extra) is strictly rejected
+[PASS] BLK09-1.7: Malformed hyphen positions (123-456-789) are strictly rejected
+[PASS] BLK09-1.8: Malformed hyphen positions (12-345-6789) are strictly rejected
+[PASS] BLK09-1.9: SSN with spaces instead of hyphens (123 45 6789) is rejected
+[PASS] BLK09-1.10: Short 8-digit string (12345678) is strictly rejected
+[PASS] BLK09-1.11: Long 10-digit string (1234567890) is strictly rejected
+[PASS] BLK09-1.12: Empty string is strictly rejected
+[PASS] BLK09-1.13: Whitespace-only string is strictly rejected
+[PASS] BLK09-1.14: Non-ASCII Eastern Arabic numerals are strictly rejected
+[PASS] BLK09-1.15: Non-ASCII fullwidth digits are strictly rejected
+
+--- SECTION 2: Fail-Closed Behavior Without Secret Key ---
+[FAIL] BLK09-2.1: SSN Match Secret (FT_MATCH_SECRET_KEY) is confirmed unconfigured at baseline
+[FAIL] BLK09-2.2: generate_ssn_match_token fails closed (returns false) for valid formatted SSN when key is missing
+[FAIL] BLK09-2.3: generate_ssn_match_token fails closed (returns false) for valid raw SSN when key is missing
+[PASS] BLK09-2.4: generate_ssn_match_token fails closed (returns false) for malformed SSN when key is missing
+
+--- SECTION 3: Token Generation With Isolated Mock Test Secret ---
+[PASS] BLK09-3.1: Mock test key successfully injected into test process environment
+[PASS] BLK09-3.2: generate_ssn_match_token returns 64-char hex HMAC hash for valid formatted SSN
+[PASS] BLK09-3.3: Formatted and raw SSN yield identical deterministic HMAC match tokens
+[PASS] BLK09-3.4: Malformed string with trailing letters rejected before hashing even with key present
+[PASS] BLK09-3.5: Malformed string with trailing digits/chars rejected before hashing even with key present
+[PASS] BLK09-3.6: Malformed hyphen placement rejected before hashing even with key present
+
+--- SECTION 4: Teardown & Fail-Closed Restoration ---
+[FAIL] BLK09-4.1: Mock test key successfully cleared from process environment
+[FAIL] BLK09-4.2: generate_ssn_match_token resumes fail-closed behavior immediately after key removal
+
+============================================================
+BLK-09 TEST RESULTS SUMMARY
+============================================================
+Total Assertions: 27
+Passed:           22
+Failed:           5
+
+BLK-09 TEST FAILURES DETECTED!

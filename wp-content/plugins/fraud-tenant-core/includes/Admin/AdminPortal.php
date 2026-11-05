@@ -29,9 +29,19 @@ class AdminPortal {
 		add_action( 'admin_menu', array( __CLASS__, 'register_admin_menus' ) );
 
 		// Register action handlers for review mutations
+		AdminDashboardController::init();
 		add_action( 'admin_post_ft_admin_review_action', array( __CLASS__, 'handle_review_action' ) );
 		add_action( 'admin_post_ft_admin_property_action', array( __CLASS__, 'handle_property_action' ) );
 		add_action( 'admin_post_ft_admin_property_review_action', array( __CLASS__, 'handle_property_review_action' ) );
+		add_action( 'admin_post_ft_admin_incident_review_action', array( __CLASS__, 'handle_incident_review_action' ) );
+		add_action( 'admin_post_ft_admin_visibility_action', array( __CLASS__, 'handle_visibility_action' ) );
+		add_action( 'admin_post_ft_admin_dispute_action', array( DisputeAdminController::class, 'handle_admin_action' ) );
+		add_action( 'admin_post_ft_admin_membership_plan_action', array( MembershipAdminController::class, 'handle_admin_action' ) );
+		add_action( 'admin_post_ft_save_stripe_settings', array( StripeSettingsAdminController::class, 'handle_save' ) );
+		add_action( 'admin_post_ft_remove_stripe_settings', array( StripeSettingsAdminController::class, 'handle_remove' ) );
+		add_action( 'admin_post_ft_test_stripe_connection', array( StripeSettingsAdminController::class, 'handle_test_connection' ) );
+		add_action( 'admin_post_ft_switch_stripe_mode', array( StripeSettingsAdminController::class, 'handle_switch_mode' ) );
+		add_action( 'admin_post_ft_save_stripe_plan_mappings', array( StripeSettingsAdminController::class, 'handle_save_plan_mappings' ) );
 
 		// Register secure document streaming route
 		add_action( 'admin_post_ft_view_document', array( __CLASS__, 'handle_view_document' ) );
@@ -46,9 +56,18 @@ class AdminPortal {
 			__( 'Fraud Tenant', 'fraud-tenant-core' ),
 			Capabilities::REVIEW_USER_REGISTRATIONS,
 			'fraud-tenant-admin',
-			array( UserReviewController::class, 'render' ),
+			array( AdminDashboardController::class, 'render' ),
 			'dashicons-shield',
 			30
+		);
+
+		add_submenu_page(
+			'fraud-tenant-admin',
+			__( 'Executive Command Center', 'fraud-tenant-core' ),
+			__( 'Dashboard', 'fraud-tenant-core' ),
+			Capabilities::REVIEW_USER_REGISTRATIONS,
+			'fraud-tenant-admin',
+			array( AdminDashboardController::class, 'render' )
 		);
 
 		add_submenu_page(
@@ -56,7 +75,7 @@ class AdminPortal {
 			__( 'Applications Review Queue', 'fraud-tenant-core' ),
 			__( 'Applications', 'fraud-tenant-core' ),
 			Capabilities::REVIEW_USER_REGISTRATIONS,
-			'fraud-tenant-admin',
+			'fraud-tenant-applications',
 			array( UserReviewController::class, 'render' )
 		);
 
@@ -67,6 +86,51 @@ class AdminPortal {
 			Capabilities::REVIEW_PROPERTIES,
 			'fraud-tenant-properties',
 			array( PropertyReviewController::class, 'render' )
+		);
+
+		add_submenu_page(
+			'fraud-tenant-admin',
+			__( 'Incident Reports Review Queue', 'fraud-tenant-core' ),
+			__( 'Incidents', 'fraud-tenant-core' ),
+			Capabilities::REVIEW_INCIDENT_REPORTS,
+			'fraud-tenant-incidents',
+			array( IncidentReviewController::class, 'render' )
+		);
+
+		add_submenu_page(
+			'fraud-tenant-admin',
+			__( 'Report Disclosure & Tenant Visibility', 'fraud-tenant-core' ),
+			__( 'Report Visibility', 'fraud-tenant-core' ),
+			Capabilities::MANAGE_REPORT_VISIBILITY,
+			'fraud-tenant-visibility',
+			array( ReportVisibilityController::class, 'render' )
+		);
+
+		add_submenu_page(
+			'fraud-tenant-admin',
+			__( 'Tenant Disputes Review Queue', 'fraud-tenant-core' ),
+			__( 'Tenant Disputes', 'fraud-tenant-core' ),
+			Capabilities::REVIEW_TENANT_DISPUTES,
+			'fraud-tenant-disputes',
+			array( DisputeAdminController::class, 'render' )
+		);
+
+		add_submenu_page(
+			'fraud-tenant-admin',
+			__( 'Membership Plans Management', 'fraud-tenant-core' ),
+			__( 'Membership Plans', 'fraud-tenant-core' ),
+			Capabilities::MANAGE_MEMBERSHIP_PLANS,
+			'fraud-tenant-plans',
+			array( MembershipAdminController::class, 'render' )
+		);
+
+		add_submenu_page(
+			'fraud-tenant-admin',
+			__( 'Fraud Tenant Settings', 'fraud-tenant-core' ),
+			__( 'Settings', 'fraud-tenant-core' ),
+			'manage_options',
+			'fraud-tenant-settings',
+			array( StripeSettingsAdminController::class, 'render' )
 		);
 	}
 
@@ -249,6 +313,160 @@ class AdminPortal {
 			$result['message']
 		);
 
+		wp_safe_redirect( $redirect_url );
+
+		if ( ! defined( 'FT_DOING_TESTS' ) ) {
+			exit;
+		}
+	}
+
+	/**
+	 * Handle administrative incident review decision POST requests.
+	 */
+	public static function handle_incident_review_action(): void {
+		$reviewer_id = get_current_user_id();
+
+		if ( ! \FraudTenant\Services\IncidentReviewService::can_decide_incidents( $reviewer_id ) ) {
+			wp_die( esc_html__( 'Unauthorized to perform incident review decision actions.', 'fraud-tenant-core' ), 403 );
+		}
+
+		$report_id   = isset( $_POST['report_id'] ) ? (int) $_POST['report_id'] : 0;
+		$decision    = isset( $_POST['decision'] ) ? sanitize_key( $_POST['decision'] ) : '';
+		$reason_code = isset( $_POST['reason_code'] ) ? sanitize_key( $_POST['reason_code'] ) : '';
+		$nonce       = isset( $_POST['_wpnonce'] ) ? sanitize_text_field( wp_unslash( $_POST['_wpnonce'] ) ) : '';
+
+		if ( ! wp_verify_nonce( $nonce, 'ft_admin_incident_review_' . $report_id ) ) {
+			wp_die( esc_html__( 'Security check failed. Please refresh the page and try again.', 'fraud-tenant-core' ), 403 );
+		}
+
+		$result = \FraudTenant\Services\IncidentReviewService::decide_incident_report(
+			$report_id,
+			$reviewer_id,
+			$decision,
+			$reason_code
+		);
+
+		if ( $reviewer_id > 0 ) {
+			set_transient(
+				'ft_admin_incident_notice_' . $reviewer_id,
+				array(
+					'type'    => $result['success'] ? 'success' : 'error',
+					'message' => $result['message'],
+				),
+				30
+			);
+		}
+
+		$redirect_url = add_query_arg(
+			array(
+				'page'      => 'fraud-tenant-incidents',
+				'action'    => 'review',
+				'report_id' => $report_id,
+			),
+			admin_url( 'admin.php' )
+		);
+
+		wp_safe_redirect( $redirect_url );
+
+		if ( ! defined( 'FT_DOING_TESTS' ) ) {
+			exit;
+		}
+	}
+
+	/**
+	 * Handle administrative report visibility and tenant association action POST requests.
+	 */
+	public static function handle_visibility_action(): void {
+		$admin_id = get_current_user_id();
+
+		if ( ! \FraudTenant\Services\ReportVisibilityService::can_manage_visibility( $admin_id ) ) {
+			wp_die( esc_html__( 'Unauthorized to manage report visibility.', 'fraud-tenant-core' ), 403 );
+		}
+
+		$report_id       = isset( $_POST['report_id'] ) ? (int) $_POST['report_id'] : 0;
+		$action_type     = isset( $_POST['visibility_action'] ) ? sanitize_key( $_POST['visibility_action'] ) : '';
+		$association_id  = isset( $_POST['association_id'] ) ? (int) $_POST['association_id'] : 0;
+		$tenant_user_id  = isset( $_POST['tenant_user_id'] ) ? (int) $_POST['tenant_user_id'] : 0;
+		$action_reason   = isset( $_POST['action_reason'] ) ? sanitize_textarea_field( wp_unslash( $_POST['action_reason'] ) ) : '';
+		$action_notes    = isset( $_POST['action_notes'] ) ? sanitize_textarea_field( wp_unslash( $_POST['action_notes'] ) ) : '';
+		$nonce           = isset( $_POST['ft_visibility_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['ft_visibility_nonce'] ) ) : '';
+
+		if ( ! wp_verify_nonce( $nonce, 'ft_visibility_action_' . $report_id ) ) {
+			wp_die( esc_html__( 'Security check failed. Please refresh the page and try again.', 'fraud-tenant-core' ), 403 );
+		}
+
+		$result = array( 'success' => false, 'error' => 'unknown_action' );
+
+		switch ( $action_type ) {
+			case 'associate_tenant':
+				if ( ! \FraudTenant\Services\ReportVisibilityService::can_associate_tenant( $admin_id ) ) {
+					wp_die( esc_html__( 'Unauthorized to associate tenant reports.', 'fraud-tenant-core' ), 403 );
+				}
+				$result = \FraudTenant\Services\ReportVisibilityService::associate_tenant(
+					$report_id,
+					$tenant_user_id,
+					$action_reason,
+					$action_notes,
+					$admin_id
+				);
+				$msg_code = $result['success'] ? 'associated' : 'error';
+				break;
+
+			case 'disassociate_tenant':
+				if ( ! \FraudTenant\Services\ReportVisibilityService::can_associate_tenant( $admin_id ) ) {
+					wp_die( esc_html__( 'Unauthorized to disassociate tenant reports.', 'fraud-tenant-core' ), 403 );
+				}
+				$result = \FraudTenant\Services\ReportVisibilityService::disassociate_tenant(
+					$report_id,
+					$association_id,
+					$action_reason,
+					$admin_id
+				);
+				$msg_code = $result['success'] ? 'disassociated' : 'error';
+				break;
+
+			case 'approve_visibility':
+				if ( ! \FraudTenant\Services\ReportVisibilityService::can_manage_report_visibility( $admin_id ) ) {
+					wp_die( esc_html__( 'Unauthorized to approve report visibility.', 'fraud-tenant-core' ), 403 );
+				}
+				$result = \FraudTenant\Services\ReportVisibilityService::approve_visibility(
+					$report_id,
+					$association_id,
+					$action_reason,
+					$admin_id
+				);
+				$msg_code = $result['success'] ? 'visibility_approved' : 'error';
+				break;
+
+			case 'revoke_visibility':
+				if ( ! \FraudTenant\Services\ReportVisibilityService::can_manage_report_visibility( $admin_id ) ) {
+					wp_die( esc_html__( 'Unauthorized to revoke report visibility.', 'fraud-tenant-core' ), 403 );
+				}
+				$result = \FraudTenant\Services\ReportVisibilityService::revoke_visibility(
+					$report_id,
+					$association_id,
+					$action_reason,
+					$admin_id
+				);
+				$msg_code = $result['success'] ? 'visibility_revoked' : 'error';
+				break;
+
+			default:
+				$msg_code = 'error';
+				break;
+		}
+
+		$redirect_args = array(
+			'page'      => 'fraud-tenant-visibility',
+			'report_id' => $report_id,
+			'ft_msg'    => $msg_code,
+		);
+
+		if ( ! empty( $result['error'] ) ) {
+			$redirect_args['ft_err'] = $result['error'];
+		}
+
+		$redirect_url = add_query_arg( $redirect_args, admin_url( 'admin.php' ) );
 		wp_safe_redirect( $redirect_url );
 
 		if ( ! defined( 'FT_DOING_TESTS' ) ) {

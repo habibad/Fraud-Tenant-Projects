@@ -1,0 +1,39 @@
+[PASS] WF-01: Tenant registration accepted
+[PASS] WF-02: Account created in email_unverified state
+[PASS] WF-03: Routed to Enter 6-Digit OTP
+[PASS] WF-04: Email OTP generated and dispatched (QA mail capture)
+[PASS] WF-05: Tenant role assigned server-side
+[PASS] WF-06: Login before email verification is denied and routed to OTP
+[PASS] WF-07: Resend within 60 s blocked by cooldown
+[PASS] WF-08: Invalid OTP rejected with remaining-attempt count
+[PASS] WF-09: Expired OTP rejected even with the correct digits
+[PASS] WF-10: Resend after cooldown issues a fresh code
+[PASS] WF-11: Valid OTP -> Email Verified -> Pending Admin Approval
+[PASS] WF-12: OTP is single-use
+[PASS] WF-13: Pending account login routed to Account Status, not a dashboard
+[PASS] WF-14: Pending (verified, unapproved) tenant cannot load the Tenant Dashboard over HTTP (code 302)
+[PASS] WF-15: After 5 failed attempts the OTP is locked (correct code no longer accepted)
+[PASS] WF-16: Admin Approved -> status approved
+[PASS] WF-17: Approval notification email sent
+[PASS] WF-18: Approved tenant login -> Tenant Dashboard
+[PASS] WF-19: Approved tenant loads the Tenant Dashboard over HTTP
+[PASS] WF-20: Tenant cannot load the Owner Dashboard (cross-role denial, code 302)
+[PASS] WF-21: Tenant cannot load the Admin Command Center (code 403)
+[PASS] WF-22: Admin Rejected -> status rejected with reason recorded
+[PASS] WF-23: Rejection notification email sent
+[PASS] WF-24: Rejected account cannot reach a dashboard
+[PASS] WF-25: Approved owner login -> Property Owner Dashboard
+[PASS] WF-26: Owner cannot load the Tenant Dashboard (code 302)
+[PASS] WF-27: Administrator login -> Custom Admin Dashboard
+[PASS] WF-28: Invalid login shows one generic error for wrong password and unknown email
+[PASS] ADM-01: Registration reviewer can open Users
+[PASS] ADM-02: Registration reviewer cannot open Audit Logs / Stripe / Subscriptions
+[PASS] ADM-03: Unknown section denied
+[PASS] ADM-04: HTTP: limited reviewer requesting Audit Logs gets 403 (got 403)
+[PASS] ADM-05: HTTP: reviewer sees Users, and the Audit Logs tab is hidden from navigation
+[PASS] ADM-06: Administrator can open all 15 sections
+[PASS] ADM-07: Incident Review badge equals real pending count (9) (D11 fixed)
+[PASS] ADM-08: User search filters results server-side
+[PASS] ADM-09: Audit Logs paginated; payload column not rendered
+
+==== Workflow & Admin: 37 passed, 0 failed, 37 assertions ====

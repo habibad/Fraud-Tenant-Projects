@@ -1,0 +1,113 @@
+============================================================
+FRAUD TENANT — PHASE 8.1 TEST SUITE: INCIDENT SUBMISSION
+============================================================
+
+--- SECTION 0: Fixtures Setup ---
+Fixtures setup complete. Owner A ID: 244, Prop A1: 97, Prop B1: 100
+
+--- SECTION 1: Authorized Incident Report Submission (Test 1) ---
+[PASS] P81-1.1: Approved verified owner successfully submits incident report
+[PASS] P81-1.2: Incident report record ID is generated
+[PASS] P81-1.3: Incident starts with controlled initial status: submitted
+[PASS] P81-1.4: Initial disclosable flag is strictly 0
+[PASS] P81-1.5: Safe reference format INC-%06d generated
+[PASS] P81-1.6: Report record persisted in wp_ft_incident_reports
+[PASS] P81-1.7: Report accurately records submitting owner ID
+[PASS] P81-1.8: Report accurately records associated verified property ID
+[PASS] P81-1.9: Report accurately records incident category
+[PASS] P81-1.10: Report accurately records incident date
+[PASS] P81-1.11: Report accurately records amount involved
+[PASS] P81-1.12: tenant_identity_id remains unlinked (NULL) in Phase 8.1
+[PASS] P81-1.13: Report records owner factual attestation flag
+[PASS] P81-1.14: DB status is strictly submitted (never automatically approved/verified)
+[PASS] P81-1.15: DB disclosable is strictly 0
+
+--- SECTION 2: BLK-08 Privacy & Evidence Gate Enforcement (Test 2) ---
+[PASS] P81-2.1: Submission fail-closed blocked when test mode is disabled (production gate)
+[FAIL] P81-2.2: Error code is submission_locked_blk08
+[PASS] P81-2.3: Zero records inserted during BLK-08 locked submission attempt
+
+--- SECTION 3: Unapproved Owner Rejection (Test 3) ---
+[PASS] P81-3.1: Unapproved owner is rejected from submitting incident report
+[PASS] P81-3.2: Error code is unauthorized for unapproved owner
+
+--- SECTION 4: Role & Capability Enforcement (Test 4) ---
+[PASS] P81-4.1: Owner without ft_submit_incident_report capability is denied
+[PASS] P81-4.2: Error code is unauthorized on missing capability
+[PASS] P81-4.3: Tenant role user is denied from submitting incident report
+
+--- SECTION 5: Property Eligibility & IDOR Prevention (Test 5) ---
+[PASS] P81-5.1: Unverified property (pending verification) is rejected
+[PASS] P81-5.2: Error code is property_not_verified
+[PASS] P81-5.3: Archived property is rejected
+[PASS] P81-5.4: Error code is property_archived
+[PASS] P81-5.5: Owner cannot select another owner property (IDOR blocked)
+[PASS] P81-5.6: Error code is property_not_found_or_forbidden
+
+--- SECTION 6: Cross-Owner Incident Isolation (Test 6) ---
+[PASS] P81-6.1: Owner B cannot access Owner A incident report (returns null)
+[PASS] P81-6.2: Owner A incident report does not appear in Owner B list
+[PASS] P81-6.3: Owner A successfully views own incident report details
+
+--- SECTION 7: Category & Input Validation (Test 7) ---
+[PASS] P81-7.1: Disallowed incident category is rejected
+[PASS] P81-7.2: Error code is invalid_category
+[PASS] P81-7.3: Future incident date is rejected
+[PASS] P81-7.4: Error code is invalid_incident_date
+[PASS] P81-7.5: Negative amount involved is rejected
+[PASS] P81-7.6: Error code is invalid_amount
+[PASS] P81-7.7: Short description (< 10 chars) is rejected
+[PASS] P81-7.8: Error code is missing_description
+[PASS] P81-7.9: Missing owner factual attestation is rejected
+[PASS] P81-7.10: Error code is missing_attestation
+
+--- SECTION 8: Supporting Evidence Document Upload (Test 8) ---
+[PASS] P81-8.1: Incident report with supporting document submitted successfully
+[PASS] P81-8.2: Supporting evidence document record created in wp_ft_documents
+[PASS] P81-8.3: Evidence document has private access permission
+[PASS] P81-8.4: Evidence document has pending review status
+[PASS] P81-8.5: Evidence document belongs to submitting owner
+[PASS] P81-8.6: Unauthorized owner is denied from streaming evidence document
+[PASS] P81-8.7: Authorized owner can stream own evidence document
+
+--- SECTION 9: Rate Limiting Enforcement (Test 9) ---
+[PASS] P81-9.1: Incident submission blocked when rate limit is exceeded
+[PASS] P81-9.2: Error code is rate_limited
+
+--- SECTION 10: Nonce CSRF Protection (Test 10) ---
+[PASS] P81-10.1: Web POST with invalid nonce is rejected with security check failure
+
+--- SECTION 11: REST API Permissions & Security (Test 11) ---
+[PASS] P81-11.1: Direct unauthenticated REST POST is denied with 401
+[PASS] P81-11.2: Direct Tenant user REST POST is denied with 403
+[PASS] P81-11.3: Direct Unapproved owner REST POST is denied with 403
+[PASS] P81-11.4: Authorized owner REST POST succeeds with 201 Created
+[PASS] P81-11.5: REST POST response includes safe reference INC-%06d
+[PASS] P81-11.6: REST POST response status is submitted
+[PASS] P81-11.7: List incident reports REST GET returns 200
+[PASS] P81-11.8: List reports returns array of submitted reports
+[PASS] P81-11.9: Single incident report REST GET returns 200
+[PASS] P81-11.10: Cross-owner REST GET is denied with 404 (IDOR blocked)
+
+--- SECTION 12: Audit Logging & Privacy Verification (Test 12) ---
+[PASS] P81-12.1: Audit log record created with action incident.report_submitted
+[PASS] P81-12.2: Audit object_type is incident_report
+[PASS] P81-12.3: Audit user_id accurately identifies submitting owner
+[PASS] P81-12.4: Audit details payload is valid JSON
+[PASS] P81-12.5: Audit details strictly exclude unencrypted free-text narrative (privacy gate)
+[PASS] P81-12.6: Audit details strictly exclude any SSN or tenant PII
+[PASS] P81-12.7: Audit details record initial status submitted
+[PASS] P81-12.8: Audit details record disclosable as 0
+[PASS] P81-12.9: Audit details record attestation version 1.0
+
+--- Cleaning up temporary test fixtures ---
+Cleanup complete.
+
+============================================================
+PHASE 8.1 TEST RESULTS SUMMARY
+============================================================
+Total Assertions: 71
+Passed:           70
+Failed:           1
+
+SOME PHASE 8.1 TESTS FAILED. PLEASE REVIEW LOG ABOVE.

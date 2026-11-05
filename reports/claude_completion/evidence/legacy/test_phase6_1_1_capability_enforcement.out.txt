@@ -1,0 +1,42 @@
+============================================================
+FRAUD TENANT — PHASE 6.1.1 CAPABILITY ENFORCEMENT SUITE
+============================================================
+
+--- SECTION 0: Fixtures Setup ---
+Fixtures setup complete.
+
+--- SECTION 1: Property Review vs. Verification Capabilities ---
+[PASS] CAP 1.1: Reviewer with ft_review_properties can access property review queue and review details
+[PASS] CAP 1.2: Reviewer with ft_review_properties but without ft_verify_properties is strictly denied from verifying property
+[PASS] CAP 1.3: Unauthorized property verification attempt is logged in audit log with reviewer ID and missing capability reason
+[PASS] CAP 1.4: Property status remains pending_verification after rejected verification attempt
+[PASS] CAP 1.5: Authorized verifier with ft_verify_properties successfully verifies property and updates status to verified
+[PASS] CAP 1.6: Administrator (manage_options) retains full review and verification permissions without regression
+
+--- SECTION 2: Property Document Streaming Permissions ---
+[PASS] DOC 2.1: Reviewer with only ft_review_user_registrations is strictly blocked from streaming property documents with 403 and audited
+[PASS] DOC 2.2: Authorized property reviewer with ft_review_properties can stream property ownership documents
+[PASS] DOC 2.3: Cross-owner document streaming is strictly blocked in both directions
+[PASS] DOC 2.4: Tenant accounts and unauthenticated visitors are blocked fail-closed with 403
+
+--- SECTION 3: Nonce Protection vs. Independent Authorization ---
+[PASS] NNC 3.1: Invalid or forged nonce fails CSRF verification check
+[PASS] NNC 3.2: Nonce provides time-windowed CSRF defense; authorization remains independently enforced on each request
+
+--- SECTION 4: Zero Filesystem Path Disclosure ---
+[PASS] CAP 4.1: Audit logs and rejection outputs contain zero server filesystem paths
+
+--- SECTION 5: Safe Header Handling ---
+[PASS] HDR 5.1: Document streaming safely aborts with error before readfile() if headers have already been sent
+[PASS] HDR 5.2: Streaming abort when headers sent is audited to wp_ft_audit_log with zero filesystem path exposure
+
+--- Cleaning up temporary test fixtures ---
+
+============================================================
+PHASE 6.1.1 CAPABILITY ENFORCEMENT SUMMARY
+============================================================
+Total Assertions: 15
+Passed:           15
+Failed:           0
+
+ALL PHASE 6.1.1 CAPABILITY ENFORCEMENT TESTS PASSED SUCCESFULLY!

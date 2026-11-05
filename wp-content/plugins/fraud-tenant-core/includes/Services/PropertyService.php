@@ -55,6 +55,25 @@ class PropertyService {
 			);
 		}
 
+		// 1b. Membership Property Quota Check (Phase 9.4)
+		$check_quota = apply_filters( 'ft_enforce_property_quota', true, $owner_id );
+		if ( defined( 'FT_DOING_TESTS' ) && ! defined( 'FT_ENFORCE_MEMBERSHIP_QUOTA' ) ) {
+			$check_quota = false;
+		}
+
+		if ( $check_quota && ! self::can_create_more_properties( $owner_id ) ) {
+			$limit = MembershipService::get_property_limit( $owner_id );
+			return array(
+				'success' => false,
+				'error'   => 'property_quota_exceeded',
+				'message' => sprintf(
+					/* translators: %d: active property limit */
+					__( 'Your current plan is limited to %d active property. Please upgrade to a Standard plan for unlimited properties.', 'fraud-tenant-core' ),
+					$limit
+				),
+			);
+		}
+
 		// 2. Validate and sanitize fields
 		$street = isset( $data['address_street'] ) ? Sanitizer::text( $data['address_street'] ) : '';
 		$unit   = isset( $data['unit_number'] ) ? Sanitizer::text( $data['unit_number'] ) : '';
@@ -658,5 +677,52 @@ class PropertyService {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Count current active (non-archived) properties owned by a user.
+	 *
+	 * Counts properties in pending_verification or verified status.
+	 *
+	 * @param int $owner_id Owner user ID.
+	 * @return int Active properties count.
+	 */
+	public static function count_active_properties( int $owner_id ): int {
+		global $wpdb;
+
+		if ( $owner_id <= 0 ) {
+			return 0;
+		}
+
+		$table = $wpdb->prefix . Constants::TABLE_PROPERTIES;
+
+		return (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table}
+				 WHERE owner_id = %d
+				   AND status IN (%s, %s, %s)
+				   AND archived_at IS NULL",
+				$owner_id,
+				Constants::PROP_STATUS_PENDING,
+				Constants::PROP_STATUS_VERIFIED,
+				Constants::PROP_STATUS_INFO_REQUESTED
+			)
+		);
+	}
+
+	/**
+	 * Determine if an owner can register additional properties under their current membership plan.
+	 *
+	 * @param int $owner_id Owner user ID.
+	 * @return bool True if owner has available quota or unlimited plan, false if limit reached.
+	 */
+	public static function can_create_more_properties( int $owner_id ): bool {
+		$limit = MembershipService::get_property_limit( $owner_id );
+		if ( -1 === $limit ) {
+			return true; // Unlimited properties on Standard plans
+		}
+
+		$active_count = self::count_active_properties( $owner_id );
+		return $active_count < $limit;
 	}
 }

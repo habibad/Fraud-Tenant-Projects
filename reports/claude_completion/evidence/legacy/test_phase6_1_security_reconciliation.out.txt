@@ -1,0 +1,63 @@
+============================================================
+FRAUD TENANT — PHASE 6.1 SECURITY & QA RECONCILIATION SUITE
+============================================================
+
+--- SECTION 0: Fixtures Setup ---
+Fixtures initialized successfully.
+
+--- SECTION 1: Document Authorization & Cross-Verification ---
+[PASS] SEC 1.1: Owner A can stream own verified ownership document
+[PASS] SEC 1.2: Bidirectional Direction 1: Owner B blocked from streaming Owner A document
+[PASS] SEC 1.3: Bidirectional Direction 2: Owner A blocked from streaming Owner B document
+[PASS] SEC 1.4: Tenant account blocked with 403 from streaming ownership documents
+[PASS] SEC 1.5: Anonymous visitor (user_id=0) blocked with 403 from streaming document
+[PASS] SEC 1.6: Tamper / Desync Trapped: Document denied when doc.user_id does not match property.owner_id
+[PASS] SEC 1.7: Document viewing endpoint strictly enforces valid single-action nonce
+
+--- SECTION 2: File Path Security & Directory Confinement ---
+[PASS] SEC 2.1: Canonical protected storage root resolved and enforced with trailing directory separator
+[PASS] SEC 2.2: Path Traversal Guard: Relative traversal (../../) strictly blocked with 404
+[PASS] SEC 2.3: Sibling Prefix Guard: Paths with identical base prefix cannot escape confinement
+[PASS] SEC 2.4: Zero Path Disclosure: Error messages and outputs contain zero server filesystem paths
+
+--- SECTION 3: Bidirectional Cross-User Isolation ---
+[PASS] SEC 3.1: Bidirectional Direction 1: Owner A cannot read Owner B property
+[PASS] SEC 3.2: Bidirectional Direction 2: Owner B cannot read Owner A property
+[PASS] SEC 3.3: Bidirectional Direction 1: Owner A cannot update Owner B property
+[PASS] SEC 3.4: Bidirectional Direction 2: Owner B cannot update Owner A property
+[PASS] SEC 3.5: Bidirectional Direction 1: Owner A cannot archive Owner B property
+[PASS] SEC 3.6: Bidirectional Direction 2: Owner B cannot archive Owner A property
+[PASS] SEC 3.7: Owner Dashboard data strictly isolated in both directions (zero cross-leak)
+[PASS] SEC 3.8: Tenant A/B identity records and token hashes strictly isolated
+[PASS] SEC 3.9: Tenant A/B notifications and disputes isolated in both directions
+[PASS] SEC 3.10: Tenant A audit activity timeline strictly isolated from Tenant B feed
+
+--- SECTION 4: Document Version History & Review Status ---
+[PASS] SEC 4.1: Replacement creates new distinct record while preserving prior historical records
+[PASS] SEC 4.2: Physical prior file remains preserved on disk without unlinking or overwriting
+[PASS] SEC 4.3: Verification updates ONLY current document to approved; older version marked superseded
+
+--- SECTION 5: Dedicated Administrative Capabilities ---
+[PASS] SEC 5.1: Dedicated property review capabilities (ft_review_properties, ft_verify_properties) registered
+[PASS] SEC 5.2: Administrator role possesses dedicated property review capabilities
+[PASS] SEC 5.3: can_review_property() strictly allows reviewer/admin and rejects owners and tenants
+
+--- SECTION 6: Compliance Reverification Triggers ---
+[PASS] SEC 6.1: Critical unit number change resets verified property back to pending_verification
+[PASS] SEC 6.2: Critical postal code change resets verified property back to pending_verification
+[PASS] SEC 6.3: Non-critical title update succeeds without resetting verified status
+[PASS] SEC 6.4: Owner cannot modify verification metadata through update payloads
+
+--- SECTION 7: Production Storage & Barrier Verification ---
+[PASS] SEC 7.1: Protected storage barrier files (.htaccess, index.php, web.config) actively deployed
+[PASS] SEC 7.2: DocumentService natively supports custom FT_PROTECTED_STORAGE_DIR outside webroot
+
+--- Cleaning up temporary security test files ---
+============================================================
+PHASE 6.1 SECURITY & RECONCILIATION EXECUTION SUMMARY
+============================================================
+Total Assertions: 33
+Passed:           33
+Failed:           0
+
+ALL PHASE 6.1 SECURITY & RECONCILIATION TESTS PASSED SUCCESFULLY!

@@ -1,0 +1,86 @@
+== Billing & Membership suite (QA DB: fraudtenant_qa, Stripe mode: test) ==
+[PASS] MEM-01: New approved owner is on the Free plan
+[PASS] MEM-02: Free property limit is 1
+[PASS] MEM-03: Free owner has no incident_reporting entitlement
+[PASS] MEM-04: Free owner cannot submit incidents (D2 fix: gate on by default)
+[PASS] MEM-05: Tenant is never an eligible paid owner
+[PASS] MEM-06: Free owner can create first active property
+[PASS] MEM-07: Free owner second active property rejected server-side (property_quota_exceeded)
+[PASS] MEM-08: REST incident submission (valid payload, verified property) by Free owner -> 403 from the entitlement gate (got 403)
+[PASS] MEM-09: No incident row created for Free owner
+[PASS] MEM-10: REST checkout by tenant -> 403
+[PASS] MEM-11: REST checkout without nonce -> 403
+[PASS] MEM-12: REST checkout unauthenticated -> 401
+[PASS] MEM-13: Unapproved owner cannot initiate checkout
+[PASS] MEM-14: Free plan is not purchasable
+[PASS] MEM-15: Unknown plan code rejected
+[PASS] CHK-01: Genuine Test Checkout Session created (checkout.stripe.com URL)
+[PASS] CHK-02: Remote session is open and livemode=false
+[PASS] CHK-03: Session bound to owner and plan
+[PASS] CHK-04: Session amount is $29.00 USD
+[PASS] CHK-05: Repeat request for same plan reuses the verified open session
+[PASS] CHK-06: Different plan starts a new logical attempt/session
+[PASS] CHK-07: Yearly session amount is $290.00
+[PASS] CHK-08: Remotely expired session is not reused; new session created
+[PASS] CHK-09: Retry of an unresolved attempt reuses the persisted attempt id
+[PASS] CHK-10: Same attempt id -> Stripe idempotency returns the identical session
+[PASS] CHK-11: A genuinely new purchase attempt gets a new attempt id
+[PASS] CHK-12: Owner B cannot verify/claim owner D's checkout session
+[PASS] SUB-01: Owner A has a mode-specific Test customer
+[PASS] SUB-02: Genuine Test subscription created and paid in Stripe (status active)
+[PASS] SUB-03: Owner A had no other active subscription; any entitlement can only come from the synced Stripe subscription
+[PASS] SUB-04: Genuine Stripe webhook (via CLI) synchronized the subscription to active
+[PASS] SUB-05: Local record: livemode=0, correct customer and plan
+[PASS] SUB-06: Period end comes from Stripe (about 1 month ahead), not fabricated
+[PASS] SUB-07: Owner A now has an active Standard entitlement
+[PASS] SUB-08: Standard property limit is unlimited (-1)
+[PASS] SUB-09: Standard owner may submit incidents
+[PASS] SUB-10: Standard owner can create additional active properties
+[PASS] SUB-11: Genuine events recorded as processed (128)
+[PASS] SUB-12: Stored webhook payloads are minimized (no customer emails)
+[PASS] SUB-13: Billing history shows the genuine $29.00 paid invoice
+[PASS] WHK-01: Invalid signature rejected (400)
+[PASS] WHK-02: Stale timestamp (>300s) rejected (400)
+[PASS] WHK-03: Missing Stripe-Signature rejected (400)
+[PASS] WHK-04: Header without v1 rejected (400)
+[PASS] WHK-05: Multiple v1 signatures: valid one accepted
+[PASS] WHK-06: Forged "canceled" payload ignored: state re-fetched from Stripe stays active
+[PASS] WHK-07: livemode=true event signed with Test secret rejected (no Live secret configured -> fail closed)
+[PASS] WHK-08: Body altered after signing rejected (raw-body verification)
+[PASS] WHK-09: Duplicate delivery of a genuine event is idempotent (already_processed)
+[PASS] WHK-10: Event stuck in processing >5 min is reclaimed and completed
+[PASS] WHK-11: Event currently processing elsewhere returns 409 (Stripe retries later)
+[PASS] ISO-01: With Live mode active, Test-mode subscription grants NO entitlement
+[PASS] ISO-02: Live mode: Test subscriber falls back to Free limits
+[PASS] ISO-03: Back in Test mode, Test subscription state is intact
+[PASS] ISO-04: No Live customer mapping was created for the Test customer
+[PASS] XOWN-01: Webhook for a subscription whose customer is not the claimed owner's is FAILED (fail closed)
+[PASS] XOWN-02: Owner B gains no entitlement from owner A's customer
+[PASS] XOWN-03: No local subscription row was written for the rogue subscription
+[PASS] LIFE-01: cancel_at_period_end synchronized via genuine webhook
+[PASS] LIFE-02: Access retained until verified period end
+[PASS] LIFE-03: customer.subscription.deleted synchronized: status canceled
+[PASS] LIFE-04: Canceled subscription revokes Standard entitlement
+[PASS] LIFE-05: Downgraded owner: Free limit and no incident reporting
+[PASS] LIFE-06: Downgrade does not delete/archive existing properties (2 remain active)
+[PASS] LIFE-07: Downgraded owner over quota cannot add more properties
+[PASS] LIFE-08: Subscription history row preserved (not deleted)
+[PASS] LIFE-09: Out-of-order stale "active" event does not resurrect a canceled subscription
+[PASS] FAIL-01: Genuine declined first payment -> Stripe status incomplete
+[PASS] FAIL-02: Webhook synchronized incomplete status
+[PASS] FAIL-03: Incomplete subscription grants no entitlement
+[PASS] FAIL-04: invoice.payment_failed recorded in owner billing history
+[PASS] FAIL-05: Owner with a failed/incomplete payment can start a fresh checkout
+[PASS] YR-01: Genuine yearly subscription maps to standard_yearly
+[PASS] YR-02: Active subscriber cannot start a duplicate checkout (409)
+[PASS] PORTAL-01: Customer Portal session created for owner's own Test customer
+[PASS] PORTAL-02: Tenant cannot open a billing portal
+[PASS] PORTAL-03: Owner without a Stripe customer gets a clear portal error
+[PASS] SYNC-01: Manual sync re-verifies owner/customer/price and returns active
+[PASS] RECON-01: Reconciliation corrects a subscription whose cancellation webhook was missed
+[PASS] RECON-02: Access is revoked after reconciliation
+[PASS] RECON-03: Reconciliation report: checked 1, changed 1, failed 0
+[PASS] RECON-04: Recently synced active subscriptions are left untouched
+[PASS] RECON-05: Hourly reconciliation job is scheduled
+
+==== Billing & Membership: 83 passed, 0 failed, 83 assertions ====

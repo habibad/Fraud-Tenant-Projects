@@ -1,0 +1,9 @@
+[PASS] IJ-01: Owner A files an incident naming the tenant (name + SSN + identity attestation) — confirmation shown
+[PASS] IJ-02: Admin sees the reported tenant (name + SSN last 4) on the review screen — report #84
+[PASS] IJ-03: Admin approves the report, then releases it to owner screening — released
+[PASS] IJ-04: Standard owner C screens the applicant and sees the full record — record card shown; URL/page free of SSN
+[PASS] IJ-05: Free owner B sees "record found" without details, with upgrade prompt — count only
+[PASS] IJ-06: Unknown applicant returns "no records" — true
+[PASS] IJ-07: Admin Platform Settings shows the compliance gate status — true
+
+==== Identity screening journeys: 7 passed, 0 failed, 7 journeys ====

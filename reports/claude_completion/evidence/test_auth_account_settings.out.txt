@@ -1,0 +1,40 @@
+[PASS] PWR-00: User has 2 active sessions before reset
+[PASS] PWR-01: Reset OTP requested
+[PASS] PWR-02: Unknown email gets a generic success (no enumeration)
+[PASS] PWR-03: Reset OTP delivered to QA mail capture
+[PASS] PWR-04: Wrong reset OTP rejected
+[PASS] PWR-05: Correct reset OTP accepted
+[PASS] PWR-06: Redirect URL contains NO reset token (D9 fixed)
+[PASS] PWR-07: Reset authorization is carried by the ft_pw_reset cookie
+[PASS] PWR-08: Raw reset token is not stored anywhere in wp_options (only its SHA-256 hash)
+[PASS] PWR-09: Token hash resolves to the right user
+[PASS] PWR-10: Unknown token resolves to nobody
+[PASS] PWR-11: Short new password rejected (token not consumed)
+[PASS] PWR-12: Password reset completes and routes to Login
+[PASS] PWR-13: Replay of the consumed reset authorization is rejected
+[PASS] PWR-14: Old password no longer works
+[PASS] PWR-15: New password works
+[PASS] PWR-16: All existing sessions destroyed after reset
+[PASS] PWR-17: Audit entry exists and contains neither token nor password
+[PASS] PWR-18: Reset template neither reads ?token= nor renders the token into HTML
+[PASS] PWC-01: Password change requires the correct current password
+[PASS] PWC-02: Confirmation mismatch rejected
+[PASS] PWC-03: Invalid nonce rejected (CSRF)
+[PASS] PWC-04: Cannot update another user's profile (IDOR)
+[PASS] PWC-05: Valid password change succeeds and new password authenticates
+[PASS] EML-01: Email change requires current password
+[PASS] EML-02: Email already used by another account is rejected
+[PASS] EML-03: Valid request creates a PENDING change
+[PASS] EML-04: Account email is NOT changed before verification (D10 fixed)
+[PASS] EML-05: Confirmation code sent to the NEW address
+[PASS] EML-06: No code sent to the old address
+[PASS] EML-07: Only a hash of the code is stored
+[PASS] EML-08: Wrong confirmation code rejected
+[PASS] EML-09: Another account cannot use the code (no pending change bound to it)
+[PASS] EML-10: Correct code completes the change
+[PASS] EML-11: Pending change cleared
+[PASS] EML-12: Security notice sent to the previous address
+[PASS] EML-13: Code is single-use (replay rejected)
+[PASS] EML-14: Audit uses masked emails and never the code
+
+==== Auth & Account Settings: 38 passed, 0 failed, 38 assertions ====

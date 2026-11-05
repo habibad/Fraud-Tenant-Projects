@@ -1,0 +1,17 @@
+[PASS] CONC-01: 12 independent PHP processes completed (12 distinct PIDs)
+[PASS] CONC-02: Exactly one process acquired the fresh lock (winners: 1)
+    (completion spread across processes: 1.516s)
+[PASS] CONC-03: Exactly one process took over the expired lock (winners: 1)
+[PASS] CONC-04: Takeover replaced the stale token; still exactly one lock row (unique owner key)
+[PASS] CONC-05: Release with a wrong token is refused
+[PASS] CONC-06: Lock still held after wrong-token release attempt
+[PASS] CONC-07: Release with the owning token succeeds
+[PASS] CONC-08: Held lock blocks a second acquirer with 429
+[PASS] CONC-09: With site timezone UTC+6 the lock still excludes a second acquirer (D7 fixed)
+    HTTP codes: 429,429,429,200,429,429,429,429
+[PASS] CONC-10: 8 concurrent HTTP checkout requests produced exactly ONE distinct Stripe session (1)
+[PASS] CONC-11: Every concurrent request returned 200 (same session) or 429 (lock held)
+[PASS] CONC-12: Persisted attempt references that single session
+[PASS] CONC-13: Stripe itself holds exactly one Checkout Session for this customer (1)
+
+==== Checkout Concurrency: 13 passed, 0 failed, 13 assertions ====

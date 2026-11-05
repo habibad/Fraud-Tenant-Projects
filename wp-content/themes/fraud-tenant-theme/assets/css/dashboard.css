@@ -1144,3 +1144,80 @@ body.page-template-page-tenant-dashboard {
   padding: 18px;
   margin-top: 16px;
 }
+
+/* Phase 7.1 Screening Request Styles */
+.ft-screening-badge-pending {
+  display: inline-block;
+  background: #FEF3C7;
+  color: #92400E;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.ft-screening-badge-match {
+  display: inline-block;
+  background: #CCFBF1;
+  color: #0F766E;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.ft-screening-badge-nomatch {
+  display: inline-block;
+  background: #F1F5F9;
+  color: var(--dash-muted);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.ft-form-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  color: var(--dash-navy);
+  background: #FFFFFF;
+  box-sizing: border-box;
+}
+
+.ft-form-input:focus {
+  border-color: var(--dash-teal);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(14, 148, 136, 0.15);
+}
+
+/* Secondary action button (membership modal: billing portal / close). */
+.dashboard-btn-secondary {
+  background-color: #FFFFFF;
+  color: var(--dash-navy);
+  border: 1px solid #CBD5E1;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.dashboard-btn-secondary:hover,
+.dashboard-btn-secondary:focus-visible {
+  border-color: var(--dash-teal);
+  color: var(--dash-teal);
+}
+
+.dashboard-btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

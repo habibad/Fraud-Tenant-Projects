@@ -1,0 +1,26 @@
+============================================================
+FRAUD TENANT — STRIPE WEBHOOK PROCESSING VERIFICATION
+============================================================
+
+[PASS] WHK-1.1: Empty body rejected with 400
+[PASS] WHK-1.2: Missing signature header rejected with 400
+[PASS] WHK-1.3: Invalid signature rejected with 400
+[PASS] WHK-1.4: Expired signature (>300s) rejected with 400 (replay attack guard)
+[FAIL] WHK-1.5: Valid webhook request returns 200 OK
+[FAIL] WHK-1.6: Event status transitioned to processed
+[FAIL] WHK-1.7: Subscription record created in database
+PHP Warning:  Attempt to read property "status" on null in C:\Users\Md Anikur Rahaman\AppData\Local\Temp\claude\b7716ae2ca967421\d4325114-d6c7-40bc-a05f-67cc5ec57b03\scratchpad\legacy\test_stripe_webhooks.php on line 137
+[FAIL] WHK-1.8: Subscription status is active
+PHP Warning:  Attempt to read property "user_id" on null in C:\Users\Md Anikur Rahaman\AppData\Local\Temp\claude\b7716ae2ca967421\d4325114-d6c7-40bc-a05f-67cc5ec57b03\scratchpad\legacy\test_stripe_webhooks.php on line 138
+[FAIL] WHK-1.9: Subscription user_id matches recipient
+PHP Warning:  Attempt to read property "livemode" on null in C:\Users\Md Anikur Rahaman\AppData\Local\Temp\claude\b7716ae2ca967421\d4325114-d6c7-40bc-a05f-67cc5ec57b03\scratchpad\legacy\test_stripe_webhooks.php on line 139
+[PASS] WHK-1.10: Subscription livemode flag is 0 (test mode)
+[FAIL] WHK-1.11: MembershipService recognizes active subscription
+[FAIL] WHK-1.12: Replayed duplicate event returns 200 OK
+[FAIL] WHK-1.13: Duplicate event recognized with status already_processed
+[FAIL] WHK-1.14: Subscription deletion webhook returns 200 OK
+[FAIL] WHK-1.15: Database subscription transitioned to canceled
+[PASS] WHK-1.16: Owner subscription is no longer active
+[FAIL] WHK-1.17: In-app notifications enqueued for activation and cancellation
+
+Total Passed: 6, Failed: 11

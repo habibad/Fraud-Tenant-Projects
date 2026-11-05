@@ -1,0 +1,73 @@
+============================================================
+FRAUD TENANT — PHASE 6 COMPREHENSIVE TEST SUITE
+============================================================
+
+--- SECTION 0: Fixtures Setup ---
+Fixtures initialized.
+
+--- SECTION 1: Property Management CRUD & Logic ---
+[PASS] P6-1.1: Approved owner creates property successfully
+[PASS] P6-1.2: New property starts with status = pending_verification
+[PASS] P6-1.3: Owner A views own property with exact details
+[PASS] P6-1.4: Non-critical property edit succeeds without reverification trigger
+[PASS] P6-1.5: IDOR Trapped: Owner A cannot edit Owner B property
+[PASS] P6-1.6: Owner ID cannot be overwritten through update payload
+[PASS] P6-1.7: Owner cannot self-verify property via update payload
+[PASS] P6-1.8a: Property successfully verified by administrator
+[PASS] P6-1.8b: Critical address change resets verified status back to pending_verification
+[PASS] P6-1.9: Owner archives own property safely with timestamp
+[PASS] P6-1.10: Archived property is excluded from default active list
+[PASS] P6-1.11: Archived property is present in archived list
+[PASS] P6-1.12: Unarchive restores property back to pending_verification in verification queue
+
+--- SECTION 2: Secure Document Uploads & Validation ---
+[PASS] P6-2.1: Valid PDF ownership document accepted and recorded
+[PASS] P6-2.2: Valid JPG ownership document accepted and recorded
+[PASS] P6-2.3: Valid PNG ownership document accepted and recorded
+[PASS] P6-2.4: Oversized document (>10MB) strictly rejected
+[PASS] P6-2.5: Executable .exe file strictly rejected
+[PASS] P6-2.6: PHP executable script strictly rejected
+[PASS] P6-2.7: MIME spoofing (PHP with .pdf extension) detected and rejected
+[PASS] P6-2.8: Double-extension executable disguised as image rejected
+[PASS] P6-2.9: Random unguessable storage filename generated, preserving original name metadata
+[PASS] P6-2.10: Storage protections (.htaccess, index.php, web.config) actively deployed
+[PASS] P6-2.11: Prior document records preserved on replacement/subsequent uploads (no destructive overwrite)
+
+--- SECTION 3: Document Streaming & Authorization ---
+[PASS] P6-3.1: Owner A can stream own protected document
+[PASS] P6-3.2: IDOR Trapped: Owner B blocked and audited when attempting to stream Owner A document
+[PASS] P6-3.3: Role Gate: Tenant account blocked and audited from streaming ownership documents
+[PASS] P6-3.4: Administrator with review capability can stream protected document
+
+--- SECTION 4: Admin Property Verification Queue & Actions ---
+[PASS] P6-4.1: Admin property queue lists all active properties
+[PASS] P6-4.2: Admin property queue search filters by address
+[PASS] P6-4.3: Property queue status counts computed correctly
+[PASS] P6-4.4: Admin inspects property review detail with owner information and evidence documents
+[PASS] P6-4.5: Admin verifies property: sets status = verified and documents = approved
+[PASS] P6-4.6: Admin requests additional property info with note recorded
+[PASS] P6-4.7: Short rejection reason (<10 chars) rejected
+[PASS] P6-4.8: Admin rejects property with reason recorded and document marked rejected
+[PASS] P6-4.9: Property verification is independent: rejecting property does not alter owner account approval
+[PASS] P6-4.10: Owner re-uploading document automatically resets property status back to pending_verification
+
+--- SECTION 5: Owner Dashboard Integration & Scoping ---
+[PASS] P6-5.1: Owner dashboard payload contains real properties and aligned counts
+[PASS] P6-5.2: Strict Scoping: Owner A dashboard does not leak Owner B property
+[PASS] P6-5.3: All Phase 6 lifecycle and review events recorded in append-only application-level audit log
+
+--- SECTION 6: Phase 4 & Phase 5 Regression Checks ---
+[PASS] P6-6.1: Email OTP table remains operational and intact
+[PASS] P6-6.2: Tenant dashboard service remains fully operational
+[PASS] P6-6.3: SSN screening engine remains strictly out-of-scope with zero REST routes
+[FAIL] P6-6.4: Database schema version is confirmed at 1.3.0
+
+--- Cleaning up temporary test files ---
+============================================================
+PHASE 6 TEST SUITE EXECUTION SUMMARY
+============================================================
+Total Assertions: 45
+Passed:           44
+Failed:           1
+
+SOME TESTS FAILED! Review the output above.

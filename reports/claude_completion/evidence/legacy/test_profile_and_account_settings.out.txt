@@ -1,0 +1,27 @@
+=== Running Workstream 5: Profile & Account Settings Tests ===
+
+[PASS] PRF-1.1: Rejects cross-user IDOR profile update attempt
+[PASS] PRF-1.2: Rejects invalid CSRF/nonce token
+[PASS] PRF-1.3: Contact phone number update succeeds
+[PASS] PRF-1.4: Contact phone number is correctly persisted in database
+[PASS] PRF-1.5: Personal and entity profile update succeeds
+[PASS] PRF-1.6: WordPress core first and last name updated
+[PASS] PRF-1.7: Address and business details correctly persisted in custom table
+[PASS] PRF-1.8: Password change rejects missing current password
+[PASS] PRF-1.9: Password change rejects incorrect current password
+[PASS] PRF-1.10: Password change rejects passwords shorter than 8 characters
+[PASS] PRF-1.11: Password change rejects mismatched confirmation
+[PASS] PRF-1.12: Valid password change succeeds
+[PASS] PRF-1.13: New password hash verifies successfully
+[PASS] PRF-1.14: Email change requires current password
+[PASS] PRF-1.15: Email change rejects invalid email format
+[PASS] PRF-1.16: Email change rejects email already registered to another user
+[PASS] PRF-1.17: Authorized email change succeeds
+[FAIL] PRF-1.18: User email is updated in WordPress database - 
+[PASS] PRF-1.19: Audit log records user_profile_updated
+[PASS] PRF-1.20: Audit log records user_password_changed
+[FAIL] PRF-1.21: Audit log records user_email_updated - 
+
+============================================
+Profile & Account Settings Results: Passed: 19, Failed: 2
+============================================

@@ -26,14 +26,14 @@ get_header();
 			</div>
 
 			<div class="auth-card-header">
-				<h1 class="auth-title"><?php esc_html_e( 'Reset Password', 'fraud-tenant-theme' ); ?></h1>
-				<p class="auth-subtitle"><?php esc_html_e( "Enter your registered email address and we'll dispatch a link to reset your password.", 'fraud-tenant-theme' ); ?></p>
+				<h1 class="auth-title"><?php esc_html_e( 'Forgot Password', 'fraud-tenant-theme' ); ?></h1>
+				<p class="auth-subtitle"><?php esc_html_e( "Enter your registered email address and we'll dispatch a 6-digit verification code to reset your password.", 'fraud-tenant-theme' ); ?></p>
 			</div>
 
 			<?php if ( isset( $_GET['sent'] ) && '1' === $_GET['sent'] ) : ?>
 				<div class="auth-alert auth-alert-success" role="alert">
 					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-					<span><?php esc_html_e( 'If an account exists with that email, a password reset link has been dispatched.', 'fraud-tenant-theme' ); ?></span>
+					<span><?php esc_html_e( 'If an account exists with that email, a 6-digit verification code has been dispatched.', 'fraud-tenant-theme' ); ?></span>
 				</div>
 			<?php endif; ?>
 
@@ -63,7 +63,7 @@ get_header();
 				</div>
 
 				<button type="submit" class="btn btn-primary btn-block btn-auth-submit">
-					<span><?php esc_html_e( 'Send Reset Link', 'fraud-tenant-theme' ); ?></span>
+					<span><?php esc_html_e( 'Send Verification Code', 'fraud-tenant-theme' ); ?></span>
 					<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
 				</button>
 			</form>

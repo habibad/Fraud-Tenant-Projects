@@ -8,8 +8,8 @@ This guide details the setup, configuration, and verification procedures for the
 
 - **XAMPP**: Running Apache 2.4.x and MySQL / MariaDB 10.4.x.
 - **PHP**: PHP 8.2+ with `curl`, `mbstring`, `openssl`, `mysqli`, `pdo_mysql` extensions enabled.
-- **WordPress**: 7.1.3 installed in `c:\xampp\htdocs\fraudtenant` (verified via `wp-includes/version.php` and `get_bloginfo('version')`).
-- **Git**: Git 2.x installed at `C:\Program Files\Git\cmd\git.exe`.
+- **WordPress**: 7.1.3 installed in `c:\xampp\htdocs\fraud-tenant` (verified via `wp-includes/version.php` and `get_bloginfo('version')`).
+- **Git**: Git 2.x installed at `C:\Program Files\Git\cmd\git.exe` (Note: local repository tracking is currently uninitialized).
 - **Node.js**: Node.js 18+ (verified v24.22.0) for frontend build tools and test scripts.
 - **Browser Automation**: Google Chrome installed at `C:\Program Files\Google\Chrome\Application\chrome.exe`.
 
@@ -20,7 +20,7 @@ This guide details the setup, configuration, and verification procedures for the
 ### Database Settings
 Database configuration is defined in `wp-config.php`:
 ```php
-define( 'DB_NAME', 'fraudtenant' );
+define( 'DB_NAME', 'fraud_tenant' );
 define( 'DB_USER', 'root' );
 define( 'DB_PASSWORD', '' );
 define( 'DB_HOST', 'localhost' );
@@ -64,7 +64,7 @@ Uploaded ownership proof documents are stored in protected storage. Server-level
 ## 3. Directory Layout
 
 ```
-c:\xampp\htdocs\fraudtenant/
+c:\xampp\htdocs\fraud-tenant/
 ├── AGENTS.md                  # Project rules & architecture
 ├── IMPLEMENTATION_PLAN.md     # Detailed phase plan & statuses
 ├── TASKS.md                   # Granular task tracker
@@ -117,7 +117,7 @@ Expected output:
     "status": "operational",
     "plugin": "fraud-tenant-core",
     "api_version": "1.0.0",
-    "schema_version": "1.3.0",
+    "schema_version": "1.4.0",
     "ssn_matching_ready": false,
     "otp_hashing_ready": true,
     "timestamp": "..."
@@ -197,3 +197,89 @@ C:\xampp\php\php.exe scratch/test_phase5_1_1_reconciliation.php
 ```
 
 
+
+---
+
+## 8. Stripe Configuration & Dual-Mode Credentials Management
+
+### Admin Credentials Portal
+- **URL**: `http://localhost/fraudtenant/wp-admin/admin.php?page=fraud-tenant-settings&tab=stripe`
+- **Required Capability**: `manage_options` or `ft_manage_platform_settings` (Administrator only).
+- **Dual Independent Modes**:
+  - **Test Mode**: Encrypted credentials stored in `ft_stripe_credentials_test` (`sk_test_...`, `pk_test_...`, `whsec_test_...`).
+  - **Live Mode**: Encrypted credentials stored in `ft_stripe_credentials_live` (`sk_live_...`, `pk_live_...`, `whsec_live_...`).
+- **Active Mode Switcher**: Select between `test` (Sandbox) and `live` (Production) directly from the settings interface.
+- **Encryption**: AES-256-GCM authenticated encryption using keys derived from WordPress secret salts (`AUTH_KEY`, `SECURE_AUTH_KEY`, `LOGGED_IN_KEY`, `AUTH_SALT`, `SECURE_AUTH_SALT`, `LOGGED_IN_SALT`) via HKDF-SHA256.
+- **Option Storage**: Ciphertext stored in `wp_options` under `ft_stripe_credentials_test` and `ft_stripe_credentials_live` with autoload strictly disabled (`autoload = 'no'`). Zero plaintext stored.
+- **Environment & Safety Policy**:
+  - `local`, `development`, `staging`: Live Mode charges are strictly prohibited (`is_qa_mode_restricted()`). All local checkout and tests execute in Test Mode.
+  - `production`: Live keys required. HTTPS (`is_ssl()`) is strictly enforced.
+- **Webhook Endpoint**: `http://localhost/fraudtenant/wp-json/fraud-tenant/v1/stripe/webhook`
+  - Verifies HMAC-SHA256 signatures with 300s replay tolerance.
+  - Automatically selects Test or Live signing secret based on payload `livemode` boolean.
+  - Processes `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, and invoice events.
+- **Test Connection**: Provides an explicit administrator-triggered, read-only balance inquiry (`GET /v1/balance`) to verify secret key connectivity without creating customers or charges.
+- **Plan Mappings**: Displays authoritative membership plans with independent Test and Live Product and Price IDs configured via `Fraud Tenant -> Membership Plans`.
+- **Database Schema**: Version `1.7.0` (with `wp_ft_checkout_locks`, dual Stripe columns in `wp_ft_membership_plans`, and `livemode` flags).
+
+---
+
+## 9. Custom SaaS Enterprise Admin Command Center
+
+- **URL**: `http://localhost/fraudtenant/wp-admin/admin.php?page=fraud-tenant-admin`
+- **Required Capability**: `manage_options` or `ft_access_admin_portal`.
+- **Sections (15 Tabs)**:
+  1. `overview`: Enterprise Command Center, MRR calculation, 8 queue metrics, recent subscriptions.
+  2. `users`: User Directory with role filters and approval status.
+  3. `account_approval`: Pending Account Approval Queue with direct review actions.
+  4. `owner_verification`: Owner Identity Verification and business entity documents.
+  5. `property_verification`: Property Verification Queue with deed inspection.
+  6. `properties`: Platform Property Directory with ownership mapping.
+  7. `screening`: Screening Requests and permissible purpose audit records.
+  8. `incidents`: Incident Review Queue with evidence streaming.
+  9. `disputes`: Tenant Disputes Queue and resolution controls.
+  10. `visibility`: Report Association and Disclosable Visibility Management.
+  11. `subscriptions`: Owner Subscriptions and Stripe ID mappings.
+  12. `plans`: Membership Plan Tiers and pricing overview.
+  13. `stripe`: Stripe Payment Gateway Overview and dual status.
+  14. `audit_logs`: Compliance & Security Audit Log with CSV export.
+  15. `platform_settings`: Platform Architecture and System Configuration.
+
+
+---
+
+## 10. Mandatory Workflow Compliance Verification & Headed Browser QA
+
+### Testing Prerequisites
+- PHP CLI: `C:\xampp\php\php.exe`
+- Node.js: v18+ (tested v24.22.0)
+- Google Chrome: `C:\Program Files\Google\Chrome\Application\chrome.exe`
+
+### 1. Automated Integration Suite (Disposable Database)
+Executes all 49 workflow unit/integration assertions in an isolated, ephemeral MySQL database (`ft_qa_wf_*`). The operational database `fraud_tenant` is verified 100% untouched.
+```powershell
+& "C:\xampp\php\php.exe" -f "scratch/test_workflow_compliance.php"
+```
+- Assertions verified: Role selection, `email_unverified` initialization, 6-digit OTP generation, HMAC verification, replay rejection, 60s cooldown, holding state `/account-status/`, administrative approval/rejection with email notifications, server-side role routing, invalid credentials rejection, 6-digit password reset OTP generation, anti-enumeration, single-use 15m transient token, and password reset completion.
+
+### 2. Headed Google Chrome Browser QA
+Launches visible Google Chrome on the Windows desktop, navigates to each of the 20 compliance journeys via Chrome DevTools Protocol (CDP), captures pixel-perfect PNG screenshots across desktop and mobile viewports, and mirrors them to the reports and artifact directories:
+```powershell
+node scratch/run_headed_workflow_qa.js
+```
+- Screenshots output: `reports/workflow_compliance_qa/wf-*.png`
+- Mirrored to: `<appDataDir>\brain\<conversation-id>\wf-*.png`
+
+### 3. Master Platform Regression Suite
+Verifies zero regressions across the 8 existing platform test suites:
+```powershell
+& "C:\xampp\php\php.exe" -f "scratch/run_master_regression.php"
+```
+- Assertions: 232 / 232 PASS (100%).
+
+## Isolated QA installation & test commands (2026-11-04)
+- QA site: http://localhost/fraudtenant-qa (DB `fraudtenant_qa`; plugin and theme are junctions to this repo; mail captured to `%USERPROFILE%\ft_qa_mail`; QA credentials in `%USERPROFILE%\ft_qa_secrets`).
+- Genuine webhooks for QA: `php tests/claude/tools/stripe_cli_setup.php secret`, then `php tests/claude/tools/stripe_cli_setup.php listen` (Stripe CLI via `%APPDATA%\npm\stripe.cmd`).
+- Suites (CLI only, refuse non-QA DBs): `php tests/claude/test_billing_membership.php`, `test_checkout_concurrency.php`, `test_auth_account_settings.php`, `test_workflow_and_admin.php`; browser: `php tests/claude/browser/prepare_fixtures.php && node tests/claude/browser/run_journeys.mjs`; cleanup: `php tests/claude/tools/cancel_qa_subscriptions.php`.
+- Never run `scratch/test_stripe_webhooks.php` (it overwrites the webhook secret).
+- Encrypted pre-change backup: `%USERPROFILE%\ft_backups\fraudtenant_20261104_140707.sql.enc` (key in `%USERPROFILE%\ft_backup_keys`).
