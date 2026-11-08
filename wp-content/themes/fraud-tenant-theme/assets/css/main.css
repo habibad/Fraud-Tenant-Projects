@@ -688,6 +688,19 @@ p:last-child { margin-bottom: 0; }
   align-items: stretch;
 }
 
+/* Contact page variant: no photo column -> 2 columns (form + sidebar) */
+.showcase-contact-card:not(:has(.contact-card-photo)) {
+  grid-template-columns: 1.5fr 1fr;
+}
+
+.showcase-contact-card:not(:has(.contact-card-photo)) .form-row-3 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.showcase-contact-card:not(:has(.contact-card-photo)) .form-row-3 .form-group:last-child {
+  grid-column: 1 / -1;
+}
+
 .contact-card-photo {
   border-radius: 14px;
   overflow: hidden;
@@ -1074,7 +1087,8 @@ textarea.form-control {
   .hero-content {
     max-width: 100%;
   }
-  .showcase-contact-card {
+  .showcase-contact-card,
+  .showcase-contact-card:not(:has(.contact-card-photo)) {
     grid-template-columns: 1fr;
     gap: 24px;
   }

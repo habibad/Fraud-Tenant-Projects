@@ -104,7 +104,7 @@ get_header();
 			<!-- Right Visual Column (Matching Showcase Design) -->
 			<div class="auth-visual-column">
 				<div class="auth-visual-inner">
-					<img src="<?php echo esc_url( get_template_directory_uri() . '/assets/images/contact-house-visual.png' ); ?>" alt="<?php esc_attr_e( 'Modern residential property', 'fraud-tenant-theme' ); ?>" class="auth-visual-img">
+					<img src="<?php echo esc_url( get_template_directory_uri() . '/assets/images/contact-us.jpg' ); ?>" alt="<?php esc_attr_e( 'Modern residential property', 'fraud-tenant-theme' ); ?>" class="auth-visual-img">
 					<div class="auth-visual-overlay">
 						<div class="auth-visual-badge">
 							<div class="auth-visual-badge-icon">

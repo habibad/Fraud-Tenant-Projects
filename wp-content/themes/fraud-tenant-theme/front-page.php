@@ -304,7 +304,7 @@ $theme_uri = get_template_directory_uri();
 		<div class="showcase-contact-card">
 			<!-- House Photo on Left -->
 			<div class="contact-card-photo">
-				<img src="<?php echo esc_url( $theme_uri . '/assets/images/contact-house-visual.png' ); ?>" alt="<?php esc_attr_e( 'Residential community houses', 'fraud-tenant-theme' ); ?>" class="contact-house-img" width="220" height="160">
+				<img src="<?php echo esc_url( $theme_uri . '/assets/images/contact-us.jpg' ); ?>" alt="<?php esc_attr_e( 'Residential community houses', 'fraud-tenant-theme' ); ?>" class="contact-house-img" width="220" height="160">
 			</div>
 
 			<!-- Center Form Area -->

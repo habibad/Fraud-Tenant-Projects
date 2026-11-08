@@ -127,7 +127,7 @@ $current_user      = wp_get_current_user();
 		<div class="header-actions">
 			<?php if ( is_user_logged_in() ) : ?>
 				<?php if ( current_user_can( 'administrator' ) ) : ?>
-					<a href="<?php echo esc_url( admin_url() ); ?>" class="btn-signin"><?php esc_html_e( 'WP Admin', 'fraud-tenant-theme' ); ?></a>
+					<a href="<?php echo esc_url( admin_url('/admin-dashboard/') ); ?>" class="btn-signin"><?php esc_html_e( 'Admin Dashboard', 'fraud-tenant-theme' ); ?></a>
 				<?php else : ?>
 					<a href="<?php echo esc_url( home_url( '/account-status/' ) ); ?>" class="btn-signin"><?php esc_html_e( 'My Account', 'fraud-tenant-theme' ); ?></a>
 				<?php endif; ?>
