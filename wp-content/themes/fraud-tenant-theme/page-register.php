@@ -203,13 +203,13 @@ get_header();
 					<div class="form-section-title"><?php esc_html_e( '3. Ownership Verification Document', 'fraud-tenant-theme' ); ?></div>
 
 					<div class="form-group">
-						<label for="owner-document" class="form-label"><?php esc_html_e( 'Proof of Ownership Document', 'fraud-tenant-theme' ); ?> <span class="required">*</span></label>
+						<label for="owner-document" class="form-label"><?php esc_html_e( 'Proof of Ownership Document', 'fraud-tenant-theme' ); ?> <span class="form-optional">(<?php esc_html_e( 'Optional', 'fraud-tenant-theme' ); ?>)</span></label>
 						<div class="document-upload-card">
 							<div class="document-upload-icon">
 								<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0E9488" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
 							</div>
 							<div class="document-upload-content">
-								<input type="file" id="owner-document" name="ownership_document" class="document-file-input" accept=".pdf,.png,.jpg,.jpeg" required>
+								<input type="file" id="owner-document" name="ownership_document" class="document-file-input" accept=".pdf,.png,.jpg,.jpeg">
 								<div class="document-upload-text">
 									<span class="upload-primary-text"><?php esc_html_e( 'Select deed, tax assessment, or municipal utility bill', 'fraud-tenant-theme' ); ?></span>
 									<span class="upload-hint-text"><?php esc_html_e( 'Accepted formats: PDF, PNG, JPG (maximum 10MB)', 'fraud-tenant-theme' ); ?></span>

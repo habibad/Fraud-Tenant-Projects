@@ -175,35 +175,32 @@ class AuthService {
 		}
 
 		// Pre-flight file check for property ownership document
-		$doc_file = $files['ownership_document'] ?? $files['document'] ?? null;
-		if ( ! $doc_file || ! is_array( $doc_file ) || ( isset( $doc_file['error'] ) && UPLOAD_ERR_NO_FILE === $doc_file['error'] ) ) {
-			return array(
-				'success' => false,
-				'error'   => 'missing_document',
-				'message' => __( 'Please upload a property ownership verification document (Deed, Tax Assessment, or Utility Bill in PDF, PNG, or JPG format).', 'fraud-tenant-core' ),
-			);
-		}
+		// Ownership document is optional at registration.
+		$doc_file     = $files['ownership_document'] ?? $files['document'] ?? null;
+		$has_document = $doc_file && is_array( $doc_file ) && ! ( isset( $doc_file['error'] ) && UPLOAD_ERR_NO_FILE === (int) $doc_file['error'] );
 
-		// Quick pre-flight validation on file extension and size before user creation
-		$ext = strtolower( pathinfo( (string) ( $doc_file['name'] ?? '' ), PATHINFO_EXTENSION ) );
-		if ( ! in_array( $ext, DocumentService::ALLOWED_EXTENSIONS, true ) ) {
-			return array(
-				'success' => false,
-				'error'   => 'invalid_file_extension',
-				'message' => __( 'Invalid document file type. Only PDF, PNG, and JPEG documents are accepted.', 'fraud-tenant-core' ),
-			);
-		}
+		if ( $has_document ) {
+			// Quick pre-flight validation on file extension and size before user creation
+			$ext = strtolower( pathinfo( (string) ( $doc_file['name'] ?? '' ), PATHINFO_EXTENSION ) );
+			if ( ! in_array( $ext, DocumentService::ALLOWED_EXTENSIONS, true ) ) {
+				return array(
+					'success' => false,
+					'error'   => 'invalid_file_extension',
+					'message' => __( 'Invalid document file type. Only PDF, PNG, and JPEG documents are accepted.', 'fraud-tenant-core' ),
+				);
+			}
 
-		if ( (int) ( $doc_file['size'] ?? 0 ) > DocumentService::MAX_FILE_SIZE ) {
-			return array(
-				'success' => false,
-				'error'   => 'file_size_limit_exceeded',
-				'message' => sprintf(
-					/* translators: %d: maximum file size in megabytes */
-					__( 'Document size must be less than %d MB.', 'fraud-tenant-core' ),
-					(int) ( DocumentService::MAX_FILE_SIZE / ( 1024 * 1024 ) )
-				),
-			);
+			if ( (int) ( $doc_file['size'] ?? 0 ) > DocumentService::MAX_FILE_SIZE ) {
+				return array(
+					'success' => false,
+					'error'   => 'file_size_limit_exceeded',
+					'message' => sprintf(
+						/* translators: %d: maximum file size in megabytes */
+						__( 'Document size must be less than %d MB.', 'fraud-tenant-core' ),
+						(int) ( DocumentService::MAX_FILE_SIZE / ( 1024 * 1024 ) )
+					),
+				);
+			}
 		}
 
 		if ( ! $terms_accepted ) {
@@ -323,7 +320,10 @@ class AuthService {
 		$property_id = $property_created ? (int) $wpdb->insert_id : 0;
 
 		// 7. Store Property Ownership Document in Private Protected Storage
-		$doc_result = DocumentService::store_ownership_document( $user_id, $property_id, $doc_file );
+		$doc_result = array( 'success' => true, 'document_id' => 0 );
+		if ( $has_document ) {
+			$doc_result = DocumentService::store_ownership_document( $user_id, $property_id, $doc_file );
+		}
 		if ( ! $doc_result['success'] ) {
 			// Roll back property, profile, and user
 			if ( $property_id > 0 ) {
