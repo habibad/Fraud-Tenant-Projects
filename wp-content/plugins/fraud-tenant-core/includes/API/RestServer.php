@@ -26,6 +26,13 @@ class RestServer {
 	public static function register_routes(): void {
 		$controllers = array(
 			new DiagnosticController(),
+			new ScreeningController(),
+			new IncidentController(),
+			new IncidentReviewRestController(),
+			new ReportVisibilityRestController(),
+			new DisputeRestController(),
+			new MembershipCheckoutController(),
+			new StripeWebhookController(),
 		);
 
 		foreach ( $controllers as $controller ) {

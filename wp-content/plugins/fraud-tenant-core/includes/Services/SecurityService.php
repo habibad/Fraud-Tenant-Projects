@@ -22,22 +22,60 @@ class SecurityService {
 	 * The match key (FT_MATCH_SECRET_KEY) must be securely configured in wp-config.php or environment.
 	 * Fails closed if the secret key is missing or invalid.
 	 *
-	 * @param string $ssn Raw 9-digit SSN.
-	 * @return string|false 64-character hex hash or false if match key is missing/invalid.
+	 * Enforces strict pre-normalization ASCII regex validation (\A[0-9]{3}-[0-9]{2}-[0-9]{4}\z or \A[0-9]{9}\z)
+	 * rejecting malformed strings with non-ASCII or extra characters prior to hashing.
+	 *
+	 * @param string $ssn Raw or formatted 9-digit SSN.
+	 * @return string|false 64-character hex hash or false if match key is missing/invalid or SSN format is malformed.
 	 */
 	public static function generate_ssn_match_token( string $ssn ): string|false {
 		$secret_key = self::get_match_secret_key();
 		if ( empty( $secret_key ) ) {
-			return false; // Fail closed
+			return false; // Fail closed if key is missing or empty
 		}
 
-		// Normalize: strip all non-digits
-		$normalized = preg_replace( '/\D/', '', $ssn );
+		// Strict pre-normalization ASCII format validation
+		if ( ! self::validate_ssn_format( $ssn ) ) {
+			return false;
+		}
+
+		// Normalize: strip hyphens to yield exactly 9 ASCII digits
+		$normalized = str_replace( '-', '', trim( $ssn ) );
 		if ( strlen( $normalized ) !== 9 ) {
 			return false;
 		}
 
 		return hash_hmac( 'sha256', $normalized, $secret_key );
+	}
+
+	/**
+	 * Validate that an SSN input candidate strictly conforms to ASCII-only SSN formatting rules.
+	 *
+	 * Checks against whole-string anchored regular expressions using ASCII digit character classes [0-9]:
+	 * - Formatted: \A[0-9]{3}-[0-9]{2}-[0-9]{4}\z
+	 * - Raw 9-digit: \A[0-9]{9}\z
+	 *
+	 * Note: Confirms structural format only; does not verify SSA issuance or deceased status.
+	 *
+	 * @param string $ssn Candidate SSN string.
+	 * @return bool True if structurally valid ASCII SSN format, false otherwise.
+	 */
+	public static function validate_ssn_format( string $ssn ): bool {
+		$candidate = trim( $ssn );
+		if ( '' === $candidate ) {
+			return false;
+		}
+
+		// Enforce strict whole-string anchored regex with ASCII [0-9]
+		if ( 1 === preg_match( '/\A[0-9]{3}-[0-9]{2}-[0-9]{4}\z/', $candidate ) ) {
+			return true;
+		}
+
+		if ( 1 === preg_match( '/\A[0-9]{9}\z/', $candidate ) ) {
+			return true;
+		}
+
+		return false;
 	}
 
 	/**

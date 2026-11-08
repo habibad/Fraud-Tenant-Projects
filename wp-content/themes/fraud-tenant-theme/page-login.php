@@ -9,13 +9,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// Redirect logged in users
+// Signed-in users go straight to their role home (email verification activates accounts).
 if ( is_user_logged_in() ) {
-	if ( current_user_can( 'administrator' ) ) {
-		wp_safe_redirect( admin_url() );
-	} else {
-		wp_safe_redirect( home_url( '/account-status/' ) );
-	}
+	wp_safe_redirect( class_exists( '\FraudTenant\Auth\AuthService' ) ? \FraudTenant\Auth\AuthService::dashboard_url( get_current_user_id() ) : home_url( '/' ) );
 	exit;
 }
 
@@ -43,7 +39,7 @@ get_header();
 					</div>
 				<?php endif; ?>
 
-				<?php if ( isset( $_GET['pw_reset'] ) && 'success' === $_GET['pw_reset'] ) : ?>
+				<?php if ( ( isset( $_GET['pw_reset'] ) && 'success' === $_GET['pw_reset'] ) || ( isset( $_GET['reset'] ) && 'success' === $_GET['reset'] ) ) : ?>
 					<div class="auth-alert auth-alert-success" role="alert">
 						<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
 						<span><?php esc_html_e( 'Your password has been reset successfully. Please sign in with your new credentials.', 'fraud-tenant-theme' ); ?></span>

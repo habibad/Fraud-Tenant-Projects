@@ -81,26 +81,17 @@ class AuditLogger {
 	}
 
 	/**
-	 * Extract sanitized client IP address.
+	 * Client IP for the audit record.
+	 *
+	 * Uses REMOTE_ADDR only: Client-IP / X-Forwarded-For are client-controlled and would let a caller
+	 * forge the audited address. Deployments behind a trusted reverse proxy should populate
+	 * REMOTE_ADDR at the web-server layer (e.g. mod_remoteip) rather than trusting headers here.
 	 *
 	 * @return string|null IP address or null.
 	 */
-	protected static function get_client_ip(): ?string {
-		$ip = null;
-		if ( ! empty( $_SERVER['HTTP_CLIENT_IP'] ) ) {
-			$ip = sanitize_text_field( wp_unslash( $_SERVER['HTTP_CLIENT_IP'] ) );
-		} elseif ( ! empty( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) {
-			$forwarded = explode( ',', sanitize_text_field( wp_unslash( $_SERVER['HTTP_X_FORWARDED_FOR'] ) ) );
-			$ip        = trim( $forwarded[0] );
-		} elseif ( ! empty( $_SERVER['REMOTE_ADDR'] ) ) {
-			$ip = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) );
-		}
-
-		if ( $ip && filter_var( $ip, FILTER_VALIDATE_IP ) ) {
-			return $ip;
-		}
-
-		return null;
+	public static function get_client_ip(): ?string {
+		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
+		return ( '' !== $ip && filter_var( $ip, FILTER_VALIDATE_IP ) ) ? $ip : null;
 	}
 }
 

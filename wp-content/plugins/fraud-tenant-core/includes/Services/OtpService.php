@@ -244,14 +244,14 @@ class OtpService {
 		// Code is valid! Consume single-use OTP
 		$wpdb->update( $table, array( 'consumed_at' => $now ), array( 'id' => $record->id ) );
 
-		// Transition Account Status Lifecycle
+		// Email verification activates the account (no separate administrator approval step).
 		$user_id = (int) $record->user_id;
 		if ( 'registration' === $purpose && $user_id > 0 ) {
 			$profiles_table = $wpdb->prefix . Constants::TABLE_USER_PROFILES;
-			$wpdb->update(
+			$activated      = $wpdb->update(
 				$profiles_table,
 				array(
-					'approval_status' => Constants::STATUS_PENDING_APPROVAL,
+					'approval_status' => Constants::STATUS_APPROVED,
 					'updated_at'      => $now,
 				),
 				array(
@@ -259,12 +259,15 @@ class OtpService {
 					'approval_status' => Constants::STATUS_EMAIL_UNVERIFIED,
 				)
 			);
+			if ( $activated ) {
+				AuditLogger::log( 'auth.email_verified_account_activated', 'user', $user_id, array(), $user_id );
+			}
 		}
 
 		return array(
 			'success' => true,
 			'user_id' => $user_id,
-			'message' => __( 'Email verified successfully. Your account is now pending review.', 'fraud-tenant-core' ),
+			'message' => __( 'Email verified. Your account is active.', 'fraud-tenant-core' ),
 		);
 	}
 
@@ -303,17 +306,43 @@ class OtpService {
 	 * @return bool True if dispatch succeeded.
 	 */
 	protected static function dispatch_email( string $email, string $raw_otp, string $purpose ): bool {
-		$subject = __( '[Fraud Tenant] Your Verification Code', 'fraud-tenant-core' );
 		$headers = array( 'Content-Type: text/plain; charset=UTF-8' );
 
-		$body  = sprintf( __( 'Hello,', 'fraud-tenant-core' ) ) . "\n\n";
-		$body .= sprintf(
+		if ( 'password_reset' === $purpose ) {
+			$subject = __( '[Fraud Tenant] Your Password Reset Verification Code', 'fraud-tenant-core' );
+			$body    = sprintf( __( 'Hello,', 'fraud-tenant-core' ) ) . "\n\n";
+			$body   .= sprintf(
+				/* translators: %s: 6-digit OTP code */
+				__( 'You have requested to reset your password. Your 6-digit verification code is: %s', 'fraud-tenant-core' ),
+				$raw_otp
+			) . "\n\n";
+			$body   .= __( 'This verification code will expire in 10 minutes. If you did not make this request, please disregard this email and your password will remain unchanged.', 'fraud-tenant-core' ) . "\n\n";
+			$body   .= "---\nFraud Tenant Platform — A Safer Rental Community\n";
+			return wp_mail( $email, $subject, $body, $headers );
+		}
+
+		if ( 'email_change' === $purpose ) {
+			$subject = __( '[Fraud Tenant] Confirm Your New Email Address', 'fraud-tenant-core' );
+			$body    = __( 'Hello,', 'fraud-tenant-core' ) . "\n\n";
+			$body   .= sprintf(
+				/* translators: %s: 6-digit OTP code */
+				__( 'A request was made to use this address for a Fraud Tenant account. Your 6-digit confirmation code is: %s', 'fraud-tenant-core' ),
+				$raw_otp
+			) . "\n\n";
+			$body   .= __( 'The code expires in 10 minutes. If you did not request this change, ignore this email; the account email will not change.', 'fraud-tenant-core' ) . "\n\n";
+			$body   .= "---\nFraud Tenant Platform — A Safer Rental Community\n";
+			return wp_mail( $email, $subject, $body, $headers );
+		}
+
+		$subject = __( '[Fraud Tenant] Your Registration Verification Code', 'fraud-tenant-core' );
+		$body    = sprintf( __( 'Hello,', 'fraud-tenant-core' ) ) . "\n\n";
+		$body   .= sprintf(
 			/* translators: %s: 6-digit OTP code */
 			__( 'Your 6-digit verification code is: %s', 'fraud-tenant-core' ),
 			$raw_otp
 		) . "\n\n";
-		$body .= __( 'This code will expire in 10 minutes. If you did not make this request, please disregard this email.', 'fraud-tenant-core' ) . "\n\n";
-		$body .= "---\nFraud Tenant Platform — A Safer Rental Community\n";
+		$body   .= __( 'This code will expire in 10 minutes. If you did not make this request, please disregard this email.', 'fraud-tenant-core' ) . "\n\n";
+		$body   .= "---\nFraud Tenant Platform — A Safer Rental Community\n";
 
 		return wp_mail( $email, $subject, $body, $headers );
 	}

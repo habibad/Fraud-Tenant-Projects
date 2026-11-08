@@ -664,14 +664,14 @@ class AuthService {
 		// Reset fail counter on successful password verification
 		delete_transient( $rate_key );
 
-		// 3. Preserve Core Administrator Access
+		// 3. Administrators go to the Admin Command Center (front-end console; wp-admin also available).
 		if ( in_array( 'administrator', (array) $user->roles, true ) ) {
 			wp_set_auth_cookie( $user->ID, $remember );
 			return array(
 				'success'  => true,
 				'user_id'  => $user->ID,
 				'role'     => 'administrator',
-				'redirect' => admin_url(),
+				'redirect' => home_url( '/admin-dashboard/' ),
 				'message'  => __( 'Welcome back, Administrator.', 'fraud-tenant-core' ),
 			);
 		}
@@ -689,26 +689,6 @@ class AuthService {
 					'message'  => __( 'Please verify your email address to continue.', 'fraud-tenant-core' ),
 				);
 
-			case Constants::STATUS_PENDING_APPROVAL:
-				// User is verified but pending admin approval. Authenticate session, but route to holding page
-				wp_set_auth_cookie( $user->ID, $remember );
-				return array(
-					'success'  => true,
-					'status'   => Constants::STATUS_PENDING_APPROVAL,
-					'redirect' => home_url( '/account-status/' ),
-					'message'  => __( 'Your account is currently under administrative review.', 'fraud-tenant-core' ),
-				);
-
-			case Constants::STATUS_INFO_REQUESTED:
-				// Administrator requested additional information. Authenticate session, but route to holding page
-				wp_set_auth_cookie( $user->ID, $remember );
-				return array(
-					'success'  => true,
-					'status'   => Constants::STATUS_INFO_REQUESTED,
-					'redirect' => home_url( '/account-status/' ),
-					'message'  => __( 'Additional information has been requested for your application.', 'fraud-tenant-core' ),
-				);
-
 			case Constants::STATUS_REJECTED:
 				return array(
 					'success' => false,
@@ -724,18 +704,13 @@ class AuthService {
 				);
 
 			case Constants::STATUS_APPROVED:
-				// Approved account: set auth cookie and route to role-specific dashboard
+				// Email-verified (active) account: route to the role dashboard.
 				wp_set_auth_cookie( $user->ID, $remember );
-				$dashboard_url = home_url( '/account-status/' );
-				if ( in_array( Constants::ROLE_OWNER, (array) $user->roles, true ) ) {
-					$dashboard_url = home_url( '/owner-dashboard/' );
-				} elseif ( in_array( Constants::ROLE_TENANT, (array) $user->roles, true ) ) {
-					$dashboard_url = home_url( '/tenant-dashboard/' );
-				}
+				AuditLogger::log( 'auth.login_success', 'user', (int) $user->ID, array(), (int) $user->ID );
 				return array(
 					'success'  => true,
 					'status'   => Constants::STATUS_APPROVED,
-					'redirect' => $dashboard_url,
+					'redirect' => self::dashboard_url( (int) $user->ID ),
 					'message'  => __( 'Login successful.', 'fraud-tenant-core' ),
 				);
 
@@ -768,6 +743,15 @@ class AuthService {
 	 * @param string $login_or_email Email address or login.
 	 * @return array Generic response result.
 	 */
+	/**
+	 * Request a 6-digit password reset verification code.
+	 *
+	 * Follows the mandatory workflow:
+	 * Forgot Password -> Request Reset OTP -> Verify Reset OTP -> Set New Password -> Login Page.
+	 *
+	 * @param string $login_or_email Email or username.
+	 * @return array
+	 */
 	public static function request_password_reset( string $login_or_email ): array {
 		$clean_input = trim( $login_or_email );
 
@@ -778,10 +762,9 @@ class AuthService {
 			return array(
 				'success' => false,
 				'error'   => 'rate_limited',
-				'message' => __( 'Please wait a moment before requesting another password reset.', 'fraud-tenant-core' ),
+				'message' => __( 'Please wait a moment before requesting another verification code.', 'fraud-tenant-core' ),
 			);
 		}
-		set_transient( $rate_key, true, 60 );
 
 		if ( empty( $clean_input ) ) {
 			return array(
@@ -793,46 +776,247 @@ class AuthService {
 
 		$user = get_user_by( 'email', $clean_input ) ?: get_user_by( 'login', $clean_input );
 
-		// Anti-enumeration: If user not found, return generic success
+		// Anti-enumeration: If user not found, return generic success and redirect to verify OTP
 		if ( ! $user ) {
+			set_transient( $rate_key, true, 60 );
 			return array(
-				'success' => true,
-				'message' => __( 'If an account exists with that email, a password reset link has been dispatched.', 'fraud-tenant-core' ),
+				'success'  => true,
+				'email'    => $clean_input,
+				'redirect' => add_query_arg( array( 'email' => urlencode( $clean_input ), 'step' => 'otp' ), home_url( '/reset-password/' ) ),
+				'message'  => __( 'If an account exists with that email, a 6-digit verification code has been dispatched.', 'fraud-tenant-core' ),
 			);
 		}
 
-		// Generate secure one-time WordPress reset key
-		$key = get_password_reset_key( $user );
-		if ( is_wp_error( $key ) ) {
+		set_transient( $rate_key, true, 60 );
+
+		// Generate 6-digit OTP specifically for password_reset purpose
+		$otp_res = OtpService::generate_otp( $user->ID, $user->user_email, 'password_reset', $ip );
+		if ( ! $otp_res['success'] && 'cooldown_active' === ( $otp_res['error'] ?? '' ) ) {
 			return array(
-				'success' => false,
-				'error'   => 'key_generation_failed',
-				'message' => __( 'Could not process password reset at this time.', 'fraud-tenant-core' ),
+				'success'           => false,
+				'error'             => 'cooldown_active',
+				'seconds_remaining' => $otp_res['seconds_remaining'] ?? 60,
+				'message'           => $otp_res['message'],
 			);
 		}
-
-		$reset_url = add_query_arg(
-			array(
-				'key'   => $key,
-				'login' => rawurlencode( $user->user_login ),
-			),
-			home_url( '/reset-password/' )
-		);
-
-		// Dispatch Email via wp_mail()
-		$subject = __( '[Fraud Tenant] Password Reset Request', 'fraud-tenant-core' );
-		$headers = array( 'Content-Type: text/plain; charset=UTF-8' );
-		$body    = sprintf( __( 'Hello %s,', 'fraud-tenant-core' ), $user->display_name ) . "\n\n";
-		$body   .= __( 'Someone requested a password reset for your Fraud Tenant account.', 'fraud-tenant-core' ) . "\n\n";
-		$body   .= sprintf( __( 'To reset your password, visit the following link:%s', 'fraud-tenant-core' ), "\n" . $reset_url ) . "\n\n";
-		$body   .= __( 'If you did not make this request, you can safely ignore this email.', 'fraud-tenant-core' ) . "\n\n";
-		$body   .= "---\nFraud Tenant Platform\n";
-
-		wp_mail( $user->user_email, $subject, $body, $headers );
 
 		return array(
-			'success' => true,
-			'message' => __( 'If an account exists with that email, a password reset link has been dispatched.', 'fraud-tenant-core' ),
+			'success'  => true,
+			'email'    => $user->user_email,
+			'redirect' => add_query_arg( array( 'email' => urlencode( $user->user_email ), 'step' => 'otp' ), home_url( '/reset-password/' ) ),
+			'message'  => __( 'A 6-digit verification code has been dispatched to your email address.', 'fraud-tenant-core' ),
+		);
+	}
+
+	/**
+	 * Verify a password reset OTP and issue a single-use password reset token.
+	 *
+	 * @param string $email Candidate email address.
+	 * @param string $otp   Candidate 6-digit OTP.
+	 * @return array
+	 */
+	public static function verify_password_reset_otp( string $email, string $otp ): array {
+		$clean_email = sanitize_email( $email );
+		$clean_otp   = trim( $otp );
+
+		$verify_res = OtpService::verify_otp( $clean_email, $clean_otp, 'password_reset' );
+		if ( ! $verify_res['success'] ) {
+			return $verify_res;
+		}
+
+		$user_id = (int) ( $verify_res['user_id'] ?? 0 );
+		if ( ! $user_id ) {
+			$user = get_user_by( 'email', $clean_email );
+			$user_id = $user ? $user->ID : 0;
+		}
+
+		if ( ! $user_id ) {
+			return array(
+				'success' => false,
+				'error'   => 'user_not_found',
+				'message' => __( 'Could not identify account for password reset.', 'fraud-tenant-core' ),
+			);
+		}
+
+		// Issue a single-use, short-lived reset authorization bound to this browser via an
+		// HttpOnly cookie. The token never appears in URLs or HTML; only its hash is stored.
+		$token = self::issue_reset_authorization( $user_id );
+
+		return array(
+			'success'     => true,
+			'user_id'     => $user_id,
+			'reset_token' => $token, // Server-side only (CLI tests); never rendered or redirected.
+			'redirect'    => add_query_arg( array( 'step' => 'new_password' ), home_url( '/reset-password/' ) ),
+			'message'     => __( 'Verification code accepted. Please enter your new password.', 'fraud-tenant-core' ),
+		);
+	}
+
+	/**
+	 * Cookie carrying the password-reset authorization.
+	 */
+	public const RESET_COOKIE = 'ft_pw_reset';
+
+	/**
+	 * Reset authorization lifetime (seconds).
+	 */
+	public const RESET_TTL = 900;
+
+	/**
+	 * Create a reset authorization, store its hash, and set the HttpOnly cookie.
+	 *
+	 * @param int $user_id User ID.
+	 * @return string Raw token (only ever placed in the HttpOnly cookie).
+	 */
+	public static function issue_reset_authorization( int $user_id ): string {
+		$token = bin2hex( random_bytes( 32 ) );
+		set_transient( 'ft_pwr_' . hash( 'sha256', $token ), $user_id, self::RESET_TTL );
+
+		if ( ! headers_sent() ) {
+			setcookie(
+				self::RESET_COOKIE,
+				$token,
+				array(
+					'expires'  => time() + self::RESET_TTL,
+					'path'     => COOKIEPATH ? COOKIEPATH : '/',
+					'domain'   => COOKIE_DOMAIN ? COOKIE_DOMAIN : '',
+					'secure'   => is_ssl(),
+					'httponly' => true,
+					'samesite' => 'Strict',
+				)
+			);
+		}
+		$_COOKIE[ self::RESET_COOKIE ] = $token;
+		return $token;
+	}
+
+	/**
+	 * Read the reset token from the request cookie.
+	 *
+	 * @return string
+	 */
+	public static function get_reset_cookie_token(): string {
+		$raw = isset( $_COOKIE[ self::RESET_COOKIE ] ) ? (string) wp_unslash( $_COOKIE[ self::RESET_COOKIE ] ) : '';
+		return preg_match( '/^[a-f0-9]{64}$/', $raw ) ? $raw : '';
+	}
+
+	/**
+	 * Resolve a reset token to its user ID (0 when invalid/expired/consumed).
+	 *
+	 * @param string $token Raw token.
+	 * @return int
+	 */
+	public static function resolve_reset_authorization( string $token ): int {
+		if ( ! preg_match( '/^[a-f0-9]{64}$/', $token ) ) {
+			return 0;
+		}
+		return (int) get_transient( 'ft_pwr_' . hash( 'sha256', $token ) );
+	}
+
+	/**
+	 * Expire the reset cookie in the browser.
+	 */
+	public static function clear_reset_cookie(): void {
+		unset( $_COOKIE[ self::RESET_COOKIE ] );
+		if ( ! headers_sent() ) {
+			setcookie(
+				self::RESET_COOKIE,
+				'',
+				array(
+					'expires'  => time() - 3600,
+					'path'     => COOKIEPATH ? COOKIEPATH : '/',
+					'domain'   => COOKIE_DOMAIN ? COOKIE_DOMAIN : '',
+					'secure'   => is_ssl(),
+					'httponly' => true,
+					'samesite' => 'Strict',
+				)
+			);
+		}
+	}
+
+	/**
+	 * Complete password reset using a verified single-use token.
+	 *
+	 * @param string $token      Single-use reset token.
+	 * @param string $new_pw     New password.
+	 * @param string $confirm_pw Confirmation password.
+	 * @return array
+	 */
+	public static function complete_password_reset( string $token, string $new_pw, string $confirm_pw ): array {
+		$clean_token = sanitize_text_field( $token );
+		if ( empty( $clean_token ) ) {
+			return array(
+				'success' => false,
+				'error'   => 'missing_token',
+				'message' => __( 'Password reset token is missing. Please request a new verification code.', 'fraud-tenant-core' ),
+			);
+		}
+
+		$user_id = self::resolve_reset_authorization( $clean_token );
+		if ( ! $user_id ) {
+			return array(
+				'success' => false,
+				'error'   => 'invalid_or_expired_token',
+				'message' => __( 'This password reset session has expired or is invalid. Please request a new verification code.', 'fraud-tenant-core' ),
+			);
+		}
+
+		if ( strlen( $new_pw ) < self::MIN_PASSWORD_LENGTH ) {
+			return array(
+				'success' => false,
+				'error'   => 'password_too_short',
+				'message' => sprintf(
+					__( 'New password must be at least %d characters long.', 'fraud-tenant-core' ),
+					self::MIN_PASSWORD_LENGTH
+				),
+			);
+		}
+
+		if ( $new_pw !== $confirm_pw ) {
+			return array(
+				'success' => false,
+				'error'   => 'password_mismatch',
+				'message' => __( 'The entered passwords do not match.', 'fraud-tenant-core' ),
+			);
+		}
+
+		// Single-use: consume the authorization BEFORE changing the password (prevents replay).
+		delete_transient( 'ft_pwr_' . hash( 'sha256', $clean_token ) );
+		self::clear_reset_cookie();
+
+		// Update user password in WordPress
+		wp_set_password( $new_pw, $user_id );
+
+		// Invalidate every existing login session for this account.
+		if ( class_exists( '\WP_Session_Tokens' ) ) {
+			\WP_Session_Tokens::get_instance( $user_id )->destroy_all();
+		}
+
+		// Invalidate any remaining password_reset OTPs for this user
+		global $wpdb;
+		$wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$wpdb->prefix}" . Constants::TABLE_EMAIL_OTPS . " SET consumed_at = %s WHERE user_id = %d AND purpose = 'password_reset' AND consumed_at IS NULL",
+				current_time( 'mysql', true ),
+				$user_id
+			)
+		);
+
+		// Application-level append-only audit logging
+		AuditLogger::log(
+			'user.password_reset',
+			'user',
+			$user_id,
+			array(
+				'method'    => 'otp_verified',
+				'client_ip' => sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1' ) ),
+			),
+			$user_id
+		);
+
+		return array(
+			'success'  => true,
+			'redirect' => add_query_arg( 'pw_reset', 'success', home_url( '/login/' ) ),
+			'message'  => __( 'Your password has been reset successfully. Please sign in with your new password.', 'fraud-tenant-core' ),
 		);
 	}
 
@@ -911,7 +1095,42 @@ class AuthService {
 			)
 		);
 
-		return $status ? (string) $status : 'unknown';
+		return $status ? self::normalize_status( (string) $status ) : 'unknown';
+	}
+
+	/**
+	 * Email verification activates an account (there is no separate admin approval step).
+	 * Legacy "pending_approval" / "info_requested" states therefore mean "verified and active".
+	 *
+	 * @param string $status Stored status.
+	 * @return string
+	 */
+	public static function normalize_status( string $status ): string {
+		return in_array( $status, array( Constants::STATUS_PENDING_APPROVAL, Constants::STATUS_INFO_REQUESTED ), true ) ? Constants::STATUS_APPROVED : $status;
+	}
+
+	/**
+	 * Role home for a signed-in user.
+	 *
+	 * @param int $user_id User.
+	 * @return string
+	 */
+	public static function dashboard_url( int $user_id ): string {
+		$user = get_userdata( $user_id );
+		if ( ! $user ) {
+			return home_url( '/login/' );
+		}
+		$roles = (array) $user->roles;
+		if ( in_array( 'administrator', $roles, true ) || user_can( $user_id, Capabilities::ACCESS_ADMIN_PORTAL ) ) {
+			return home_url( '/admin-dashboard/' );
+		}
+		if ( in_array( Constants::ROLE_OWNER, $roles, true ) ) {
+			return home_url( '/owner-dashboard/' );
+		}
+		if ( in_array( Constants::ROLE_TENANT, $roles, true ) ) {
+			return home_url( '/tenant-dashboard/' );
+		}
+		return home_url( '/account-status/' );
 	}
 
 	/**
@@ -929,6 +1148,9 @@ class AuthService {
 				$user_id
 			)
 		);
+		if ( $profile ) {
+			$profile->approval_status = self::normalize_status( (string) $profile->approval_status );
+		}
 
 		return $profile ? (object) $profile : null;
 	}

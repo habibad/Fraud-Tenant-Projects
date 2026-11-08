@@ -11,13 +11,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// Redirect logged in users
+// Signed-in users go straight to their role home (email verification activates accounts).
 if ( is_user_logged_in() ) {
-	if ( current_user_can( 'administrator' ) ) {
-		wp_safe_redirect( admin_url() );
-	} else {
-		wp_safe_redirect( home_url( '/account-status/' ) );
-	}
+	wp_safe_redirect( class_exists( '\FraudTenant\Auth\AuthService' ) ? \FraudTenant\Auth\AuthService::dashboard_url( get_current_user_id() ) : home_url( '/' ) );
 	exit;
 }
 

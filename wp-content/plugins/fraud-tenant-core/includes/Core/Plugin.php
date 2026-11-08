@@ -12,6 +12,8 @@ use FraudTenant\API\RestServer;
 use FraudTenant\Auth\AuthHandler;
 use FraudTenant\Database\MigrationManager;
 use FraudTenant\Services\ContactEnquiryHandler;
+use FraudTenant\Services\DisputeHandler;
+use FraudTenant\Services\IncidentHandler;
 use FraudTenant\Services\PropertyHandler;
 use FraudTenant\Utils\Constants;
 
@@ -63,6 +65,22 @@ class Plugin {
 		// Register property management web request handlers
 		PropertyHandler::register();
 
+		// Tenant identity claims and in-app notifications
+		\FraudTenant\Services\IdentityClaimService::register();
+		\FraudTenant\Services\NotificationService::register();
+
+		// Register incident reporting handlers
+		IncidentHandler::register();
+
+		// Register tenant dispute request handlers
+		DisputeHandler::register();
+
+		// Identity-matched tenant screening
+		\FraudTenant\Services\TenantScreeningService::register();
+
+		// Stripe: hourly reconciliation safety net for missed webhooks
+		\FraudTenant\Services\StripeWebhookService::register_reconciliation();
+
 		// Register administrative portal & review action handlers
 		AdminPortal::init();
 
@@ -77,6 +95,9 @@ class Plugin {
 		$db_version = get_option( Constants::DB_VERSION_OPTION, '0.0.0' );
 		if ( version_compare( $db_version, Constants::DB_VERSION, '<' ) ) {
 			MigrationManager::migrate();
+		} else {
+			// Runs once, as soon as the match + data encryption keys are provisioned.
+			MigrationManager::maybe_upgrade_identity_data();
 		}
 	}
 }

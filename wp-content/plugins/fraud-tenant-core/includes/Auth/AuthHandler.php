@@ -38,6 +38,12 @@ class AuthHandler {
 		// Password Recovery
 		add_action( 'admin_post_nopriv_ft_forgot_password', array( __CLASS__, 'handle_forgot_password' ) );
 		add_action( 'admin_post_ft_forgot_password', array( __CLASS__, 'handle_forgot_password' ) );
+		add_action( 'admin_post_nopriv_ft_verify_reset_otp', array( __CLASS__, 'handle_verify_reset_otp' ) );
+		add_action( 'admin_post_ft_verify_reset_otp', array( __CLASS__, 'handle_verify_reset_otp' ) );
+		add_action( 'admin_post_nopriv_ft_resend_reset_otp', array( __CLASS__, 'handle_resend_reset_otp' ) );
+		add_action( 'admin_post_ft_resend_reset_otp', array( __CLASS__, 'handle_resend_reset_otp' ) );
+		add_action( 'admin_post_nopriv_ft_set_new_password', array( __CLASS__, 'handle_set_new_password' ) );
+		add_action( 'admin_post_ft_set_new_password', array( __CLASS__, 'handle_set_new_password' ) );
 		add_action( 'admin_post_nopriv_ft_reset_password', array( __CLASS__, 'handle_reset_password' ) );
 		add_action( 'admin_post_ft_reset_password', array( __CLASS__, 'handle_reset_password' ) );
 
@@ -115,11 +121,14 @@ class AuthHandler {
 		$result = OtpService::verify_otp( $email, $otp, 'registration' );
 
 		if ( $result['success'] ) {
-			// Auto sign-in to the safe pending state
-			if ( $result['user_id'] > 0 ) {
+			// Verified: sign in and go straight to the role dashboard.
+			$target = home_url( '/login/' );
+			if ( $result['user_id'] > 0 && Constants::STATUS_APPROVED === AuthService::get_user_account_status( (int) $result['user_id'] ) ) {
 				wp_set_auth_cookie( $result['user_id'], false );
+				$target = add_query_arg( 'welcome', '1', AuthService::dashboard_url( (int) $result['user_id'] ) );
 			}
-			wp_safe_redirect( add_query_arg( 'verified', '1', home_url( '/account-status/' ) ) );
+			self::set_flash_notice( 'success', $result['message'] );
+			wp_safe_redirect( $target );
 		} else {
 			self::set_flash_notice( 'error', $result['message'] );
 			wp_safe_redirect( add_query_arg( 'email', urlencode( $email ), home_url( '/verify-otp/' ) ) );
@@ -201,7 +210,7 @@ class AuthHandler {
 	}
 
 	/**
-	 * Handle Forgot Password POST.
+	 * Handle Forgot Password POST (Requests a 6-digit Reset OTP).
 	 */
 	public static function handle_forgot_password(): void {
 		if ( ! isset( $_POST['ft_forgot_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['ft_forgot_nonce'] ) ), 'ft_forgot_action' ) ) {
@@ -213,10 +222,111 @@ class AuthHandler {
 
 		if ( $result['success'] ) {
 			self::set_flash_notice( 'success', $result['message'] );
-			wp_safe_redirect( add_query_arg( 'sent', '1', home_url( '/forgot-password/' ) ) );
+			$redirect = $result['redirect'] ?? add_query_arg( array( 'email' => urlencode( $login_or_email ), 'step' => 'otp' ), home_url( '/reset-password/' ) );
+			wp_safe_redirect( $redirect );
 		} else {
 			self::set_flash_notice( 'error', $result['message'] );
 			wp_safe_redirect( home_url( '/forgot-password/' ) );
+		}
+
+		if ( ! defined( 'FT_DOING_TESTS' ) ) {
+			exit;
+		}
+	}
+
+	/**
+	 * Handle Reset OTP Verification POST.
+	 */
+	public static function handle_verify_reset_otp(): void {
+		if ( ! isset( $_POST['ft_verify_reset_otp_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['ft_verify_reset_otp_nonce'] ) ), 'ft_verify_reset_otp_action' ) ) {
+			wp_die( esc_html__( 'Security check failed. Please refresh the page and try again.', 'fraud-tenant-core' ), 403 );
+		}
+
+		$email = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
+
+		// Assemble 6-digit OTP from individual boxes or full input
+		$otp = '';
+		if ( isset( $_POST['otp_code'] ) && ! empty( $_POST['otp_code'] ) ) {
+			$otp = sanitize_text_field( wp_unslash( $_POST['otp_code'] ) );
+		} else {
+			for ( $i = 1; $i <= 6; $i++ ) {
+				$digit = isset( $_POST[ 'otp_' . $i ] ) ? sanitize_text_field( wp_unslash( $_POST[ 'otp_' . $i ] ) ) : '';
+				$otp  .= $digit;
+			}
+		}
+
+		$result = AuthService::verify_password_reset_otp( $email, $otp );
+
+		if ( $result['success'] ) {
+			self::set_flash_notice( 'success', $result['message'] );
+			wp_safe_redirect( $result['redirect'] );
+		} else {
+			self::set_flash_notice( 'error', $result['message'] );
+			wp_safe_redirect( add_query_arg( array( 'email' => urlencode( $email ), 'step' => 'otp' ), home_url( '/reset-password/' ) ) );
+		}
+
+		if ( ! defined( 'FT_DOING_TESTS' ) ) {
+			exit;
+		}
+	}
+
+	/**
+	 * Handle Resend Reset OTP POST.
+	 */
+	public static function handle_resend_reset_otp(): void {
+		if ( ! isset( $_POST['ft_resend_reset_otp_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['ft_resend_reset_otp_nonce'] ) ), 'ft_resend_reset_otp_action' ) ) {
+			wp_die( esc_html__( 'Security check failed. Please refresh the page and try again.', 'fraud-tenant-core' ), 403 );
+		}
+
+		$email = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
+		$user  = get_user_by( 'email', $email );
+
+		if ( $user ) {
+			$result = OtpService::generate_otp( $user->ID, $email, 'password_reset' );
+			if ( $result['success'] ) {
+				self::set_flash_notice( 'success', __( 'A new verification code has been dispatched to your email address.', 'fraud-tenant-core' ) );
+			} else {
+				self::set_flash_notice( 'error', $result['message'] );
+			}
+		} else {
+			// Generic anti-enumeration response
+			self::set_flash_notice( 'success', __( 'A new verification code has been dispatched to your email address.', 'fraud-tenant-core' ) );
+		}
+
+		wp_safe_redirect( add_query_arg( array( 'email' => urlencode( $email ), 'step' => 'otp' ), home_url( '/reset-password/' ) ) );
+		if ( ! defined( 'FT_DOING_TESTS' ) ) {
+			exit;
+		}
+	}
+
+	/**
+	 * Handle Set New Password POST (Using verified single-use reset token).
+	 */
+	public static function handle_set_new_password(): void {
+		if ( ! isset( $_POST['ft_set_new_password_nonce'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['ft_set_new_password_nonce'] ) ), 'ft_set_new_password_action' ) ) {
+			wp_die( esc_html__( 'Security check failed. Please refresh the page and try again.', 'fraud-tenant-core' ), 403 );
+		}
+
+		// The reset authorization travels only in the HttpOnly cookie (never in URL/HTML).
+		$token = AuthService::get_reset_cookie_token();
+		if ( '' === $token && defined( 'FT_DOING_TESTS' ) && isset( $_POST['reset_token'] ) ) {
+			$token = sanitize_text_field( wp_unslash( $_POST['reset_token'] ) ); // CLI test harness only.
+		}
+		$new_pw     = isset( $_POST['new_password'] ) ? (string) $_POST['new_password'] : '';
+		$confirm_pw = isset( $_POST['confirm_password'] ) ? (string) $_POST['confirm_password'] : '';
+
+		$result = AuthService::complete_password_reset( $token, $new_pw, $confirm_pw );
+
+		if ( $result['success'] ) {
+			self::set_flash_notice( 'success', $result['message'] );
+			wp_safe_redirect( $result['redirect'] );
+		} else {
+			self::set_flash_notice( 'error', $result['message'] );
+			if ( 'invalid_or_expired_token' === ( $result['error'] ?? '' ) ) {
+				wp_safe_redirect( home_url( '/forgot-password/' ) );
+			} else {
+				wp_safe_redirect( add_query_arg( array( 'step' => 'new_password' ), home_url( '/reset-password/' ) ) );
+			}
 		}
 
 		if ( ! defined( 'FT_DOING_TESTS' ) ) {
@@ -267,10 +377,8 @@ class AuthHandler {
 	 * @param string $error_code Optional error machine code.
 	 */
 	public static function set_flash_notice( string $type, string $message, string $error_code = '' ): void {
-		$ip  = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1' ) );
-		$key = 'ft_auth_notice_' . md5( $ip );
 		set_transient(
-			$key,
+			self::flash_key( 'notice' ),
 			array(
 				'type'       => $type,
 				'message'    => $message,
@@ -281,30 +389,69 @@ class AuthHandler {
 	}
 
 	/**
-	 * Get and consume flash notice.
+	 * Per-visitor flash storage key. Signed-in users are keyed by user ID; anonymous visitors by a
+	 * random HttpOnly cookie. (Never by IP: users behind one NAT/proxy would see each other's data.)
 	 *
-	 * @return array|null Notice array or null.
+	 * @param string $kind   notice|form.
+	 * @param bool   $anon   Force the anonymous key.
+	 * @return string
 	 */
-	public static function get_flash_notice(): ?array {
-		$ip  = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1' ) );
-		$key = 'ft_auth_notice_' . md5( $ip );
-		$val = get_transient( $key );
-		if ( $val ) {
-			delete_transient( $key );
-			return (array) $val;
+	protected static function flash_key( string $kind, bool $anon = false ): string {
+		$uid = get_current_user_id();
+		if ( $uid && ! $anon ) {
+			return 'ft_flash_' . $kind . '_u' . $uid;
+		}
+		$tok = isset( $_COOKIE['ft_flash'] ) ? (string) $_COOKIE['ft_flash'] : '';
+		if ( ! preg_match( '/^[a-f0-9]{32}$/', $tok ) ) {
+			$tok = bin2hex( random_bytes( 16 ) );
+			if ( ! headers_sent() ) {
+				setcookie( 'ft_flash', $tok, array( 'expires' => time() + 900, 'path' => COOKIEPATH ? COOKIEPATH : '/', 'secure' => is_ssl(), 'httponly' => true, 'samesite' => 'Lax' ) );
+			}
+			$_COOKIE['ft_flash'] = $tok;
+		}
+		return 'ft_flash_' . $kind . '_a' . md5( $tok );
+	}
+
+	/**
+	 * Read and consume a flash value (user key first, then this browser's anonymous key — covers
+	 * messages set during the request that signed the user in).
+	 *
+	 * @param string $kind notice|form.
+	 * @return mixed
+	 */
+	protected static function take_flash( string $kind ) {
+		foreach ( array( false, true ) as $anon ) {
+			if ( $anon && empty( $_COOKIE['ft_flash'] ) ) {
+				continue;
+			}
+			$key = self::flash_key( $kind, $anon );
+			$val = get_transient( $key );
+			if ( false !== $val ) {
+				delete_transient( $key );
+				return $val;
+			}
 		}
 		return null;
 	}
 
 	/**
+	 * Get and consume flash notice.
+	 *
+	 * @return array|null Notice array or null.
+	 */
+	public static function get_flash_notice(): ?array {
+		$val = self::take_flash( 'notice' );
+		return $val ? (array) $val : null;
+	}
+
+	/**
 	 * Store draft form data temporarily for repopulation on validation error.
 	 *
-	 * @param array $data Form data (sanitized, excluding passwords).
+	 * @param array $data Form data (sanitized, excluding passwords and SSNs).
 	 */
 	public static function set_flash_form_data( array $data ): void {
-		$ip  = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1' ) );
-		$key = 'ft_auth_form_' . md5( $ip );
-		set_transient( $key, $data, 180 );
+		unset( $data['password'], $data['confirm_password'], $data['tenant_ssn'], $data['applicant_ssn'], $data['ssn'] );
+		set_transient( self::flash_key( 'form' ), $data, 180 );
 	}
 
 	/**
@@ -313,14 +460,8 @@ class AuthHandler {
 	 * @return array Draft data or empty array.
 	 */
 	public static function get_flash_form_data(): array {
-		$ip  = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1' ) );
-		$key = 'ft_auth_form_' . md5( $ip );
-		$val = get_transient( $key );
-		if ( $val && is_array( $val ) ) {
-			delete_transient( $key );
-			return $val;
-		}
-		return array();
+		$val = self::take_flash( 'form' );
+		return is_array( $val ) ? $val : array();
 	}
 }
 

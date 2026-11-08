@@ -9,7 +9,28 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'FRAUD_TENANT_THEME_VERSION', '1.0.7' );
+define( 'FRAUD_TENANT_THEME_VERSION', '2.0.0' );
+
+require_once get_template_directory() . '/inc/app.php';
+
+/**
+ * Authenticated app pages (Owner / Tenant / Admin dashboards).
+ *
+ * @return bool
+ */
+function fraud_tenant_is_app_page(): bool {
+	return is_page( array( 'owner-dashboard', 'tenant-dashboard', 'admin-dashboard' ) );
+}
+
+/**
+ * File-modification version for cache busting.
+ *
+ * @param string $path Absolute path.
+ * @return string
+ */
+function fraud_tenant_asset_ver( string $path ): string {
+	return file_exists( $path ) ? (string) filemtime( $path ) : FRAUD_TENANT_THEME_VERSION;
+}
 
 /**
  * Sets up theme defaults and registers support for various WordPress features.
@@ -54,15 +75,20 @@ add_action( 'after_setup_theme', 'fraud_tenant_theme_setup' );
  * Enqueue scripts and styles.
  */
 function fraud_tenant_enqueue_assets(): void {
-	wp_enqueue_style( 'fraud-tenant-style', get_stylesheet_uri(), array(), FRAUD_TENANT_THEME_VERSION );
-	wp_enqueue_style( 'fraud-tenant-main', get_template_directory_uri() . '/assets/css/main.css', array( 'fraud-tenant-style' ), FRAUD_TENANT_THEME_VERSION );
+	$dir = get_template_directory();
+	$uri = get_template_directory_uri();
 
-	wp_enqueue_script( 'fraud-tenant-main', get_template_directory_uri() . '/assets/js/main.js', array(), FRAUD_TENANT_THEME_VERSION, true );
-
-	if ( is_page( array( 'owner-dashboard', 'tenant-dashboard' ) ) ) {
-		wp_enqueue_style( 'fraud-tenant-dashboard', get_template_directory_uri() . '/assets/css/dashboard.css', array( 'fraud-tenant-main' ), FRAUD_TENANT_THEME_VERSION );
-		wp_enqueue_script( 'fraud-tenant-dashboard', get_template_directory_uri() . '/assets/js/dashboard.js', array( 'fraud-tenant-main' ), FRAUD_TENANT_THEME_VERSION, true );
+	// Authenticated dashboards use the app shell + shared component library only (no marketing CSS).
+	if ( fraud_tenant_is_app_page() && defined( 'FRAUD_TENANT_CORE_URL' ) ) {
+		wp_enqueue_style( 'ft-ui', FRAUD_TENANT_CORE_URL . 'assets/css/ft-ui.css', array(), fraud_tenant_asset_ver( FRAUD_TENANT_CORE_PATH . 'assets/css/ft-ui.css' ) );
+		wp_enqueue_style( 'fraud-tenant-app', $uri . '/assets/css/app.css', array( 'ft-ui' ), fraud_tenant_asset_ver( $dir . '/assets/css/app.css' ) );
+		wp_enqueue_script( 'fraud-tenant-app', $uri . '/assets/js/app.js', array(), fraud_tenant_asset_ver( $dir . '/assets/js/app.js' ), true );
+		return;
 	}
+
+	wp_enqueue_style( 'fraud-tenant-style', get_stylesheet_uri(), array(), fraud_tenant_asset_ver( $dir . '/style.css' ) );
+	wp_enqueue_style( 'fraud-tenant-main', $uri . '/assets/css/main.css', array( 'fraud-tenant-style' ), fraud_tenant_asset_ver( $dir . '/assets/css/main.css' ) );
+	wp_enqueue_script( 'fraud-tenant-main', $uri . '/assets/js/main.js', array(), fraud_tenant_asset_ver( $dir . '/assets/js/main.js' ), true );
 }
 add_action( 'wp_enqueue_scripts', 'fraud_tenant_enqueue_assets' );
 
@@ -138,17 +164,17 @@ function fraud_tenant_ensure_public_pages(): void {
 		'how-it-works'      => array(
 			'title'     => 'How It Works',
 			'subtitle'  => 'A transparent, step-by-step overview of our tenant screening and incident reporting platform.',
-			'content'   => '<h2>A Modern Approach to Rental Risk & Transparency</h2><p>Fraud Tenant was designed to address the unique challenges faced by independent property owners and residential renters across the United States. Traditional screening can be impersonal, rigid, or incomplete, while informal word-of-mouth reports risk inaccuracy and unfairness.</p><h3>The Four-Step Workflow</h3><ol><li><strong>Account Registration & Role Selection:</strong> Users create either a Property Owner account or a Tenant account. Each account collects only the minimal required profile and contact information.</li><li><strong>Email Verification & Administrative Review:</strong> To maintain community integrity, each account verifies its email with a secure 6-digit OTP and completes administrative review before accessing dashboard functionality.</li><li><strong>Authorized Tenant Screening:</strong> Eligible owners who have certified a permissible purpose under applicable housing and privacy laws may submit a tenant-matching request using SSN-based keyed tokens.</li><li><strong>Factual Incident Reporting & Dispute Management:</strong> Owners can record factual, objective lease violations or unpaid rent incidents with supporting documentation. Unreviewed allegations are never disclosed publicly, and tenants hold the right to inspect records and file disputes.</li></ol><div class="legal-callout-box"><h4>FCRA & Regulatory Alignment</h4><p>Fraud Tenant is committed to fair housing principles and the Fair Credit Reporting Act (FCRA). We do not label individuals as fraudulent based solely on an allegation, nor do we operate an open public blacklist.</p></div>',
+			'content'   => '<h2>A Modern Approach to Rental Risk & Transparency</h2><p>Fraud Tenant was designed to address the unique challenges faced by independent property owners and residential renters across the United States. Traditional screening can be impersonal, rigid, or incomplete, while informal word-of-mouth reports risk inaccuracy and unfairness.</p><h3>The Four-Step Workflow</h3><ol><li><strong>Account Registration & Role Selection:</strong> Users create either a Property Owner account or a Tenant account. Each account collects only the minimal required profile and contact information.</li><li><strong>Email Verification:</strong> Each account verifies its email address with a secure 6-digit code. Verification activates the account and opens the dashboard. Property ownership is verified separately before screening or reporting on that property.</li><li><strong>Authorized Tenant Screening:</strong> Owners who certify a permissible purpose and hold the applicant’s consent search by legal name and SSN. Matching uses keyed tokens; free accounts see whether reviewed records exist, Standard members see the reviewed details. The owner always makes the rental decision.</li><li><strong>Factual Incident Reporting & Dispute Management:</strong> Owners can record factual, objective lease violations or unpaid rent incidents with supporting documentation. Unreviewed allegations are never disclosed publicly, and tenants hold the right to inspect records and file disputes.</li></ol><div class="legal-callout-box"><h4>FCRA & Regulatory Alignment</h4><p>Fraud Tenant is committed to fair housing principles and the Fair Credit Reporting Act (FCRA). We do not label individuals as fraudulent based solely on an allegation, nor do we operate an open public blacklist.</p></div>',
 		),
 		'for-property-owners' => array(
 			'title'     => 'For Property Owners',
 			'subtitle'  => 'Protect your rental investments, document factual lease disputes, and screen applicants responsibly.',
-			'content'   => '<h2>Responsible Tenant Screening for Independent Landlords</h2><p>As a property owner or residential landlord, selecting trustworthy tenants is critical to preserving your rental income and property value. Fraud Tenant is designed to equip property owners with structured, objective screening and incident reporting tools.</p><h3>Planned Landlord Features (Subject to Account Approval)</h3><ul><li><strong>Authorized SSN Tenant Matching:</strong> Verify applicant rental history securely without ever exposing or retaining plaintext Social Security Numbers.</li><li><strong>Documented Incident Records:</strong> Record past tenancy incidents such as unpaid rent, property damage beyond normal wear, or broken leases. All submissions require owner attestation and supporting evidence.</li><li><strong>Property & Lease Portfolio:</strong> Organize all your rental addresses and active tenancies in one unified dashboard shell.</li><li><strong>Membership Tiers:</strong> Access free neutral status inquiries or upgrade to paid monthly/annual memberships for full report disclosures and advanced portfolio management.</li></ul><div class="legal-callout-box"><h4>Permissible Purpose Requirement</h4><p>Under US federal and state regulations, tenant screening information may only be requested for legitimate housing decisions where the applicant has authorized screening. Landlords must certify permissible purpose before initiating an inquiry. Fraud Tenant does not guarantee tenant payment performance or legal immunity.</p></div>',
+			'content'   => '<h2>Responsible Tenant Screening for Independent Landlords</h2><p>As a property owner or residential landlord, selecting trustworthy tenants is critical to preserving your rental income and property value. Fraud Tenant is designed to equip property owners with structured, objective screening and incident reporting tools.</p><h3>Owner Features</h3><ul><li><strong>Authorized SSN Tenant Matching:</strong> Verify applicant rental history securely without ever exposing or retaining plaintext Social Security Numbers.</li><li><strong>Documented Incident Records:</strong> Record past tenancy incidents such as unpaid rent, property damage beyond normal wear, or broken leases. All submissions require owner attestation and supporting evidence.</li><li><strong>Property & Lease Portfolio:</strong> Organize all your rental addresses and active tenancies in one unified dashboard shell.</li><li><strong>Membership Tiers:</strong> Access free neutral status inquiries or upgrade to paid monthly/annual memberships for full report disclosures and advanced portfolio management.</li></ul><div class="legal-callout-box"><h4>Permissible Purpose Requirement</h4><p>Under US federal and state regulations, tenant screening information may only be requested for legitimate housing decisions where the applicant has authorized screening. Landlords must certify permissible purpose before initiating an inquiry. Fraud Tenant does not guarantee tenant payment performance or legal immunity.</p></div>',
 		),
 		'for-tenants'        => array(
 			'title'     => 'For Tenants',
 			'subtitle'  => 'Inspect your rental records, dispute inaccuracies, and protect your housing reputation.',
-			'content'   => '<h2>Transparency and Due Process for Renters</h2><p>Fraud Tenant is designed around the core principle that renters have the fundamental right to know what information is being reported about them, to review the accuracy of rental incident records, and to challenge false or inaccurate claims.</p><h3>Planned Tenant Features (Subject to Account Verification)</h3><ul><li><strong>Review Your Own Records:</strong> Approved tenant users can view rental history entries and incident reports associated with their verified profile.</li><li><strong>File Formal Disputes:</strong> If a report contains incorrect dates, amounts, or untrue claims, submit a dispute directly through the platform with counter-evidence.</li><li><strong>Human Administrative Review:</strong> Disputes are investigated by platform administrators. Incorrect records are updated, corrected, or dismissed.</li><li><strong>Bank-Grade Privacy:</strong> Your full Social Security Number is never stored in plain text or sold to third parties. Matching is conducted using cryptographic tokenization.</li></ul><div class="legal-callout-box"><h4>No Automated Fraud Labels</h4><p>An incident report submitted by a landlord is treated as a pending allegation until reviewed and verified. Allegations are never published as proven facts. The platform does not operate a public blacklist.</p></div>',
+			'content'   => '<h2>Transparency and Due Process for Renters</h2><p>Fraud Tenant is designed around the core principle that renters have the fundamental right to know what information is being reported about them, to review the accuracy of rental incident records, and to challenge false or inaccurate claims.</p><h3>Tenant Features</h3><ul><li><strong>Review Your Own Records:</strong> After verifying your identity, you can view the reviewed rental records associated with you.</li><li><strong>File Formal Disputes:</strong> If a report contains incorrect dates, amounts, or untrue claims, submit a dispute directly through the platform with counter-evidence.</li><li><strong>Human Administrative Review:</strong> Disputes are investigated by platform administrators. Incorrect records are updated, corrected, or dismissed.</li><li><strong>Bank-Grade Privacy:</strong> Your full Social Security Number is never stored in plain text or sold to third parties. Matching is conducted using cryptographic tokenization.</li></ul><div class="legal-callout-box"><h4>No Automated Fraud Labels</h4><p>An incident report submitted by a landlord is treated as a pending allegation until reviewed and verified. Allegations are never published as proven facts. The platform does not operate a public blacklist.</p></div>',
 		),
 		'faq'               => array(
 			'title'     => 'Frequently Asked Questions',
@@ -223,8 +249,20 @@ function fraud_tenant_ensure_public_pages(): void {
 		),
 		'account-status'    => array(
 			'title'     => 'Account Status',
-			'subtitle'  => 'Check your application and membership review status.',
+			'subtitle'  => 'Check your account status.',
 			'content'   => '',
+		),
+		'owner-dashboard'   => array(
+			'title'   => 'Owner Dashboard',
+			'content' => '',
+		),
+		'tenant-dashboard'  => array(
+			'title'   => 'Tenant Dashboard',
+			'content' => '',
+		),
+		'admin-dashboard'   => array(
+			'title'   => 'Admin Command Center',
+			'content' => '',
 		),
 	);
 
@@ -255,6 +293,29 @@ function fraud_tenant_ensure_public_pages(): void {
 add_action( 'after_switch_theme', 'fraud_tenant_ensure_public_pages' );
 
 /**
+ * In-place theme updates (upload "replace current", WPvivid restore, Git pull) do not fire
+ * after_switch_theme, so pages introduced by a newer theme version (e.g. /admin-dashboard/ in 2.0.0)
+ * would be missing. Create any missing page once per theme version. The generator only inserts pages
+ * that do not exist; existing pages and the front-page setting are never changed.
+ */
+function fraud_tenant_maybe_upgrade_pages(): void {
+	if ( FRAUD_TENANT_THEME_VERSION === get_option( 'fraud_tenant_pages_version' ) ) {
+		return;
+	}
+	// One request at a time: add_option() is an atomic INSERT. A lock left by an interrupted request expires.
+	if ( ! add_option( 'fraud_tenant_pages_lock', (string) time(), '', false ) ) {
+		if ( (int) get_option( 'fraud_tenant_pages_lock' ) < time() - 300 ) {
+			delete_option( 'fraud_tenant_pages_lock' );
+		}
+		return;
+	}
+	fraud_tenant_ensure_public_pages();
+	update_option( 'fraud_tenant_pages_version', FRAUD_TENANT_THEME_VERSION );
+	delete_option( 'fraud_tenant_pages_lock' );
+}
+add_action( 'init', 'fraud_tenant_maybe_upgrade_pages', 20 );
+
+/**
  * Shortcode to render contact form inside standard content pages.
  */
 function fraud_tenant_contact_form_shortcode(): string {
@@ -263,3 +324,15 @@ function fraud_tenant_contact_form_shortcode(): string {
 	return ob_get_clean();
 }
 add_shortcode( 'ft_contact_form', 'fraud_tenant_contact_form_shortcode' );
+
+/**
+ * Keep the WordPress toolbar off the member (Owner/Tenant) application shell.
+ * Administrators keep the toolbar.
+ */
+function fraud_tenant_hide_toolbar_for_members( bool $show ): bool {
+	if ( is_user_logged_in() && ( ! current_user_can( 'manage_options' ) || fraud_tenant_is_app_page() ) ) {
+		return false;
+	}
+	return $show;
+}
+add_filter( 'show_admin_bar', 'fraud_tenant_hide_toolbar_for_members' );
