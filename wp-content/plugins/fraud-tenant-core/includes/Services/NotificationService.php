@@ -97,9 +97,9 @@ class NotificationService {
 	 * @param string $url     Admin link.
 	 * @param string $type    Type tag.
 	 */
-	public static function notify_admins( string $title, string $message, string $url = '', string $type = 'admin' ): void {
+	public static function notify_admins( string $title, string $message, string $url = '', string $type = 'admin', bool $email = false ): void {
 		foreach ( get_users( array( 'role' => 'administrator', 'fields' => 'ID' ) ) as $admin_id ) {
-			self::notify( (int) $admin_id, $title, $message, $url, $type, 'account', false );
+			self::notify( (int) $admin_id, $title, $message, $url, $type, 'account', $email );
 		}
 	}
 
@@ -124,7 +124,12 @@ class NotificationService {
 			$body .= __( 'Sign in to view the details:', 'fraud-tenant-core' ) . "\n" . $url . "\n\n";
 		}
 		$body .= "---\n" . __( 'Fraud Tenant — A Safer Rental Community. You can change email preferences in Profile & Account Settings.', 'fraud-tenant-core' ) . "\n";
-		return (bool) wp_mail( $user->user_email, '[Fraud Tenant] ' . $title, $body, array( 'Content-Type: text/plain; charset=UTF-8' ) );
+		// Same wp_mail() path and headers as the registration OTP, so FluentSMTP (production) delivers it.
+		$sent = (bool) wp_mail( $user->user_email, '[Fraud Tenant] ' . $title, $body, array( 'Content-Type: text/plain; charset=UTF-8' ) );
+		if ( ! $sent ) {
+			AuditLogger::log( 'notification.email_failed', 'user', $user_id, array( 'title' => sanitize_text_field( $title ) ), $user_id );
+		}
+		return $sent;
 	}
 
 	/**

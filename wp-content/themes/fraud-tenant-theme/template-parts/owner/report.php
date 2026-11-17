@@ -40,7 +40,7 @@ $props = array_values( array_filter( $d['properties'], static fn( $p ) => 'verif
 	<div class="ft-grid ft-grid-2">
 		<section class="ft-card">
 			<div class="ft-card-head"><h2><?php esc_html_e( '1. Tenant', 'fraud-tenant-theme' ); ?></h2></div>
-			<p class="ft-help"><?php esc_html_e( 'Use the tenant\'s legal name and SSN exactly as on their rental application or lease. They are used only to match the report to the correct tenant.', 'fraud-tenant-theme' ); ?></p>
+			<p class="ft-help"><?php esc_html_e( 'Use the tenant\'s legal name, SSN and phone number exactly as on their rental application or lease. They are used only to match the report to the correct tenant.', 'fraud-tenant-theme' ); ?></p>
 			<div class="ft-row">
 				<div><label class="ft-label" for="ftIncFirst"><?php esc_html_e( 'Legal first name', 'fraud-tenant-theme' ); ?></label><input class="ft-input" id="ftIncFirst" name="tenant_first_name" required maxlength="100" value="<?php echo esc_attr( (string) ( $old['tenant_first_name'] ?? '' ) ); ?>"></div>
 				<div><label class="ft-label" for="ftIncLast"><?php esc_html_e( 'Legal last name', 'fraud-tenant-theme' ); ?></label><input class="ft-input" id="ftIncLast" name="tenant_last_name" required maxlength="100" value="<?php echo esc_attr( (string) ( $old['tenant_last_name'] ?? '' ) ); ?>"></div>
@@ -48,6 +48,9 @@ $props = array_values( array_filter( $d['properties'], static fn( $p ) => 'verif
 			<label class="ft-label" for="ftIncSsn"><?php esc_html_e( 'Tenant Social Security Number', 'fraud-tenant-theme' ); ?></label>
 			<div class="ft-filters" style="margin:0"><input class="ft-input" type="password" id="ftIncSsn" name="tenant_ssn" data-ft-ssn required inputmode="numeric" pattern="\d{3}-?\d{2}-?\d{4}" placeholder="123-45-6789" aria-describedby="ftIncSsnHelp"><button type="button" class="ft-btn ft-btn-ghost ft-btn-sm" data-ft-ssn-toggle="ftIncSsn" data-show="<?php esc_attr_e( 'Show', 'fraud-tenant-theme' ); ?>" data-hide="<?php esc_attr_e( 'Hide', 'fraud-tenant-theme' ); ?>" aria-pressed="false"><?php esc_html_e( 'Show', 'fraud-tenant-theme' ); ?></button></div>
 			<p class="ft-help" id="ftIncSsnHelp"><?php esc_html_e( 'Never stored: the SSN becomes a keyed match token on our server. Only the last 4 digits are kept.', 'fraud-tenant-theme' ); ?></p>
+			<label class="ft-label" for="ftIncPhone"><?php esc_html_e( 'Tenant phone number', 'fraud-tenant-theme' ); ?></label>
+			<input class="ft-input" type="tel" id="ftIncPhone" name="tenant_phone" required inputmode="tel" maxlength="20" placeholder="(201) 555-0123" value="<?php echo esc_attr( (string) ( $old['tenant_phone'] ?? '' ) ); ?>" aria-describedby="ftIncPhoneHelp">
+			<p class="ft-help" id="ftIncPhoneHelp"><?php esc_html_e( 'A 10-digit US mobile or home number. It is stored as a keyed match token so other owners can find this report by the tenant\'s phone number or SSN. Only the last 4 digits are kept.', 'fraud-tenant-theme' ); ?></p>
 			<label class="ft-check"><input type="checkbox" name="identity_attestation" value="1" required> <span><?php esc_html_e( 'These identity details come from the tenant\'s own rental application or lease.', 'fraud-tenant-theme' ); ?></span></label>
 		</section>
 		<section class="ft-card">

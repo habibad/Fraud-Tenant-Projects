@@ -237,6 +237,9 @@ class IncidentService {
 				'message' => $needs_membership ? __( 'Incident reporting requires an active Standard membership.', 'fraud-tenant-core' ) : __( 'You are not authorized to submit incident reports.', 'fraud-tenant-core' ),
 			);
 		}
+		if ( ! self::get_eligible_properties( $owner_id ) ) {
+			return array( 'success' => false, 'error' => 'no_verified_property', 'message' => __( 'You need at least one verified property before you can submit incident reports. Add a property and wait for its ownership verification to be approved.', 'fraud-tenant-core' ) );
+		}
 		if ( ! self::check_rate_limit( $owner_id ) ) {
 			return array( 'success' => false, 'error' => 'rate_limited', 'message' => __( 'Too many incident reports in a short time. Please wait a few minutes.', 'fraud-tenant-core' ) );
 		}
@@ -263,6 +266,16 @@ class IncidentService {
 		$first = IdentityService::clean_name( $data['tenant_first_name'] ?? '' );
 		$last  = IdentityService::clean_name( $data['tenant_last_name'] ?? '' );
 		$ssn   = trim( (string) wp_unslash( (string) ( $data['tenant_ssn'] ?? '' ) ) );
+
+		// The tenant's phone number is required alongside the SSN (either one can match a later screening search).
+		$phone_digits = IdentityService::normalize_phone( (string) wp_unslash( (string) ( $data['tenant_phone'] ?? '' ) ) );
+		if ( null === $phone_digits ) {
+			return array( 'success' => false, 'error' => 'invalid_tenant_phone', 'message' => __( 'Enter the tenant\'s valid 10-digit US phone number (for example (201) 555-0123).', 'fraud-tenant-core' ) );
+		}
+		$phone_token = IdentityService::phone_token( $phone_digits );
+		if ( null === $phone_token ) {
+			return array( 'success' => false, 'error' => 'identity_matching_unavailable', 'message' => __( 'Identity matching is unavailable.', 'fraud-tenant-core' ) );
+		}
 
 		$now   = current_time( 'mysql', true );
 		$table = $wpdb->prefix . Constants::TABLE_INCIDENT_REPORTS;
@@ -296,6 +309,8 @@ class IncidentService {
 				'subject_token_hash'   => $is_exception ? $id['token'] : null,
 				'subject_ssn_last4'    => $is_exception ? $id['last4'] : null,
 				'subject_name_enc'     => $subject_enc,
+				'subject_phone_hash'   => $phone_token,
+				'subject_phone_last4'  => substr( $phone_digits, -4 ),
 				'screening_disclosure' => 0,
 				'created_at'           => $now,
 				'updated_at'           => $now,
@@ -360,11 +375,11 @@ class IncidentService {
 		if ( ! empty( $report->tenant_identity_id ) ) {
 			$identity = IdentityService::get( (int) $report->tenant_identity_id );
 			if ( $identity ) {
-				return array( 'name' => IdentityService::display_name( $identity ), 'last4' => (string) $identity->ssn_last_four, 'linked' => true );
+				return array( 'name' => IdentityService::display_name( $identity ), 'last4' => (string) $identity->ssn_last_four, 'phone_last4' => (string) ( $report->subject_phone_last4 ?? '' ), 'linked' => true );
 			}
 		}
 		$n = SensitiveDataService::decrypt_array( $report->subject_name_enc ?? null, SensitiveDataService::CTX_SUBJECT_NAME );
-		return array( 'name' => trim( ( $n['first'] ?? '' ) . ' ' . ( $n['last'] ?? '' ) ), 'last4' => (string) ( $report->subject_ssn_last4 ?? '' ), 'linked' => false );
+		return array( 'name' => trim( ( $n['first'] ?? '' ) . ' ' . ( $n['last'] ?? '' ) ), 'last4' => (string) ( $report->subject_ssn_last4 ?? '' ), 'phone_last4' => (string) ( $report->subject_phone_last4 ?? '' ), 'linked' => false );
 	}
 
 	/**
@@ -522,14 +537,28 @@ class IncidentService {
 		$first  = IdentityService::clean_name( $data['tenant_first_name'] ?? '' );
 		$last   = IdentityService::clean_name( $data['tenant_last_name'] ?? '' );
 		$ssn    = trim( (string) wp_unslash( (string) ( $data['tenant_ssn'] ?? '' ) ) );
+		$phone_raw = trim( (string) wp_unslash( (string) ( $data['tenant_phone'] ?? '' ) ) );
 		$now    = current_time( 'mysql', true );
 
 		$wpdb->query( 'START TRANSACTION' );
-		if ( '' !== $first || '' !== $last || '' !== $ssn ) {
+		if ( '' !== $first || '' !== $last || '' !== $ssn || '' !== $phone_raw ) {
 			if ( ! empty( $report->tenant_identity_id ) && Constants::IDENTITY_EXCEPTION !== $report->identity_match ) {
 				$wpdb->query( 'ROLLBACK' );
 				return array( 'success' => false, 'error' => 'identity_locked', 'message' => __( 'The tenant identity on this report is already confirmed. Contact support if it is wrong.', 'fraud-tenant-core' ) );
 			}
+			// Phone: validate what was entered; a report without a stored phone number must receive one.
+			if ( '' !== $phone_raw || empty( $report->subject_phone_hash ) ) {
+				$phone_digits = IdentityService::normalize_phone( $phone_raw );
+				$phone_token  = null !== $phone_digits ? IdentityService::phone_token( $phone_digits ) : null;
+				if ( null === $phone_token ) {
+					$wpdb->query( 'ROLLBACK' );
+					return array( 'success' => false, 'error' => 'invalid_tenant_phone', 'message' => __( 'Enter the tenant\'s valid 10-digit US phone number (for example (201) 555-0123).', 'fraud-tenant-core' ) );
+				}
+				$update['subject_phone_hash']  = $phone_token;
+				$update['subject_phone_last4'] = substr( $phone_digits, -4 );
+			}
+		}
+		if ( '' !== $first || '' !== $last || '' !== $ssn ) {
 			$id = IdentityService::resolve( $first, $last, $ssn );
 			if ( ! $id['ok'] ) {
 				$wpdb->query( 'ROLLBACK' );

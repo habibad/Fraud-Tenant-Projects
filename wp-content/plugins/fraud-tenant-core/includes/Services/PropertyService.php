@@ -203,6 +203,22 @@ class PropertyService {
 			$owner_id
 		);
 
+		// Let administrators know a property is waiting for ownership verification (in-app + email).
+		$owner = get_userdata( $owner_id );
+		NotificationService::notify_admins(
+			__( 'New property awaiting verification', 'fraud-tenant-core' ),
+			sprintf(
+				/* translators: 1: owner name, 2: property address, 3: yes/no */
+				__( '%1$s added "%2$s" for ownership verification. Ownership document attached: %3$s.', 'fraud-tenant-core' ),
+				$owner ? $owner->display_name : __( 'A property owner', 'fraud-tenant-core' ),
+				$title,
+				$has_doc ? __( 'yes', 'fraud-tenant-core' ) : __( 'no', 'fraud-tenant-core' )
+			),
+			home_url( '/admin-dashboard/?section=properties&property_id=' . $property_id ),
+			'property_submitted',
+			true
+		);
+
 		return array(
 			'success'     => true,
 			'property_id' => $property_id,
@@ -651,6 +667,20 @@ class PropertyService {
 				'prior_status'  => $prior_status,
 			),
 			$owner_id
+		);
+
+		$owner = get_userdata( $owner_id );
+		NotificationService::notify_admins(
+			__( 'Ownership document uploaded', 'fraud-tenant-core' ),
+			sprintf(
+				/* translators: 1: owner name, 2: property address */
+				__( '%1$s uploaded an ownership document for "%2$s". It is waiting for verification.', 'fraud-tenant-core' ),
+				$owner ? $owner->display_name : __( 'A property owner', 'fraud-tenant-core' ),
+				(string) ( $property->title ?: $property->address_street )
+			),
+			home_url( '/admin-dashboard/?section=properties&property_id=' . $property_id ),
+			'property_document_uploaded',
+			true
 		);
 
 		return array(

@@ -121,25 +121,45 @@ class TenantScreeningService {
 		$first = IdentityService::clean_name( $data['applicant_first_name'] ?? '' );
 		$last  = IdentityService::clean_name( $data['applicant_last_name'] ?? '' );
 		$ssn   = trim( (string) wp_unslash( (string) ( $data['applicant_ssn'] ?? '' ) ) );
+		$phone = trim( (string) wp_unslash( (string) ( $data['applicant_phone'] ?? '' ) ) );
 		if ( ! IdentityService::valid_name( $first, $last ) ) {
 			return array( 'success' => false, 'error' => 'invalid_applicant_name', 'message' => __( 'Enter the applicant\'s legal first and last name.', 'fraud-tenant-core' ) );
 		}
-		$digits = IdentityService::normalize_ssn( $ssn );
-		if ( null === $digits ) {
-			return array( 'success' => false, 'error' => 'invalid_applicant_ssn', 'message' => __( 'Enter a valid 9-digit SSN (format 123-45-6789).', 'fraud-tenant-core' ) );
+		if ( '' === $ssn && '' === $phone ) {
+			return array( 'success' => false, 'error' => 'missing_applicant_identifier', 'message' => __( 'Enter the applicant\'s SSN or phone number.', 'fraud-tenant-core' ) );
+		}
+		$digits = null;
+		if ( '' !== $ssn ) {
+			$digits = IdentityService::normalize_ssn( $ssn );
+			if ( null === $digits ) {
+				return array( 'success' => false, 'error' => 'invalid_applicant_ssn', 'message' => __( 'Enter a valid 9-digit SSN (format 123-45-6789).', 'fraud-tenant-core' ) );
+			}
+		}
+		$phone_digits = null;
+		if ( '' !== $phone ) {
+			$phone_digits = IdentityService::normalize_phone( $phone );
+			if ( null === $phone_digits ) {
+				return array( 'success' => false, 'error' => 'invalid_applicant_phone', 'message' => __( 'Enter a valid 10-digit US phone number (for example (201) 555-0123).', 'fraud-tenant-core' ) );
+			}
 		}
 		$name_enc = SensitiveDataService::encrypt_array( array( 'first' => $first, 'last' => $last ), SensitiveDataService::CTX_APPLICANT_NAME );
 		if ( null === $name_enc ) {
 			return array( 'success' => false, 'error' => 'identity_protection_failed', 'message' => __( 'The search could not be protected. Nothing was saved.', 'fraud-tenant-core' ) );
 		}
 
-		$identity = IdentityService::find_exact( $first, $last, $digits );
-		unset( $ssn );
-		$records = $identity ? ReportVisibilityService::get_screening_records( (int) $identity->id, $owner_id ) : array();
-		$ids     = array();
-		if ( $records ) {
-			global $wpdb;
-			$ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare( "SELECT id FROM {$wpdb->prefix}" . Constants::TABLE_INCIDENT_REPORTS . ' WHERE tenant_identity_id = %d AND status = %s AND screening_disclosure = 1', (int) $identity->id, Constants::INCIDENT_STATUS_APPROVED ) ) );
+		// A match on the SSN OR the phone number (plus the legal name) finds the applicant's records.
+		$identities   = IdentityService::find_matches( $first, $last, $digits, $phone_digits );
+		unset( $ssn, $phone );
+		$identity     = $identities ? $identities[0] : null;
+		$identity_ids = array_map( static fn( $i ) => (int) $i->id, $identities );
+		$ids          = array();
+		$by_identity  = array();
+		if ( $identity_ids && ComplianceService::owner_search_ready() ) {
+			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, tenant_identity_id FROM {$wpdb->prefix}" . Constants::TABLE_INCIDENT_REPORTS . ' WHERE tenant_identity_id IN (' . implode( ',', $identity_ids ) . ') AND status = %s AND screening_disclosure = 1', Constants::INCIDENT_STATUS_APPROVED ) ) ?: array();
+			foreach ( $rows as $row ) {
+				$ids[]                                  = (int) $row->id;
+				$by_identity[ (int) $row->tenant_identity_id ] = true;
+			}
 		}
 		$level = MembershipService::can_access_feature( $owner_id, 'full_reports' ) ? self::RESULT_FULL : self::RESULT_BASIC;
 
@@ -151,7 +171,9 @@ class TenantScreeningService {
 				'tenant_identity_id'              => $identity ? (int) $identity->id : null,
 				'permissible_purpose_attestation' => 1,
 				'purpose_reason'                  => $purpose,
-				'ssn_last_four'                   => substr( $digits, -4 ),
+				'ssn_last_four'                   => null !== $digits ? substr( $digits, -4 ) : '',
+				'phone_last_four'                 => null !== $phone_digits ? substr( $phone_digits, -4 ) : null,
+				'matched_identity_ids'            => wp_json_encode( $identity_ids ),
 				'match_found'                     => $ids ? 1 : 0,
 				'records_count'                   => count( $ids ),
 				'disclosure_level'                => $level,
@@ -168,8 +190,11 @@ class TenantScreeningService {
 		}
 
 		AuditLogger::log( 'tenant_screening_search', 'screening_request', $request_id, array( 'records_found' => (bool) $ids, 'records_count' => count( $ids ), 'level' => $level, 'purpose' => $purpose, 'property_id' => $property_id ), $owner_id );
-		if ( $ids && $identity && ! empty( $identity->user_id ) ) {
-			NotificationService::notify( (int) $identity->user_id, __( 'Screening inquiry', 'fraud-tenant-core' ), __( 'A verified property owner ran an authorized tenant screening that included reviewed records on your account. You can review and dispute your records from your dashboard.', 'fraud-tenant-core' ), home_url( '/tenant-dashboard/?section=records' ), 'screening_inquiry', 'screening' );
+		foreach ( $identities as $matched ) {
+			if ( empty( $matched->user_id ) || empty( $by_identity[ (int) $matched->id ] ) ) {
+				continue;
+			}
+			NotificationService::notify( (int) $matched->user_id, __( 'Screening inquiry', 'fraud-tenant-core' ), __( 'A verified property owner ran an authorized tenant screening that included reviewed records on your account. You can review and dispute your records from your dashboard.', 'fraud-tenant-core' ), home_url( '/tenant-dashboard/?section=records' ), 'screening_inquiry', 'screening' );
 		}
 
 		return array(
@@ -192,8 +217,9 @@ class TenantScreeningService {
 		if ( ! $req || empty( $req->applicant_name_enc ) ) {
 			return null;
 		}
-		$ids     = array_map( 'intval', (array) json_decode( (string) $req->matched_report_ids, true ) );
-		$records = ( $req->tenant_identity_id && $ids ) ? ReportVisibilityService::get_screening_records( (int) $req->tenant_identity_id, $owner_id, $ids ) : array();
+		$ids          = array_map( 'intval', (array) json_decode( (string) $req->matched_report_ids, true ) );
+		$identity_ids = ! empty( $req->matched_identity_ids ) ? array_map( 'intval', (array) json_decode( (string) $req->matched_identity_ids, true ) ) : array( (int) $req->tenant_identity_id );
+		$records      = ( $identity_ids && $ids ) ? ReportVisibilityService::get_screening_records( $identity_ids, $owner_id, $ids ) : array();
 		$level   = MembershipService::can_access_feature( $owner_id, 'full_reports' ) ? self::RESULT_FULL : self::RESULT_BASIC;
 		$name    = SensitiveDataService::decrypt_array( $req->applicant_name_enc, SensitiveDataService::CTX_APPLICANT_NAME );
 		return array(
@@ -202,6 +228,7 @@ class TenantScreeningService {
 			'searched_at' => $req->search_date,
 			'applicant'   => trim( ( $name['first'] ?? '' ) . ' ' . ( $name['last'] ?? '' ) ),
 			'ssn_last4'   => (string) $req->ssn_last_four,
+			'phone_last4' => (string) ( $req->phone_last_four ?? '' ),
 			'level'       => $level,
 			'count'       => count( $records ),
 			'records'     => self::RESULT_FULL === $level ? $records : array(),
@@ -218,7 +245,7 @@ class TenantScreeningService {
 	 */
 	public static function get_owner_search_history( int $owner_id, int $limit = 20 ): array {
 		global $wpdb;
-		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, search_date, match_found, records_count, ssn_last_four, applicant_name_enc, purpose_reason FROM {$wpdb->prefix}" . Constants::TABLE_SCREENING_REQUESTS . ' WHERE owner_id = %d AND applicant_name_enc IS NOT NULL ORDER BY id DESC LIMIT %d', $owner_id, $limit ) ) ?: array();
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT id, search_date, match_found, records_count, ssn_last_four, phone_last_four, applicant_name_enc, purpose_reason FROM {$wpdb->prefix}" . Constants::TABLE_SCREENING_REQUESTS . ' WHERE owner_id = %d AND applicant_name_enc IS NOT NULL ORDER BY id DESC LIMIT %d', $owner_id, $limit ) ) ?: array();
 		$out  = array();
 		foreach ( $rows as $r ) {
 			$n     = SensitiveDataService::decrypt_array( $r->applicant_name_enc, SensitiveDataService::CTX_APPLICANT_NAME );
@@ -227,7 +254,8 @@ class TenantScreeningService {
 				'reference' => sprintf( 'SCR-%06d', (int) $r->id ),
 				'date'      => $r->search_date,
 				'applicant' => trim( ( $n['first'] ?? '' ) . ' ' . ( $n['last'] ?? '' ) ),
-				'last4'     => (string) $r->ssn_last_four,
+				'last4'     => '' !== (string) $r->ssn_last_four ? (string) $r->ssn_last_four : (string) ( $r->phone_last_four ?? '' ),
+				'last4_type' => '' !== (string) $r->ssn_last_four ? 'ssn' : 'phone',
 				'found'     => (int) $r->match_found,
 				'count'     => (int) $r->records_count,
 				'purpose'   => ScreeningService::ALLOWED_PURPOSES[ $r->purpose_reason ] ?? $r->purpose_reason,

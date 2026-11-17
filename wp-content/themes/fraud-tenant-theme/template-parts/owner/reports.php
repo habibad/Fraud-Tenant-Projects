@@ -34,7 +34,7 @@ if ( $rid ) :
 		<section class="ft-card">
 			<div class="ft-card-head"><h2><?php esc_html_e( 'Report', 'fraud-tenant-theme' ); ?></h2></div>
 			<dl class="ft-dl">
-				<dt><?php esc_html_e( 'Tenant', 'fraud-tenant-theme' ); ?></dt><dd><?php echo esc_html( $r->subject['name'] ?: '—' ); ?> <?php echo $r->subject['last4'] ? '· SSN ••• ' . esc_html( $r->subject['last4'] ) : ''; ?></dd>
+				<dt><?php esc_html_e( 'Tenant', 'fraud-tenant-theme' ); ?></dt><dd><?php echo esc_html( $r->subject['name'] ?: '—' ); ?> <?php echo $r->subject['last4'] ? '· SSN ••• ' . esc_html( $r->subject['last4'] ) : ''; ?><?php echo ! empty( $r->subject['phone_last4'] ) ? ' · ' . esc_html__( 'Phone', 'fraud-tenant-theme' ) . ' ••• ' . esc_html( $r->subject['phone_last4'] ) : ''; ?></dd>
 				<dt><?php esc_html_e( 'Tenant identity', 'fraud-tenant-theme' ); ?></dt><dd><?php echo ft_badge( (string) ( $r->identity_match ?: 'unlinked' ), $r->identity_label ); // phpcs:ignore ?></dd>
 				<dt><?php esc_html_e( 'Property', 'fraud-tenant-theme' ); ?></dt><dd><?php echo esc_html( trim( $r->property_street . ( $r->property_unit ? ' #' . $r->property_unit : '' ) . ', ' . $r->property_city . ', ' . $r->property_state ) ); ?></dd>
 				<dt><?php esc_html_e( 'Incident date', 'fraud-tenant-theme' ); ?></dt><dd><?php echo ft_date( $r->incident_date ); // phpcs:ignore ?></dd>
@@ -63,13 +63,15 @@ if ( $rid ) :
 					<input type="hidden" name="report_id" value="<?php echo (int) $rid; ?>">
 					<?php wp_nonce_field( 'ft_incident_clarify_' . $rid ); ?>
 					<?php if ( Constants::IDENTITY_EXCEPTION === $r->identity_match ) : ?>
-						<div class="ft-alert is-warning"><?php esc_html_e( 'The tenant name did not match our identity records for that SSN. Re-enter the tenant\'s legal name and SSN exactly as on the lease.', 'fraud-tenant-theme' ); ?></div>
+						<div class="ft-alert is-warning"><?php esc_html_e( 'The tenant name did not match our identity records for that SSN. Re-enter the tenant\'s legal name, SSN and phone number exactly as on the lease.', 'fraud-tenant-theme' ); ?></div>
 						<div class="ft-row">
 							<div><label class="ft-label" for="ft-cf"><?php esc_html_e( 'Legal first name', 'fraud-tenant-theme' ); ?></label><input class="ft-input" id="ft-cf" name="tenant_first_name" required></div>
 							<div><label class="ft-label" for="ft-cl"><?php esc_html_e( 'Legal last name', 'fraud-tenant-theme' ); ?></label><input class="ft-input" id="ft-cl" name="tenant_last_name" required></div>
 						</div>
 						<label class="ft-label" for="ftClrSsn"><?php esc_html_e( 'Tenant SSN', 'fraud-tenant-theme' ); ?></label>
 						<input class="ft-input" type="password" id="ftClrSsn" name="tenant_ssn" data-ft-ssn required inputmode="numeric" pattern="\d{3}-?\d{2}-?\d{4}">
+						<label class="ft-label" for="ftClrPhone"><?php esc_html_e( 'Tenant phone number', 'fraud-tenant-theme' ); ?></label>
+						<input class="ft-input" type="tel" id="ftClrPhone" name="tenant_phone" required inputmode="tel" maxlength="20" placeholder="(201) 555-0123">
 					<?php endif; ?>
 					<label class="ft-label" for="ft-cd"><?php esc_html_e( 'Factual description', 'fraud-tenant-theme' ); ?></label>
 					<textarea class="ft-textarea" id="ft-cd" name="factual_description" rows="4" minlength="10" maxlength="5000"><?php echo esc_textarea( (string) $r->factual_description ); ?></textarea>

@@ -45,7 +45,7 @@ class IncidentHandler {
 			AuthHandler::set_flash_notice( 'success', $result['message'] );
 			wp_safe_redirect( add_query_arg( array( 'section' => 'reports', 'report_id' => (int) $result['incident_id'] ), home_url( '/owner-dashboard/' ) ) );
 		} else {
-			$keep = array_intersect_key( wp_unslash( $_POST ), array_flip( array( 'property_id', 'category', 'incident_date', 'amount_involved', 'factual_description', 'tenant_first_name', 'tenant_last_name' ) ) );
+			$keep = array_intersect_key( wp_unslash( $_POST ), array_flip( array( 'property_id', 'category', 'incident_date', 'amount_involved', 'factual_description', 'tenant_first_name', 'tenant_last_name', 'tenant_phone' ) ) );
 			AuthHandler::set_flash_form_data( $keep ); // The SSN is never echoed back.
 			AuthHandler::set_flash_notice( 'error', $result['message'] );
 			wp_safe_redirect( add_query_arg( 'section', 'report', home_url( '/owner-dashboard/' ) ) );

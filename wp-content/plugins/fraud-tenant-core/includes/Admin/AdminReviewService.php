@@ -456,8 +456,9 @@ class AdminReviewService {
 			);
 		}
 
-		$now     = current_time( 'mysql', true );
-		$updated = $wpdb->update(
+		$was_verified = Constants::PROP_STATUS_VERIFIED === $property->status;
+		$now          = current_time( 'mysql', true );
+		$updated      = $wpdb->update(
 			$prop_table,
 			array(
 				'status'           => Constants::PROP_STATUS_VERIFIED,
@@ -519,6 +520,23 @@ class AdminReviewService {
 			),
 			$reviewer_id
 		);
+
+		// Tell the owner (in-app + email) the first time the property becomes verified.
+		if ( ! $was_verified ) {
+			$label = trim( (string) ( $property->title ?: $property->address_street ) );
+			\FraudTenant\Services\NotificationService::notify(
+				(int) $property->owner_id,
+				__( 'Your property has been verified', 'fraud-tenant-core' ),
+				sprintf(
+					/* translators: %s: property name or address */
+					__( 'Good news: ownership of "%s" has been verified by our review team. You can now run tenant screening and, with a Standard membership, submit incident reports for this property.', 'fraud-tenant-core' ),
+					$label
+				),
+				home_url( '/owner-dashboard/?section=properties&property_id=' . $property_id ),
+				'property_verified',
+				'account'
+			);
+		}
 
 		return array(
 			'success' => true,
@@ -626,6 +644,20 @@ class AdminReviewService {
 			$reviewer_id
 		);
 
+		\FraudTenant\Services\NotificationService::notify(
+			(int) $property->owner_id,
+			__( 'Property verification was not approved', 'fraud-tenant-core' ),
+			sprintf(
+				/* translators: 1: property name, 2: reason */
+				__( 'Ownership of "%1$s" could not be verified: %2$s You can upload a new document and resubmit.', 'fraud-tenant-core' ),
+				(string) ( $property->title ?: $property->address_street ),
+				$clean_reason
+			),
+			home_url( '/owner-dashboard/?section=properties&property_id=' . $property_id ),
+			'property_rejected',
+			'account'
+		);
+
 		return array(
 			'success' => true,
 			'message' => __( 'Property ownership verification rejected.', 'fraud-tenant-core' ),
@@ -711,6 +743,20 @@ class AdminReviewService {
 				'reviewer_id'  => $reviewer_id,
 			),
 			$reviewer_id
+		);
+
+		\FraudTenant\Services\NotificationService::notify(
+			(int) $property->owner_id,
+			__( 'More information needed for your property', 'fraud-tenant-core' ),
+			sprintf(
+				/* translators: 1: property name, 2: reviewer note */
+				__( 'Our review team needs more information to verify "%1$s": %2$s', 'fraud-tenant-core' ),
+				(string) ( $property->title ?: $property->address_street ),
+				$clean_note
+			),
+			home_url( '/owner-dashboard/?section=properties&property_id=' . $property_id ),
+			'property_info_requested',
+			'account'
 		);
 
 		return array(

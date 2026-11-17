@@ -335,16 +335,18 @@ class ReportVisibilityService {
 	/**
 	 * Rule 3: records of a matched identity that are released for screening.
 	 *
-	 * @param int        $identity_id  Matched identity.
+	 * @param int|int[]  $identity_ids Matched identity or identities (SSN and phone matches can differ).
 	 * @param int        $viewer_id    Searching owner (flags their own reports).
 	 * @param int[]|null $restrict_ids Limit to these report IDs (saved search snapshot).
 	 * @return array
 	 */
-	public static function get_screening_records( int $identity_id, int $viewer_id, ?array $restrict_ids = null ): array {
+	public static function get_screening_records( $identity_ids, int $viewer_id, ?array $restrict_ids = null ): array {
 		global $wpdb;
-		if ( $identity_id <= 0 || ! ComplianceService::owner_search_ready() ) {
+		$identity_ids = array_values( array_filter( array_map( 'intval', (array) $identity_ids ), static fn( $v ) => $v > 0 ) );
+		if ( ! $identity_ids || ! ComplianceService::owner_search_ready() ) {
 			return array();
 		}
+		$in = implode( ',', $identity_ids );
 		$r      = $wpdb->prefix . Constants::TABLE_INCIDENT_REPORTS;
 		$p      = $wpdb->prefix . Constants::TABLE_PROPERTIES;
 		$d      = $wpdb->prefix . Constants::TABLE_TENANT_DISPUTES;
@@ -363,9 +365,8 @@ class ReportVisibilityService {
 				        (SELECT d.status FROM {$d} d WHERE d.report_id = r.id ORDER BY d.id DESC LIMIT 1) AS dispute_status,
 				        (SELECT d.resolution_action FROM {$d} d WHERE d.report_id = r.id ORDER BY d.id DESC LIMIT 1) AS dispute_action
 				 FROM {$r} r LEFT JOIN {$p} p ON p.id = r.property_id
-				 WHERE r.tenant_identity_id = %d AND r.status = %s AND r.screening_disclosure = 1{$filter}
+				 WHERE r.tenant_identity_id IN ({$in}) AND r.status = %s AND r.screening_disclosure = 1{$filter}
 				 ORDER BY r.incident_date DESC, r.id DESC",
-				$identity_id,
 				Constants::INCIDENT_STATUS_APPROVED
 			)
 		) ?: array();
@@ -430,11 +431,11 @@ class ReportVisibilityService {
 		if ( $report_id <= 0 || $user_id <= 0 || ! MembershipService::can_access_feature( $user_id, 'full_reports' ) || ! ComplianceService::owner_search_ready() ) {
 			return false;
 		}
-		$report = $wpdb->get_row( $wpdb->prepare( "SELECT tenant_identity_id FROM {$wpdb->prefix}" . Constants::TABLE_INCIDENT_REPORTS . ' WHERE id = %d AND status = %s AND screening_disclosure = 1 AND evidence_member_access = 1 AND tenant_identity_id IS NOT NULL', $report_id, Constants::INCIDENT_STATUS_APPROVED ) );
+		$report = $wpdb->get_row( $wpdb->prepare( "SELECT id FROM {$wpdb->prefix}" . Constants::TABLE_INCIDENT_REPORTS . ' WHERE id = %d AND status = %s AND screening_disclosure = 1 AND evidence_member_access = 1 AND tenant_identity_id IS NOT NULL', $report_id, Constants::INCIDENT_STATUS_APPROVED ) );
 		if ( ! $report ) {
 			return false;
 		}
-		$snapshots = $wpdb->get_col( $wpdb->prepare( "SELECT matched_report_ids FROM {$wpdb->prefix}" . Constants::TABLE_SCREENING_REQUESTS . ' WHERE owner_id = %d AND tenant_identity_id = %d', $user_id, (int) $report->tenant_identity_id ) ) ?: array();
+		$snapshots = $wpdb->get_col( $wpdb->prepare( "SELECT matched_report_ids FROM {$wpdb->prefix}" . Constants::TABLE_SCREENING_REQUESTS . ' WHERE owner_id = %d AND matched_report_ids LIKE %s', $user_id, '%' . $wpdb->esc_like( (string) $report_id ) . '%' ) ) ?: array();
 		foreach ( $snapshots as $json ) {
 			if ( in_array( $report_id, array_map( 'intval', (array) json_decode( (string) $json, true ) ), true ) ) {
 				return true;

@@ -61,6 +61,41 @@ class IdentityService {
 	}
 
 	/**
+	 * Normalize and validate a US phone number. Returns 10 digits (NANP), or null when malformed.
+	 *
+	 * @param string $phone Raw input ((201) 555-0123, +1 201 555 0123, 2015550123).
+	 * @return string|null
+	 */
+	public static function normalize_phone( string $phone ): ?string {
+		$phone = trim( $phone );
+		if ( '' === $phone || 1 !== preg_match( '/\A[0-9+().\-\s]+\z/', $phone ) ) {
+			return null;
+		}
+		$d = preg_replace( '/[^0-9]/', '', $phone );
+		if ( 11 === strlen( $d ) && '1' === $d[0] ) {
+			$d = substr( $d, 1 );
+		}
+		if ( 1 !== preg_match( '/\A[2-9][0-9]{2}[2-9][0-9]{6}\z/', $d ) ) {
+			return null;
+		}
+		return $d;
+	}
+
+	/**
+	 * Keyed match token for a normalized phone number (domain-separated from SSN tokens).
+	 *
+	 * @param string $digits 10-digit phone from normalize_phone().
+	 * @return string|null Token, or null when the match key is not configured.
+	 */
+	public static function phone_token( string $digits ): ?string {
+		$key = SecurityService::get_match_secret_key();
+		if ( empty( $key ) || 1 !== preg_match( '/\A[0-9]{10}\z/', $digits ) ) {
+			return null;
+		}
+		return hash_hmac( 'sha256', 'phone:' . $digits, $key );
+	}
+
+	/**
 	 * Validate a legal name pair.
 	 *
 	 * @param string $first First name.
@@ -300,6 +335,53 @@ class IdentityService {
 		}
 		$identity = self::get_by_token( $token );
 		return ( $identity && self::names_match( self::name( $identity ), $first, $last ) ) ? $identity : null;
+	}
+
+	/**
+	 * Find identities for a screening search WITHOUT creating anything. A match on EITHER the SSN token or
+	 * a phone number recorded on one of the identity's reports is enough; the legal name must still match,
+	 * so a phone number or SSN alone never identifies anyone.
+	 *
+	 * @param string      $first        First name.
+	 * @param string      $last         Last name.
+	 * @param string|null $ssn_digits   Normalized SSN (9 digits) or null.
+	 * @param string|null $phone_digits Normalized phone (10 digits) or null.
+	 * @return object[] Identity rows (may be empty).
+	 */
+	public static function find_matches( string $first, string $last, ?string $ssn_digits, ?string $phone_digits ): array {
+		global $wpdb;
+		if ( ! self::valid_name( $first, $last ) ) {
+			return array();
+		}
+		$found = array();
+		if ( null !== $ssn_digits ) {
+			$token = SecurityService::generate_ssn_match_token( $ssn_digits );
+			if ( false !== $token ) {
+				$i = self::get_by_token( $token );
+				if ( $i ) {
+					$found[ (int) $i->id ] = $i;
+				}
+			}
+		}
+		if ( null !== $phone_digits ) {
+			$ptoken = self::phone_token( $phone_digits );
+			if ( null !== $ptoken ) {
+				$ids = $wpdb->get_col( $wpdb->prepare( "SELECT DISTINCT tenant_identity_id FROM {$wpdb->prefix}" . Constants::TABLE_INCIDENT_REPORTS . ' WHERE subject_phone_hash = %s AND tenant_identity_id IS NOT NULL', $ptoken ) ) ?: array();
+				foreach ( $ids as $id ) {
+					$i = self::get( (int) $id );
+					if ( $i ) {
+						$found[ (int) $i->id ] = $i;
+					}
+				}
+			}
+		}
+		$out = array();
+		foreach ( $found as $identity ) {
+			if ( self::names_match( self::name( $identity ), $first, $last ) ) {
+				$out[] = $identity;
+			}
+		}
+		return $out;
 	}
 
 	// ------------------------------------------------------------------ admin: report links

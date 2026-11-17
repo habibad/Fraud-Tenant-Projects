@@ -46,7 +46,7 @@ endif;
 			<div><label class="ft-label" for="ft-ap-type"><?php esc_html_e( 'Property type', 'fraud-tenant-theme' ); ?></label><select class="ft-select" id="ft-ap-type" name="property_type"><?php foreach ( PropertyService::ALLOWED_PROPERTY_TYPES as $k => $l ) : ?><option value="<?php echo esc_attr( $k ); ?>"><?php echo esc_html( $l ); ?></option><?php endforeach; ?></select></div>
 			<div><label class="ft-label" for="ft-ap-units"><?php esc_html_e( 'Number of units', 'fraud-tenant-theme' ); ?></label><input class="ft-input" type="number" min="1" id="ft-ap-units" name="units_count" value="1"></div>
 		</div>
-		<label class="ft-label" for="ft-ap-doc"><?php esc_html_e( 'Proof of ownership (deed, tax record or management agreement — PDF, JPG or PNG, max 10 MB)', 'fraud-tenant-theme' ); ?></label>
+		<label class="ft-label" for="ft-ap-doc"><?php esc_html_e( 'Proof of ownership: Owner ID / Lease Agreement (or deed, tax record, management agreement — PDF, JPG or PNG, max 10 MB)', 'fraud-tenant-theme' ); ?></label>
 		<input class="ft-input" type="file" id="ft-ap-doc" name="property_document" accept=".pdf,.png,.jpg,.jpeg">
 		<p class="ft-help"><?php esc_html_e( 'Documents are stored privately and are only visible to you and the verification team.', 'fraud-tenant-theme' ); ?></p>
 		<button class="ft-btn ft-btn-primary" type="submit"><?php esc_html_e( 'Add property', 'fraud-tenant-theme' ); ?></button>

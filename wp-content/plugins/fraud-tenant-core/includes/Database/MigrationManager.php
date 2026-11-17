@@ -101,6 +101,9 @@ class MigrationManager {
 		// 1.10.0: admin-controlled evidence download for Standard members in screening results (additive)
 		self::reconcile_evidence_member_access_schema();
 
+		// 1.11.0: tenant phone number on incident reports + phone-based screening match (additive)
+		self::reconcile_phone_matching_schema();
+
 		update_option( Constants::DB_VERSION_OPTION, Constants::DB_VERSION );
 
 		// Identity data upgrade needs the match + encryption keys; it runs now if they are configured,
@@ -441,6 +444,36 @@ class MigrationManager {
 					$wpdb->query( "ALTER TABLE {$table} ADD KEY {$k} ({$k})" );
 				}
 			}
+		}
+	}
+
+	/**
+	 * Schema 1.11.0 (additive, idempotent): HMAC phone token + last four on incident reports, phone last
+	 * four and matched identity list on screening requests.
+	 */
+	public static function reconcile_phone_matching_schema(): void {
+		global $wpdb;
+		$inc = $wpdb->prefix . Constants::TABLE_INCIDENT_REPORTS;
+		$scr = $wpdb->prefix . Constants::TABLE_SCREENING_REQUESTS;
+		$cols = array(
+			$inc => array(
+				'subject_phone_hash'  => 'varchar(64) DEFAULT NULL',
+				'subject_phone_last4' => 'varchar(4) DEFAULT NULL',
+			),
+			$scr => array(
+				'phone_last_four'      => 'varchar(4) DEFAULT NULL',
+				'matched_identity_ids' => 'text DEFAULT NULL',
+			),
+		);
+		foreach ( $cols as $table => $defs ) {
+			foreach ( $defs as $col => $def ) {
+				if ( ! $wpdb->get_row( $wpdb->prepare( "SHOW COLUMNS FROM {$table} LIKE %s", $col ) ) ) {
+					$wpdb->query( "ALTER TABLE {$table} ADD COLUMN {$col} {$def}" );
+				}
+			}
+		}
+		if ( ! $wpdb->get_row( $wpdb->prepare( "SHOW INDEX FROM {$inc} WHERE Key_name = %s", 'subject_phone_hash' ) ) ) {
+			$wpdb->query( "ALTER TABLE {$inc} ADD KEY subject_phone_hash (subject_phone_hash)" );
 		}
 	}
 

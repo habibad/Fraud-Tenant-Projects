@@ -21,7 +21,7 @@ class Constants {
 	/**
 	 * Database schema version.
 	 */
-	public const DB_VERSION = '1.10.0';
+	public const DB_VERSION = '1.11.0';
 
 	/**
 	 * Option key storing database schema version.

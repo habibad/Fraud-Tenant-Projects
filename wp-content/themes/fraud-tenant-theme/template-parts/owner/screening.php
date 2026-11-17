@@ -17,12 +17,12 @@ $req_id   = absint( $_GET['screening_request'] ?? 0 ); // phpcs:ignore WordPress
 $result   = $req_id ? TenantScreeningService::get_search_result( $owner_id, $req_id ) : null;
 $allow    = $d['search_allowance'];
 ?>
-<header class="ft-page-head"><div><h1><?php esc_html_e( 'Tenant screening', 'fraud-tenant-theme' ); ?></h1><p><?php esc_html_e( 'Search an applicant\'s reviewed rental incident history by legal name and SSN. Records are factual reports reviewed by our team — you make the rental decision.', 'fraud-tenant-theme' ); ?></p></div></header>
+<header class="ft-page-head"><div><h1><?php esc_html_e( 'Tenant screening', 'fraud-tenant-theme' ); ?></h1><p><?php esc_html_e( 'Search an applicant\'s reviewed rental incident history by legal name and SSN & Phone number. Records are factual reports reviewed by our team — you make the rental decision.', 'fraud-tenant-theme' ); ?></p></div></header>
 
 <?php if ( $result ) : ?>
 	<section class="ft-card" aria-live="polite">
 		<div class="ft-card-head">
-			<h2><?php echo esc_html( $result['reference'] . ' · ' . $result['applicant'] ); ?> <span class="ft-muted">SSN ••• <?php echo esc_html( $result['ssn_last4'] ); ?></span></h2>
+			<h2><?php echo esc_html( $result['reference'] . ' · ' . $result['applicant'] ); ?> <span class="ft-muted"><?php echo '' !== $result['ssn_last4'] ? 'SSN ••• ' . esc_html( $result['ssn_last4'] ) : ''; ?><?php echo ( '' !== $result['ssn_last4'] && '' !== $result['phone_last4'] ) ? ' · ' : ''; ?><?php echo '' !== $result['phone_last4'] ? esc_html__( 'Phone', 'fraud-tenant-theme' ) . ' ••• ' . esc_html( $result['phone_last4'] ) : ''; ?></span></h2>
 			<?php echo 'full' === $result['level'] ? ft_badge( 'success', __( 'Standard — full details', 'fraud-tenant-theme' ) ) : ft_badge( 'neutral', __( 'Free — limited result', 'fraud-tenant-theme' ) ); // phpcs:ignore ?>
 		</div>
 		<p class="ft-meta"><span><?php echo esc_html( $result['purpose'] ); ?></span><span><?php echo ft_date( $result['searched_at'], true ); // phpcs:ignore ?></span></p>
@@ -89,9 +89,12 @@ $allow    = $d['search_allowance'];
 					<div><label class="ft-label" for="ftScrFirst"><?php esc_html_e( 'Legal first name', 'fraud-tenant-theme' ); ?></label><input class="ft-input" id="ftScrFirst" name="applicant_first_name" required maxlength="100"></div>
 					<div><label class="ft-label" for="ftScrLast"><?php esc_html_e( 'Legal last name', 'fraud-tenant-theme' ); ?></label><input class="ft-input" id="ftScrLast" name="applicant_last_name" required maxlength="100"></div>
 				</div>
-				<label class="ft-label" for="ftScrSsn"><?php esc_html_e( 'Social Security Number', 'fraud-tenant-theme' ); ?></label>
-				<div class="ft-filters" style="margin:0"><input class="ft-input" type="password" id="ftScrSsn" name="applicant_ssn" data-ft-ssn required inputmode="numeric" pattern="\d{3}-?\d{2}-?\d{4}" placeholder="123-45-6789" aria-describedby="ftScrSsnHelp"><button type="button" class="ft-btn ft-btn-ghost ft-btn-sm" data-ft-ssn-toggle="ftScrSsn" data-show="<?php esc_attr_e( 'Show', 'fraud-tenant-theme' ); ?>" data-hide="<?php esc_attr_e( 'Hide', 'fraud-tenant-theme' ); ?>" aria-pressed="false"><?php esc_html_e( 'Show', 'fraud-tenant-theme' ); ?></button></div>
+				<label class="ft-label" for="ftScrSsn"><?php esc_html_e( 'Social Security Number (SSN)', 'fraud-tenant-theme' ); ?></label>
+				<div class="ft-filters" style="margin:0"><input class="ft-input" type="password" id="ftScrSsn" name="applicant_ssn" data-ft-ssn inputmode="numeric" pattern="\d{3}-?\d{2}-?\d{4}" placeholder="123-45-6789" aria-describedby="ftScrSsnHelp"><button type="button" class="ft-btn ft-btn-ghost ft-btn-sm" data-ft-ssn-toggle="ftScrSsn" data-show="<?php esc_attr_e( 'Show', 'fraud-tenant-theme' ); ?>" data-hide="<?php esc_attr_e( 'Hide', 'fraud-tenant-theme' ); ?>" aria-pressed="false"><?php esc_html_e( 'Show', 'fraud-tenant-theme' ); ?></button></div>
 				<p class="ft-help" id="ftScrSsnHelp"><?php esc_html_e( 'The SSN is converted to a keyed token on our server and is never stored, logged or shown again. Only the last 4 digits are kept in your history.', 'fraud-tenant-theme' ); ?></p>
+				<label class="ft-label" for="ftScrPhone"><?php esc_html_e( 'Phone number', 'fraud-tenant-theme' ); ?></label>
+				<input class="ft-input" type="tel" id="ftScrPhone" name="applicant_phone" inputmode="tel" maxlength="20" placeholder="(201) 555-0123" aria-describedby="ftScrPhoneHelp">
+				<p class="ft-help" id="ftScrPhoneHelp"><?php esc_html_e( 'Enter the SSN, the phone number, or both. A match on either one (together with the legal name) shows the applicant\'s records. Only the last 4 digits of the phone number are kept in your history.', 'fraud-tenant-theme' ); ?></p>
 				<label class="ft-check"><input type="checkbox" name="permissible_purpose_attestation" value="1" required> <span><?php esc_html_e( 'I certify this search is for the selected permissible purpose in connection with a rental of this property.', 'fraud-tenant-theme' ); ?></span></label>
 				<label class="ft-check"><input type="checkbox" name="applicant_consent" value="1" required> <span><?php esc_html_e( 'I hold the applicant\'s written consent to this screening.', 'fraud-tenant-theme' ); ?></span></label>
 				<button class="ft-btn ft-btn-primary" type="submit"><?php echo ft_icon( 'search' ); // phpcs:ignore ?> <?php esc_html_e( 'Search records', 'fraud-tenant-theme' ); ?></button>
@@ -117,7 +120,7 @@ $allow    = $d['search_allowance'];
 			<tbody>
 			<?php foreach ( $d['search_history'] as $s ) : ?>
 				<tr>
-					<td data-label="<?php esc_attr_e( 'Applicant', 'fraud-tenant-theme' ); ?>"><a href="<?php echo esc_url( ft_app_url( $base, 'screening', array( 'screening_request' => $s['id'] ) ) ); ?>"><?php echo esc_html( $s['applicant'] ); ?></a> <span class="ft-muted">••• <?php echo esc_html( $s['last4'] ); ?></span></td>
+					<td data-label="<?php esc_attr_e( 'Applicant', 'fraud-tenant-theme' ); ?>"><a href="<?php echo esc_url( ft_app_url( $base, 'screening', array( 'screening_request' => $s['id'] ) ) ); ?>"><?php echo esc_html( $s['applicant'] ); ?></a> <span class="ft-muted"><?php echo 'phone' === $s['last4_type'] ? esc_html__( 'Phone', 'fraud-tenant-theme' ) . ' ' : ''; ?>••• <?php echo esc_html( $s['last4'] ); ?></span></td>
 					<td data-label="<?php esc_attr_e( 'Purpose', 'fraud-tenant-theme' ); ?>"><?php echo esc_html( $s['purpose'] ); ?></td>
 					<td data-label="<?php esc_attr_e( 'Result', 'fraud-tenant-theme' ); ?>"><?php echo $s['found'] ? ft_badge( 'warning', sprintf( /* translators: %d: count */ _n( '%d record', '%d records', $s['count'], 'fraud-tenant-theme' ), $s['count'] ) ) : ft_badge( 'neutral', __( 'No records', 'fraud-tenant-theme' ) ); // phpcs:ignore ?></td>
 					<td data-label="<?php esc_attr_e( 'Date', 'fraud-tenant-theme' ); ?>"><?php echo ft_date( $s['date'], true ); // phpcs:ignore ?></td>

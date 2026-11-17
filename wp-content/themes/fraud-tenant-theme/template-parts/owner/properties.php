@@ -36,10 +36,12 @@ if ( $pid ) :
 			<?php elseif ( in_array( $p->status, array( Constants::PROP_STATUS_REJECTED, Constants::PROP_STATUS_INFO_REQUESTED ), true ) && $p->rejection_reason ) : ?>
 				<div class="ft-alert is-warning"><strong><?php esc_html_e( 'Message from the review team:', 'fraud-tenant-theme' ); ?></strong> <?php echo esc_html( (string) $p->rejection_reason ); ?></div>
 			<?php elseif ( ! $archived ) : ?>
-				<div class="ft-alert is-info"><?php esc_html_e( 'Pending review. Upload a deed, tax record or management agreement that shows your ownership.', 'fraud-tenant-theme' ); ?></div>
+				<div class="ft-alert is-info"><?php esc_html_e( 'Pending review. Upload your Owner ID, a Lease Agreement, or a deed, tax record or management agreement that shows your ownership.', 'fraud-tenant-theme' ); ?></div>
 			<?php endif; ?>
 			<h3><?php esc_html_e( 'Documents', 'fraud-tenant-theme' ); ?></h3>
-			<?php if ( ! $docs ) : ft_empty( __( 'No ownership document uploaded yet.', 'fraud-tenant-theme' ) ); else : ?>
+			<?php if ( ! $docs ) : ?>
+				<div class="ft-empty"><p><strong><?php esc_html_e( 'Owner ID / Lease Agreement', 'fraud-tenant-theme' ); ?></strong></p><p><?php esc_html_e( 'No ownership document uploaded yet.', 'fraud-tenant-theme' ); ?></p></div>
+			<?php else : ?>
 				<ul class="ft-list"><?php foreach ( $docs as $doc ) : ?>
 					<li><?php echo esc_html( $doc->original_name ); ?> <?php echo ft_badge( (string) $doc->review_status ); // phpcs:ignore ?> <?php echo \FraudTenant\Admin\AdminConsole::doc_link( (int) $doc->id, __( 'View', 'fraud-tenant-theme' ) ); // phpcs:ignore ?></li>
 				<?php endforeach; ?></ul>
@@ -49,7 +51,7 @@ if ( $pid ) :
 					<?php ft_form_fields( 'ft_upload_property_doc', $here ); ?>
 					<input type="hidden" name="property_id" value="<?php echo (int) $pid; ?>">
 					<?php wp_nonce_field( 'ft_upload_doc_' . $pid, 'ft_doc_upload_nonce' ); ?>
-					<label class="ft-label" for="ft-od"><?php esc_html_e( 'Upload ownership document (PDF, JPG or PNG, max 10 MB)', 'fraud-tenant-theme' ); ?></label>
+					<label class="ft-label" for="ft-od"><?php esc_html_e( 'Upload ownership document: Owner ID / Lease Agreement (PDF, JPG or PNG, max 10 MB)', 'fraud-tenant-theme' ); ?></label>
 					<input class="ft-input" type="file" id="ft-od" name="ownership_document" accept=".pdf,.png,.jpg,.jpeg" required>
 					<button class="ft-btn ft-btn-secondary" type="submit"><?php esc_html_e( 'Upload document', 'fraud-tenant-theme' ); ?></button>
 				</form>

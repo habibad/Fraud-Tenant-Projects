@@ -47,7 +47,7 @@ if ( $rid ) {
 		<section class="ft-card">
 			<div class="ft-card-head"><h2><?php esc_html_e( 'Tenant identity', 'fraud-tenant-core' ); ?></h2><?php echo C::badge( (string) ( $r->identity_match ?: 'unlinked' ), $r->identity_label ); // phpcs:ignore ?></div>
 			<dl class="ft-dl">
-				<dt><?php esc_html_e( 'Tenant (as linked / reported)', 'fraud-tenant-core' ); ?></dt><dd><?php echo esc_html( $r->subject['name'] ?: '—' ); ?> <?php echo $r->subject['last4'] ? '· SSN ••• •• ' . esc_html( $r->subject['last4'] ) : ''; ?></dd>
+				<dt><?php esc_html_e( 'Tenant (as linked / reported)', 'fraud-tenant-core' ); ?></dt><dd><?php echo esc_html( $r->subject['name'] ?: '—' ); ?> <?php echo $r->subject['last4'] ? '· SSN ••• •• ' . esc_html( $r->subject['last4'] ) : ''; ?><?php echo ! empty( $r->subject['phone_last4'] ) ? ' · ' . esc_html__( 'Phone', 'fraud-tenant-core' ) . ' ••• ' . esc_html( $r->subject['phone_last4'] ) : ''; ?></dd>
 				<?php if ( $r->identity ) : ?>
 					<dt><?php esc_html_e( 'Central identity', 'fraud-tenant-core' ); ?></dt><dd><a href="<?php echo esc_url( C::url( 'identities', array( 'identity_id' => (int) $r->identity->id ) ) ); ?>">#<?php echo (int) $r->identity->id; ?></a> · <?php echo $r->identity->user_id ? esc_html__( 'claimed by a verified tenant account', 'fraud-tenant-core' ) : esc_html__( 'unclaimed', 'fraud-tenant-core' ); ?></dd>
 				<?php endif; ?>
