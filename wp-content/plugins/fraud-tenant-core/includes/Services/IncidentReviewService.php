@@ -339,6 +339,7 @@ class IncidentReviewService {
 			array(
 				'disclose_tenant'    => true,  // Approved + identity-linked report visible to the subject tenant.
 				'disclose_screening' => true,  // Approved + identity-linked report included in owner screening.
+				'share_evidence'     => false, // Standard members may download this report's evidence from screening results.
 				'feedback'           => '',    // Optional note to the owner (clarification / rejection detail).
 			)
 		);
@@ -509,7 +510,7 @@ class IncidentReviewService {
 			$updated = $wpdb->query(
 				$wpdb->prepare(
 					"UPDATE {$rep_table}
-					 SET status = %s, disclosable = 0, screening_disclosure = 0, updated_at = %s
+					 SET status = %s, disclosable = 0, screening_disclosure = 0, evidence_member_access = 0, updated_at = %s
 					 WHERE id = %d AND status = %s",
 					$new_status,
 					$now,
@@ -590,7 +591,7 @@ class IncidentReviewService {
 
 		// Disclosure is decided explicitly at approval time (two separate audiences).
 		if ( 'approve' === $decision ) {
-			ReportVisibilityService::apply_on_approval( $report_id, (bool) $options['disclose_tenant'], (bool) $options['disclose_screening'], $reviewer_id );
+			ReportVisibilityService::apply_on_approval( $report_id, (bool) $options['disclose_tenant'], (bool) $options['disclose_screening'], $reviewer_id, (bool) $options['share_evidence'] );
 		}
 		$ref      = sprintf( 'INC-%06d', $report_id );
 		$messages = array(

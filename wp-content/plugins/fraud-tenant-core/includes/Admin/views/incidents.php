@@ -81,6 +81,7 @@ if ( $rid ) {
 						<legend class="ft-label"><?php esc_html_e( 'Disclosure on approval', 'fraud-tenant-core' ); ?></legend>
 						<label class="ft-check"><input type="checkbox" name="disclose_tenant" value="1" checked> <?php esc_html_e( 'Visible to the subject tenant (to review and dispute)', 'fraud-tenant-core' ); ?></label>
 						<label class="ft-check"><input type="checkbox" name="disclose_screening" value="1" checked> <?php esc_html_e( 'Include in owner screening results', 'fraud-tenant-core' ); ?></label>
+						<label class="ft-check"><input type="checkbox" name="share_evidence" value="1"> <?php esc_html_e( 'Let Standard members download this report\'s evidence in screening results', 'fraud-tenant-core' ); ?></label>
 					</fieldset>
 					<button class="ft-btn ft-btn-primary" type="submit"><?php esc_html_e( 'Record decision', 'fraud-tenant-core' ); ?></button>
 				</form>

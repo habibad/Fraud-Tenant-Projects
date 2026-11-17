@@ -80,3 +80,5 @@ body.ft-app.admin-bar .ft-top { top: 32px; }
 }
 
 .ft-console-links { display: flex; justify-content: flex-end; margin: -8px 0 8px; font-size: 13px; }
+.ft-evidence { margin-top: 10px; padding-top: 10px; border-top: 1px solid #e2e8f0; }
+.ft-evidence .ft-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px; }

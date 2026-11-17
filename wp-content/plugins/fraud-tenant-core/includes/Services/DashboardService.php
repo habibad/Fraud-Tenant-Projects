@@ -122,6 +122,7 @@ class DashboardService {
 			'can_submit_incident'        => IncidentService::can_submit_incident( $owner_id ),
 			'full_reports'               => MembershipService::can_access_feature( $owner_id, 'full_reports' ),
 			'search_history'             => TenantScreeningService::get_owner_search_history( $owner_id, 20 ),
+			'search_allowance'           => TenantScreeningService::get_monthly_allowance( $owner_id ),
 			'searches_30d'               => (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}" . Constants::TABLE_SCREENING_REQUESTS . ' WHERE owner_id = %d AND search_date > %s', $owner_id, gmdate( 'Y-m-d H:i:s', time() - 30 * DAY_IN_SECONDS ) ) ),
 			'unread_notifications_count' => NotificationService::unread_count( $owner_id ),
 			'identity_ready'             => ComplianceService::identity_ready(),

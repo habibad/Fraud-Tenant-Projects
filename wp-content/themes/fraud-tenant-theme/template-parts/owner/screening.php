@@ -15,6 +15,7 @@ $base     = $args['base'];
 $owner_id = $args['owner_id'];
 $req_id   = absint( $_GET['screening_request'] ?? 0 ); // phpcs:ignore WordPress.Security.NonceVerification
 $result   = $req_id ? TenantScreeningService::get_search_result( $owner_id, $req_id ) : null;
+$allow    = $d['search_allowance'];
 ?>
 <header class="ft-page-head"><div><h1><?php esc_html_e( 'Tenant screening', 'fraud-tenant-theme' ); ?></h1><p><?php esc_html_e( 'Search an applicant\'s reviewed rental incident history by legal name and SSN. Records are factual reports reviewed by our team — you make the rental decision.', 'fraud-tenant-theme' ); ?></p></div></header>
 
@@ -42,6 +43,12 @@ $result   = $req_id ? TenantScreeningService::get_search_result( $owner_id, $req
 					<div class="ft-meta"><span><?php echo esc_html( $rec['incident_date'] ); ?></span><span><?php echo esc_html( ft_money( $rec['amount'] ) ); ?></span><span><?php echo esc_html( $rec['location'] ); ?></span><span><?php echo esc_html( $rec['reference'] ); ?></span><?php if ( $rec['own_report'] ) : ?><span><?php esc_html_e( 'Your report', 'fraud-tenant-theme' ); ?></span><?php endif; ?></div>
 					<p class="ft-prose"><?php echo nl2br( esc_html( $rec['narrative'] ) ); ?></p>
 					<p class="ft-note"><?php echo esc_html( $rec['review_status'] ); ?></p>
+					<?php if ( ! empty( $rec['evidence'] ) ) : ?>
+						<div class="ft-evidence">
+							<strong><?php esc_html_e( 'Evidence', 'fraud-tenant-theme' ); ?></strong>
+							<ul class="ft-list"><?php foreach ( $rec['evidence'] as $ev ) : ?><li><span><?php echo esc_html( $ev['name'] ); ?> <span class="ft-muted"><?php echo esc_html( $ev['size'] ); ?></span></span> <a class="ft-btn ft-btn-secondary ft-btn-sm" href="<?php echo esc_url( $ev['url'] ); ?>"><?php esc_html_e( 'Download', 'fraud-tenant-theme' ); ?></a></li><?php endforeach; ?></ul>
+						</div>
+					<?php endif; ?>
 				</article>
 			<?php endforeach; ?>
 		<?php endif; ?>
@@ -60,7 +67,17 @@ $result   = $req_id ? TenantScreeningService::get_search_result( $owner_id, $req
 			<div class="ft-alert is-info"><?php esc_html_e( 'Tenant screening is not available on this platform yet.', 'fraud-tenant-theme' ); ?></div>
 		<?php elseif ( ! $d['verified_properties'] ) : ?>
 			<div class="ft-alert is-warning"><?php esc_html_e( 'Screening must be linked to one of your verified properties.', 'fraud-tenant-theme' ); ?> <a href="<?php echo esc_url( ft_app_url( $base, 'verification' ) ); ?>"><?php esc_html_e( 'Check verification status', 'fraud-tenant-theme' ); ?></a></div>
+		<?php elseif ( $allow['limited'] && $allow['remaining'] <= 0 ) : ?>
+			<div class="ft-lock">
+				<?php echo ft_icon( 'shield' ); // phpcs:ignore ?>
+				<div><strong><?php echo esc_html( sprintf( /* translators: %d: monthly limit */ __( 'You have used all %d free searches this month', 'fraud-tenant-theme' ), (int) $allow['limit'] ) ); ?></strong>
+					<p class="ft-muted"><?php esc_html_e( 'Your free searches reset at the start of next month. Upgrade to Standard to keep screening applicants now, with unlimited searches and full record details.', 'fraud-tenant-theme' ); ?></p>
+					<a class="ft-btn ft-btn-primary" href="<?php echo esc_url( ft_app_url( $base, 'membership' ) ); ?>"><?php esc_html_e( 'Upgrade to Standard', 'fraud-tenant-theme' ); ?></a></div>
+			</div>
 		<?php else : ?>
+			<?php if ( $allow['limited'] ) : ?>
+				<p class="ft-note"><?php echo esc_html( sprintf( /* translators: 1: remaining, 2: limit */ __( 'Free plan: %1$d of %2$d searches left this month.', 'fraud-tenant-theme' ), (int) $allow['remaining'], (int) $allow['limit'] ) ); ?></p>
+			<?php endif; ?>
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="ft-form" autocomplete="off">
 				<input type="hidden" name="action" value="ft_owner_tenant_search">
 				<?php wp_nonce_field( 'ft_tenant_search_' . $owner_id, 'ft_tenant_search_nonce' ); ?>
@@ -84,9 +101,9 @@ $result   = $req_id ? TenantScreeningService::get_search_result( $owner_id, $req
 	<section class="ft-card">
 		<div class="ft-card-head"><h2><?php esc_html_e( 'What you will see', 'fraud-tenant-theme' ); ?></h2></div>
 		<ul class="ft-list">
-			<li><span><strong><?php esc_html_e( 'Free', 'fraud-tenant-theme' ); ?></strong> — <?php esc_html_e( 'whether reviewed records exist, and how many.', 'fraud-tenant-theme' ); ?></span></li>
-			<li><span><strong><?php esc_html_e( 'Standard', 'fraud-tenant-theme' ); ?></strong> — <?php esc_html_e( 'each record\'s category, date, amount, location (city/state), factual summary, review status and dispute status.', 'fraud-tenant-theme' ); ?></span></li>
-			<li><span><?php esc_html_e( 'Never shown: evidence files, the reporting owner, street addresses, or the tenant\'s dispute statements.', 'fraud-tenant-theme' ); ?></span></li>
+			<li><span><strong><?php esc_html_e( 'Free', 'fraud-tenant-theme' ); ?></strong> — <?php esc_html_e( 'up to 5 searches per month: whether reviewed records exist, and how many.', 'fraud-tenant-theme' ); ?></span></li>
+			<li><span><strong><?php esc_html_e( 'Standard', 'fraud-tenant-theme' ); ?></strong> — <?php esc_html_e( 'unlimited searches: each record\'s category, date, amount, location (city/state), factual summary, review status and dispute status, plus evidence downloads where our review team has approved them.', 'fraud-tenant-theme' ); ?></span></li>
+			<li><span><?php esc_html_e( 'Never shown: the reporting owner, street addresses, or the tenant\'s dispute statements. Evidence files are only available when our review team has approved them for member download.', 'fraud-tenant-theme' ); ?></span></li>
 		</ul>
 	</section>
 </div>

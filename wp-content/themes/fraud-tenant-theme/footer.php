@@ -89,9 +89,6 @@ $is_dashboard_page = is_page( array( 'owner-dashboard', 'tenant-dashboard' ) );
 			<div>
 				&copy; <?php echo esc_html( date( 'Y' ) ); ?> <?php bloginfo( 'name' ); ?>. <?php esc_html_e( 'All rights reserved.', 'fraud-tenant-theme' ); ?>
 			</div>
-			<div class="footer-disclaimer">
-				<?php esc_html_e( 'Educational & Compliance Notice: Fraud Tenant provides structured rental incident documentation and screening verification tools. Incident records represent factual dispute allegations subject to administrative review. An allegation or record does not by itself establish legal fraud or guilt. Production deployment requires formal legal review under the Fair Credit Reporting Act (FCRA) and applicable state laws.', 'fraud-tenant-theme' ); ?>
-			</div>
 		</div>
 	</div>
 </footer>

@@ -98,6 +98,9 @@ class MigrationManager {
 		self::reconcile_identity_sync_schema();
 		self::migrate_account_activation();
 
+		// 1.10.0: admin-controlled evidence download for Standard members in screening results (additive)
+		self::reconcile_evidence_member_access_schema();
+
 		update_option( Constants::DB_VERSION_OPTION, Constants::DB_VERSION );
 
 		// Identity data upgrade needs the match + encryption keys; it runs now if they are configured,
@@ -438,6 +441,18 @@ class MigrationManager {
 					$wpdb->query( "ALTER TABLE {$table} ADD KEY {$k} ({$k})" );
 				}
 			}
+		}
+	}
+
+	/**
+	 * Schema 1.10.0 (additive, idempotent): per-report switch letting Standard members download evidence
+	 * from screening results. Defaults to 0 (off) for every existing report.
+	 */
+	public static function reconcile_evidence_member_access_schema(): void {
+		global $wpdb;
+		$inc = $wpdb->prefix . Constants::TABLE_INCIDENT_REPORTS;
+		if ( ! $wpdb->get_row( $wpdb->prepare( "SHOW COLUMNS FROM {$inc} LIKE %s", 'evidence_member_access' ) ) ) {
+			$wpdb->query( "ALTER TABLE {$inc} ADD COLUMN evidence_member_access tinyint(1) NOT NULL DEFAULT 0" );
 		}
 	}
 

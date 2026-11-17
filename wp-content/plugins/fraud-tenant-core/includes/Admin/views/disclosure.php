@@ -81,6 +81,7 @@ if ( $rid ) {
 			$audiences = array(
 				'tenant'    => array( __( 'Subject tenant', 'fraud-tenant-core' ), (int) $r->disclosable, __( 'The verified tenant linked to this identity can view and dispute the report.', 'fraud-tenant-core' ) ),
 				'screening' => array( __( 'Owner screening results', 'fraud-tenant-core' ), (int) $r->screening_disclosure, __( 'Other owners who search this identity see it (free: count only; Standard: factual summary).', 'fraud-tenant-core' ) ),
+				'evidence'  => array( __( 'Evidence download for Standard members', 'fraud-tenant-core' ), (int) ( $r->evidence_member_access ?? 0 ), __( 'Standard members who find this report in a screening search can download its evidence files. Requires screening disclosure.', 'fraud-tenant-core' ) ),
 			);
 			foreach ( $audiences as $aud => $a ) :
 				?>

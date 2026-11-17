@@ -34,6 +34,7 @@ class ReportVisibilityService {
 
 	public const AUDIENCE_TENANT    = 'tenant';
 	public const AUDIENCE_SCREENING = 'screening';
+	public const AUDIENCE_EVIDENCE  = 'evidence'; // Standard members may download evidence from screening results.
 
 	/**
 	 * Whether a user may change disclosure settings.
@@ -111,7 +112,7 @@ class ReportVisibilityService {
 		if ( ! ComplianceService::is_data_gate_open() ) {
 			return array( 'success' => false, 'error' => 'locked_blk08', 'message' => __( 'Report disclosure is unavailable until tenant data protection is configured.', 'fraud-tenant-core' ) );
 		}
-		if ( ! in_array( $audience, array( self::AUDIENCE_TENANT, self::AUDIENCE_SCREENING ), true ) ) {
+		if ( ! in_array( $audience, array( self::AUDIENCE_TENANT, self::AUDIENCE_SCREENING, self::AUDIENCE_EVIDENCE ), true ) ) {
 			return array( 'success' => false, 'error' => 'invalid_audience', 'message' => __( 'Unknown disclosure audience.', 'fraud-tenant-core' ) );
 		}
 		$reason = trim( sanitize_textarea_field( $reason ) );
@@ -119,7 +120,7 @@ class ReportVisibilityService {
 			return array( 'success' => false, 'error' => 'reason_required', 'message' => __( 'Enter a reason for the disclosure change (at least 5 characters).', 'fraud-tenant-core' ) );
 		}
 		$table  = $wpdb->prefix . Constants::TABLE_INCIDENT_REPORTS;
-		$report = $wpdb->get_row( $wpdb->prepare( "SELECT id, owner_id, status, tenant_identity_id, disclosable, screening_disclosure FROM {$table} WHERE id = %d", $report_id ) );
+		$report = $wpdb->get_row( $wpdb->prepare( "SELECT id, owner_id, status, tenant_identity_id, disclosable, screening_disclosure, evidence_member_access FROM {$table} WHERE id = %d", $report_id ) );
 		if ( ! $report ) {
 			return array( 'success' => false, 'error' => 'not_found', 'message' => __( 'Incident report not found.', 'fraud-tenant-core' ) );
 		}
@@ -132,7 +133,8 @@ class ReportVisibilityService {
 		if ( $enable && empty( $report->tenant_identity_id ) ) {
 			return array( 'success' => false, 'error' => 'no_identity', 'message' => __( 'Link the report to the correct tenant identity before disclosing it.', 'fraud-tenant-core' ) );
 		}
-		$col     = self::AUDIENCE_TENANT === $audience ? 'disclosable' : 'screening_disclosure';
+		$cols    = array( self::AUDIENCE_TENANT => 'disclosable', self::AUDIENCE_SCREENING => 'screening_disclosure', self::AUDIENCE_EVIDENCE => 'evidence_member_access' );
+		$col     = $cols[ $audience ];
 		$current = (bool) $report->{$col};
 		if ( $current === $enable ) {
 			return array( 'success' => true, 'message' => __( 'No change: the disclosure setting was already in that state.', 'fraud-tenant-core' ) );
@@ -161,7 +163,7 @@ class ReportVisibilityService {
 	 * @param bool $screening Include in screening results.
 	 * @param int  $admin_id  Administrator.
 	 */
-	public static function apply_on_approval( int $report_id, bool $tenant, bool $screening, int $admin_id ): void {
+	public static function apply_on_approval( int $report_id, bool $tenant, bool $screening, int $admin_id, bool $evidence = false ): void {
 		global $wpdb;
 		$table  = $wpdb->prefix . Constants::TABLE_INCIDENT_REPORTS;
 		$report = $wpdb->get_row( $wpdb->prepare( "SELECT id, tenant_identity_id FROM {$table} WHERE id = %d AND status = %s", $report_id, Constants::INCIDENT_STATUS_APPROVED ) );
@@ -176,6 +178,7 @@ class ReportVisibilityService {
 				'screening_disclosure'   => $screening ? 1 : 0,
 				'screening_disclosed_by' => $screening ? $admin_id : null,
 				'screening_disclosed_at' => $screening ? $now : null,
+				'evidence_member_access' => $evidence ? 1 : 0,
 				'updated_at'             => $now,
 			),
 			array( 'id' => $report_id )
@@ -184,6 +187,9 @@ class ReportVisibilityService {
 		$uid      = $identity ? (int) $identity->user_id : null;
 		self::record_history( $report_id, $tenant ? 'tenant_disclosed' : 'tenant_withheld', $admin_id, __( 'Disclosure decided at approval.', 'fraud-tenant-core' ), (int) $report->tenant_identity_id, $uid, 'hidden', $tenant ? 'visible' : 'hidden' );
 		self::record_history( $report_id, $screening ? 'screening_disclosed' : 'screening_withheld', $admin_id, __( 'Disclosure decided at approval.', 'fraud-tenant-core' ), (int) $report->tenant_identity_id, $uid, 'hidden', $screening ? 'visible' : 'hidden' );
+		if ( $evidence ) {
+			self::record_history( $report_id, 'evidence_disclosed', $admin_id, __( 'Disclosure decided at approval.', 'fraud-tenant-core' ), (int) $report->tenant_identity_id, $uid, 'hidden', 'visible' );
+		}
 		if ( $tenant ) {
 			self::notify_tenant_record_available( $report_id );
 		}
@@ -352,7 +358,7 @@ class ReportVisibilityService {
 		}
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT r.id, r.owner_id, r.category, r.incident_date, r.amount_involved, r.factual_description, r.created_at, r.updated_at,
+				"SELECT r.id, r.owner_id, r.category, r.incident_date, r.amount_involved, r.factual_description, r.evidence_member_access, r.created_at, r.updated_at,
 				        p.city AS property_city, p.state AS property_state,
 				        (SELECT d.status FROM {$d} d WHERE d.report_id = r.id ORDER BY d.id DESC LIMIT 1) AS dispute_status,
 				        (SELECT d.resolution_action FROM {$d} d WHERE d.report_id = r.id ORDER BY d.id DESC LIMIT 1) AS dispute_action
@@ -378,9 +384,63 @@ class ReportVisibilityService {
 				'dispute'        => self::dispute_label( (string) $row->dispute_status, (string) $row->dispute_action ),
 				'dispute_state'  => (string) ( $row->dispute_status ?: 'none' ),
 				'own_report'     => (int) $row->owner_id === $viewer_id,
+				'evidence'       => self::screening_evidence_files( (int) $row->id, (int) $row->evidence_member_access ),
 			);
 		}
 		return $out;
+	}
+
+	/**
+	 * Evidence files a Standard member may download for a screening record (empty unless an administrator
+	 * enabled it for the report). Download is re-authorised on every request in DocumentService.
+	 *
+	 * @param int $report_id Report.
+	 * @param int $enabled   evidence_member_access flag.
+	 * @return array<int, array{id: int, name: string, size: string, url: string}>
+	 */
+	protected static function screening_evidence_files( int $report_id, int $enabled ): array {
+		global $wpdb;
+		if ( ! $enabled ) {
+			return array();
+		}
+		$docs = $wpdb->get_results( $wpdb->prepare( "SELECT id, original_name, file_size FROM {$wpdb->prefix}" . Constants::TABLE_DOCUMENTS . " WHERE object_type = 'incident_evidence' AND object_id = %d ORDER BY id ASC", $report_id ) ) ?: array();
+		$out  = array();
+		foreach ( $docs as $doc ) {
+			$out[] = array(
+				'id'   => (int) $doc->id,
+				'name' => (string) $doc->original_name,
+				'size' => size_format( (int) $doc->file_size ),
+				'url'  => add_query_arg( array( 'action' => 'ft_view_document', 'document_id' => (int) $doc->id, '_wpnonce' => wp_create_nonce( 'ft_view_doc_' . (int) $doc->id ) ), admin_url( 'admin-post.php' ) ),
+			);
+		}
+		return $out;
+	}
+
+	/**
+	 * Whether a Standard member may download an incident evidence document through screening results:
+	 * the report is approved, released to screening, evidence sharing is on, the member has Standard
+	 * access, and one of the member's own searches returned that report.
+	 *
+	 * @param int $report_id Report.
+	 * @param int $user_id   Member.
+	 * @return bool
+	 */
+	public static function member_can_download_evidence( int $report_id, int $user_id ): bool {
+		global $wpdb;
+		if ( $report_id <= 0 || $user_id <= 0 || ! MembershipService::can_access_feature( $user_id, 'full_reports' ) || ! ComplianceService::owner_search_ready() ) {
+			return false;
+		}
+		$report = $wpdb->get_row( $wpdb->prepare( "SELECT tenant_identity_id FROM {$wpdb->prefix}" . Constants::TABLE_INCIDENT_REPORTS . ' WHERE id = %d AND status = %s AND screening_disclosure = 1 AND evidence_member_access = 1 AND tenant_identity_id IS NOT NULL', $report_id, Constants::INCIDENT_STATUS_APPROVED ) );
+		if ( ! $report ) {
+			return false;
+		}
+		$snapshots = $wpdb->get_col( $wpdb->prepare( "SELECT matched_report_ids FROM {$wpdb->prefix}" . Constants::TABLE_SCREENING_REQUESTS . ' WHERE owner_id = %d AND tenant_identity_id = %d', $user_id, (int) $report->tenant_identity_id ) ) ?: array();
+		foreach ( $snapshots as $json ) {
+			if ( in_array( $report_id, array_map( 'intval', (array) json_decode( (string) $json, true ) ), true ) ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

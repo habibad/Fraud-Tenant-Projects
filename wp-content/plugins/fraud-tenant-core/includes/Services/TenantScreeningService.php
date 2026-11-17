@@ -31,6 +31,9 @@ class TenantScreeningService {
 
 	public const MAX_SEARCHES_PER_DAY = 50;
 
+	/** Free plan: screening searches allowed per calendar month (resets on the 1st, site time zone). */
+	public const FREE_SEARCHES_PER_MONTH = 5;
+
 	/**
 	 * Register request handlers.
 	 */
@@ -51,6 +54,28 @@ class TenantScreeningService {
 	}
 
 	/**
+	 * Free-plan monthly allowance. Standard members are unlimited (limit = null).
+	 * Only searches run at the Free level count, so searches made while on Standard never use up the allowance.
+	 *
+	 * @param int $owner_id Owner.
+	 * @return array{limited: bool, limit: int|null, used: int, remaining: int|null}
+	 */
+	public static function get_monthly_allowance( int $owner_id ): array {
+		if ( MembershipService::can_access_feature( $owner_id, 'full_reports' ) ) {
+			return array( 'limited' => false, 'limit' => null, 'used' => 0, 'remaining' => null );
+		}
+		global $wpdb;
+		$start = ( new \DateTimeImmutable( 'first day of this month midnight', wp_timezone() ) )->setTimezone( new \DateTimeZone( 'UTC' ) )->format( 'Y-m-d H:i:s' );
+		$used  = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}" . Constants::TABLE_SCREENING_REQUESTS . ' WHERE owner_id = %d AND disclosure_level = %s AND search_date >= %s', $owner_id, self::RESULT_BASIC, $start ) );
+		return array(
+			'limited'   => true,
+			'limit'     => self::FREE_SEARCHES_PER_MONTH,
+			'used'      => $used,
+			'remaining' => max( 0, self::FREE_SEARCHES_PER_MONTH - $used ),
+		);
+	}
+
+	/**
 	 * Owner search by applicant identity.
 	 *
 	 * @param int   $owner_id Owner.
@@ -67,6 +92,15 @@ class TenantScreeningService {
 		}
 		if ( ! ComplianceService::owner_search_ready() ) {
 			return array( 'success' => false, 'error' => 'screening_unavailable', 'message' => __( 'Tenant screening is not available on this platform yet.', 'fraud-tenant-core' ) );
+		}
+		$allowance = self::get_monthly_allowance( $owner_id );
+		if ( $allowance['limited'] && $allowance['remaining'] <= 0 ) {
+			return array(
+				'success' => false,
+				'error'   => 'monthly_limit_reached',
+				/* translators: %d: free monthly search limit */
+				'message' => sprintf( __( 'You have used all %d free screening searches for this month. Your free searches reset next month, or upgrade to Standard for unlimited searches.', 'fraud-tenant-core' ), (int) $allowance['limit'] ),
+			);
 		}
 		if ( ! self::within_daily_cap( $owner_id ) || ! ScreeningService::check_rate_limit( $owner_id ) ) {
 			return array( 'success' => false, 'error' => 'rate_limited', 'message' => __( 'Too many screening searches. Please wait before searching again.', 'fraud-tenant-core' ) );

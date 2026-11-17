@@ -412,6 +412,12 @@ class DocumentService {
 
 		$is_owner = ( (int) $doc->user_id === (int) $requesting_user_id );
 
+		// Standard members may download incident evidence an administrator released for screening.
+		$is_screening_member = false;
+		if ( ! $is_reviewer && ! $is_owner && 'incident_evidence' === $doc->object_type && (int) $doc->object_id > 0 ) {
+			$is_screening_member = ReportVisibilityService::member_can_download_evidence( (int) $doc->object_id, (int) $requesting_user_id );
+		}
+
 		// Strictly cross-verify property ownership linkage for property documents
 		if ( $is_owner && 'property_ownership' === $doc->object_type && $doc->object_id > 0 ) {
 			$property = PropertyService::get_property( (int) $doc->object_id );
@@ -456,7 +462,7 @@ class DocumentService {
 		// streamed to the subject tenant or to screening owners (the report narrative is disclosed instead).
 		$is_associated_tenant = false;
 
-		if ( ! $is_reviewer && ! $is_owner ) {
+		if ( ! $is_reviewer && ! $is_owner && ! $is_screening_member ) {
 			AuditLogger::log(
 				'document.access_denied',
 				'document',
@@ -512,8 +518,8 @@ class DocumentService {
 		}
 
 		// 5. Audit Log Authorized Access
-		$event_name = $is_reviewer ? 'admin.document_viewed' : ( $is_associated_tenant ? 'tenant.document_viewed' : ( 'dispute_evidence' === $doc->object_type ? 'tenant.dispute_evidence_viewed' : 'owner.document_viewed' ) );
-		$actor_role = $is_reviewer ? 'reviewer' : ( $is_associated_tenant ? 'tenant' : ( 'dispute_evidence' === $doc->object_type ? 'disputant_tenant' : 'owner' ) );
+		$event_name = $is_reviewer ? 'admin.document_viewed' : ( $is_screening_member ? 'owner.screening_evidence_downloaded' : ( $is_associated_tenant ? 'tenant.document_viewed' : ( 'dispute_evidence' === $doc->object_type ? 'tenant.dispute_evidence_viewed' : 'owner.document_viewed' ) ) );
+		$actor_role = $is_reviewer ? 'reviewer' : ( $is_screening_member ? 'screening_member' : ( $is_associated_tenant ? 'tenant' : ( 'dispute_evidence' === $doc->object_type ? 'disputant_tenant' : 'owner' ) ) );
 		AuditLogger::log(
 			$event_name,
 			'document',

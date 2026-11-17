@@ -341,7 +341,7 @@ p:last-child { margin-bottom: 0; }
    ------------------------------------------------------------- */
 .hero-section {
   padding-top: 60px;
-  padding-bottom: 70px;
+  padding-bottom: 0px;
   background: linear-gradient(180deg, #FFFFFF 0%, var(--ft-bg) 100%);
   position: relative;
   overflow: hidden;
@@ -484,6 +484,9 @@ p:last-child { margin-bottom: 0; }
 /* -------------------------------------------------------------
    6. HOW IT WORKS (4 STEPS)
    ------------------------------------------------------------- */
+section#how-it-works{
+	padding-top: 50px !important;
+}
 .process-grid {
   display: flex;
   align-items: center;

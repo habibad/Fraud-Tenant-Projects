@@ -24,7 +24,7 @@ $props = array_values( array_filter( $d['properties'], static fn( $p ) => 'verif
 	<div class="ft-lock">
 		<?php echo ft_icon( 'fileplus' ); // phpcs:ignore ?>
 		<div><strong><?php esc_html_e( 'Incident reporting is a Standard membership feature', 'fraud-tenant-theme' ); ?></strong>
-			<p class="ft-muted"><?php esc_html_e( 'Upgrade to Standard ($29/month or $290/year) to submit incident reports and see full screening details.', 'fraud-tenant-theme' ); ?></p>
+			<p class="ft-muted"><?php esc_html_e( 'Upgrade to Standard ($5/month or $40/year) to submit incident reports and see full screening details.', 'fraud-tenant-theme' ); ?></p>
 			<a class="ft-btn ft-btn-primary" href="<?php echo esc_url( ft_app_url( $base, 'membership' ) ); ?>"><?php esc_html_e( 'Upgrade to Standard', 'fraud-tenant-theme' ); ?></a></div>
 	</div>
 	<?php return; ?>
